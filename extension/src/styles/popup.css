@@ -80,7 +80,8 @@ body {
 .top-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 10px;
   padding: 10px 16px;
   border-bottom: 1px solid #f0f0f0;
   background: white;
@@ -99,7 +100,8 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .client-logo {
@@ -174,16 +176,21 @@ body {
   font-size: 13px;
   color: #202124;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .context-display {
-  flex: 1;
-  margin: 0 12px;
+  flex: 1 1 auto;
+  margin: 0;
   font-size: 11px;
   color: #5f6368;
   display: flex;
   align-items: center;
   gap: 6px;
+  justify-content: center;
+  min-width: 0;
 }
 
 .status-indicator {
@@ -626,14 +633,18 @@ body {
 
 .chat-input {
   flex: 1;
+  width: 100%;
+  min-width: 0;
   padding: 8px 12px;
   border: 1px solid #e0e0e0;
-  border-radius: 20px;
+  border-radius: 12px;
   font-size: 13px;
   outline: none;
   resize: none;
   overflow: hidden;
   line-height: 1.4;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .chat-input:focus {
