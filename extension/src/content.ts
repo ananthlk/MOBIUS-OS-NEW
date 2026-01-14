@@ -112,11 +112,15 @@ async function initSidebar() {
   topRow.appendChild(headerLeft);
   let contextDisplayEl = ContextDisplay({ status: currentStatus, mode: currentMode });
   topRow.appendChild(contextDisplayEl);
-  topRow.appendChild(AlertButton({ 
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'header-actions';
+  headerActions.appendChild(AlertButton({ 
     hasAlerts: false, 
     onClick: () => alert('Live Alerts:\n- No active alerts') 
   }));
-  topRow.appendChild(SettingsButton({ onClick: () => alert('Settings') }));
+  headerActions.appendChild(SettingsButton({ onClick: () => alert('Settings') }));
+  topRow.appendChild(headerActions);
   
   sidebarContainer.appendChild(topRow);
 

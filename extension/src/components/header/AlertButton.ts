@@ -12,6 +12,8 @@ export function AlertButton({ hasAlerts, onClick }: AlertButtonProps): HTMLEleme
   const button = document.createElement('button');
   button.className = `alert-btn ${hasAlerts ? 'has-alerts' : ''}`;
   button.title = 'Live Alerts';
+  // Use a minimal icon (not a bell) to match the current scheme.
+  button.textContent = '◉';
   button.addEventListener('click', onClick);
   return button;
 }
