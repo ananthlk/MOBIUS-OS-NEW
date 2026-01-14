@@ -12,6 +12,33 @@
 #mobius-os-sidebar {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Google Sans', sans-serif;
   background: #ffffff;
+  color: #202124;
+}
+
+/* Subtle, modern look */
+#mobius-os-sidebar {
+  border-left: 1px solid rgba(60, 64, 67, 0.15);
+}
+
+#mobius-os-sidebar button,
+#mobius-os-sidebar input,
+#mobius-os-sidebar select {
+  font: inherit;
+}
+
+#mobius-os-sidebar button {
+  cursor: pointer;
+}
+
+#mobius-os-sidebar .top-row,
+#mobius-os-sidebar .second-row,
+#mobius-os-sidebar .tasks-panel,
+#mobius-os-sidebar .chat-input-area,
+#mobius-os-sidebar .record-id-input,
+#mobius-os-sidebar .workflow-buttons,
+#mobius-os-sidebar .footer {
+  padding-left: 14px;
+  padding-right: 14px;
 }
 
 /* Top Row / Header */
@@ -19,8 +46,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(60, 64, 67, 0.12);
   background: white;
   flex-shrink: 0;
 }
@@ -36,7 +64,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11px;
   color: #5f6368;
   min-width: 100px;
 }
@@ -99,7 +127,7 @@
 
 #mobius-os-sidebar .logo-label {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 12px;
   color: #202124;
 }
 
@@ -111,6 +139,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #mobius-os-sidebar .status-indicator {
@@ -138,8 +169,8 @@
 #mobius-os-sidebar .mode-badge {
   display: inline-block;
   padding: 3px 8px;
-  background: #e3f2fd;
-  color: #1976d2;
+  background: rgba(26, 115, 232, 0.10);
+  color: #1a73e8;
   border-radius: 12px;
   font-size: 10px;
   font-weight: 600;
@@ -151,7 +182,7 @@
 #mobius-os-sidebar .settings-btn {
   width: 32px;
   height: 32px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid rgba(60, 64, 67, 0.18);
   background: white;
   border-radius: 6px;
   cursor: pointer;
@@ -177,8 +208,9 @@
 
 /* Second Row */
 #mobius-os-sidebar .second-row {
-  padding: 10px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(60, 64, 67, 0.12);
   background: white;
   flex-shrink: 0;
 }
@@ -192,10 +224,10 @@
 
 #mobius-os-sidebar .quick-action-btn {
   display: inline-block;
-  padding: 6px 12px;
-  background: #1976d2;
+  padding: 7px 12px;
+  background: #1a73e8;
   color: white;
-  border-radius: 6px;
+  border-radius: 10px;
   font-size: 12px;
   cursor: pointer;
   border: none;
@@ -207,38 +239,76 @@
 
 /* Tasks Panel */
 #mobius-os-sidebar .tasks-panel {
-  padding: 8px 16px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #fafafa;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(60, 64, 67, 0.12);
+  background: #fff;
   max-height: 150px;
   overflow-y: auto;
   flex-shrink: 0;
+}
+
+#mobius-os-sidebar .tasks-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5f6368;
+  margin-bottom: 6px;
+}
+
+#mobius-os-sidebar .tasks-panel-content {
+  display: none;
+}
+
+#mobius-os-sidebar .tasks-panel-content.show {
+  display: block;
+}
+
+#mobius-os-sidebar .task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #202124;
+}
+
+#mobius-os-sidebar .task-item.shared {
+  color: #1a73e8;
+}
+
+#mobius-os-sidebar .task-item.backend {
+  color: #5f6368;
+  font-style: italic;
 }
 
 /* Chat Area */
 #mobius-os-sidebar .chat-area {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 14px;
   background: white;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   min-height: 0;
   flex-shrink: 1;
 }
 
 #mobius-os-sidebar .message {
   max-width: 75%;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
   font-size: 13px;
   line-height: 1.5;
 }
 
 #mobius-os-sidebar .system-message {
   align-self: flex-start;
-  background: #f8f9fa;
+  background: rgba(60, 64, 67, 0.06);
   border: none;
   color: #202124;
 }
@@ -261,8 +331,9 @@
 
 /* Chat Input */
 #mobius-os-sidebar .chat-input-area {
-  padding: 12px 16px;
-  border-top: 1px solid #e0e0e0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid rgba(60, 64, 67, 0.12);
   background: white;
   display: flex;
   align-items: center;
@@ -273,20 +344,80 @@
 #mobius-os-sidebar .chat-input {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 20px;
+  border: 1px solid rgba(60, 64, 67, 0.18);
+  border-radius: 999px;
   font-size: 13px;
   outline: none;
+  background: #fff;
 }
 
 #mobius-os-sidebar .chat-input:focus {
-  border-color: #1976d2;
+  border-color: #1a73e8;
+}
+
+/* Chat tools (make compact, not stacked) */
+#mobius-os-sidebar .chat-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#mobius-os-sidebar .chat-tool-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(60, 64, 67, 0.18);
+  background: white;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+#mobius-os-sidebar .chat-tool-btn:hover {
+  background: rgba(60, 64, 67, 0.06);
+}
+
+#mobius-os-sidebar .tools-menu {
+  position: relative;
+}
+
+#mobius-os-sidebar .tools-dropdown {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 6px;
+  background: white;
+  border: 1px solid rgba(60, 64, 67, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+  display: none;
+  flex-direction: column;
+  min-width: 140px;
+  z-index: 2;
+}
+
+#mobius-os-sidebar .tools-dropdown.show {
+  display: flex;
+}
+
+#mobius-os-sidebar .tools-dropdown button {
+  padding: 10px 12px;
+  border: none;
+  background: white;
+  text-align: left;
+  font-size: 12px;
+}
+
+#mobius-os-sidebar .tools-dropdown button:hover {
+  background: rgba(60, 64, 67, 0.06);
 }
 
 /* Record ID Input */
 #mobius-os-sidebar .record-id-input {
-  padding: 8px 16px;
-  border-top: 1px solid #e0e0e0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-top: 1px solid rgba(60, 64, 67, 0.12);
   background: white;
   display: flex;
   align-items: center;
@@ -294,22 +425,98 @@
   flex-shrink: 0;
 }
 
+#mobius-os-sidebar .record-id-input label {
+  font-size: 11px;
+  color: #5f6368;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#mobius-os-sidebar .record-id-input select {
+  padding: 6px 8px;
+  border: 1px solid rgba(60, 64, 67, 0.18);
+  border-radius: 8px;
+  font-size: 12px;
+  background: #fff;
+}
+
+#mobius-os-sidebar .record-id-input input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid rgba(60, 64, 67, 0.18);
+  border-radius: 8px;
+  font-size: 12px;
+  outline: none;
+}
+
 /* Workflow Buttons */
 #mobius-os-sidebar .workflow-buttons {
-  padding: 8px 16px;
-  border-top: 1px solid #e0e0e0;
-  background: #fafafa;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-top: 1px solid rgba(60, 64, 67, 0.12);
+  background: #fff;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   flex-shrink: 0;
 }
 
+#mobius-os-sidebar .context-button {
+  padding: 8px 10px;
+  background: rgba(60, 64, 67, 0.06);
+  border: 1px solid rgba(60, 64, 67, 0.10);
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+#mobius-os-sidebar .context-button:hover {
+  background: rgba(60, 64, 67, 0.10);
+}
+
 /* Footer */
 #mobius-os-sidebar .footer {
-  padding: 12px 16px;
-  border-top: 1px solid #e0e0e0;
-  background: #fafafa;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid rgba(60, 64, 67, 0.12);
+  background: #fff;
   flex-shrink: 0;
+}
+
+#mobius-os-sidebar .user-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#mobius-os-sidebar .user-info {
+  font-size: 12px;
+  color: #5f6368;
+}
+
+#mobius-os-sidebar .preferences {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  align-items: center;
+}
+
+#mobius-os-sidebar .preference-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: 8px;
+}
+
+#mobius-os-sidebar .preference-item:hover {
+  background: rgba(60, 64, 67, 0.06);
+}
+
+#mobius-os-sidebar .pref-value {
+  color: #1a73e8;
+  font-weight: 600;
+  font-size: 11px;
 }
 
