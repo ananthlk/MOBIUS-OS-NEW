@@ -16,7 +16,7 @@ export function ThinkingBox({ content, isCollapsed = false }: ThinkingBoxProps):
   header.className = 'thinking-box-header';
   
   const label = document.createElement('span');
-  label.textContent = '🤔 System Thinking';
+  label.textContent = 'Thinking';
   
   const arrow = document.createElement('span');
   arrow.className = `thinking-box-arrow ${isCollapsed ? 'collapsed' : ''}`;
@@ -30,7 +30,7 @@ export function ThinkingBox({ content, isCollapsed = false }: ThinkingBoxProps):
   contentDiv.textContent = content.join('\n');
   
   header.addEventListener('click', () => {
-    const newCollapsed = !contentDiv.classList.contains('collapsed');
+    // Toggle collapsed state
     contentDiv.classList.toggle('collapsed');
     arrow.classList.toggle('collapsed');
   });

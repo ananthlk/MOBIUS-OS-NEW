@@ -43,35 +43,6 @@ describe('Chat Mode Integration Tests', () => {
 
       // Step 2: Mock successful API response
       const testMessage = 'Hello from integration test';
-      const uiDefaults = {
-        clientLogo: true,
-        mobiusLogo: true,
-        statusIndicator: true,
-        modeBadge: true,
-        alertButton: true,
-        settingsButton: true,
-        contextDisplay: true,
-        contextSummary: true,
-        quickActionButton: true,
-        tasksPanel: true,
-        taskItem: true,
-        thinkingBox: true,
-        systemMessage: true,
-        userMessage: true,
-        feedbackComponent: true,
-        guidanceActions: true,
-        chatInput: true,
-        chatTools: true,
-        recordIdInput: true,
-        workflowButtons: true,
-        userDetails: true,
-        preferencesPanel: true,
-        chatMessage: true,
-        header: true,
-        chatArea: true,
-        collapsiblePanel: true,
-        dropdownMenu: true
-      };
       const mockResponse = {
         success: true,
         session_id: sessionId,
@@ -83,7 +54,6 @@ describe('Chat Mode Integration Tests', () => {
           timestamp: new Date().toISOString(),
           context: {}
         },
-        ui_defaults: uiDefaults,
         messages: [
           { kind: 'replayed', content: `${testMessage}`, ui_overrides: { feedbackComponent: false } },
           { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }
@@ -113,35 +83,6 @@ describe('Chat Mode Integration Tests', () => {
       const responses = [];
 
       for (const message of messages) {
-        const uiDefaults = {
-          clientLogo: true,
-          mobiusLogo: true,
-          statusIndicator: true,
-          modeBadge: true,
-          alertButton: true,
-          settingsButton: true,
-          contextDisplay: true,
-          contextSummary: true,
-          quickActionButton: true,
-          tasksPanel: true,
-          taskItem: true,
-          thinkingBox: true,
-          systemMessage: true,
-          userMessage: true,
-          feedbackComponent: true,
-          guidanceActions: true,
-          chatInput: true,
-          chatTools: true,
-          recordIdInput: true,
-          workflowButtons: true,
-          userDetails: true,
-          preferencesPanel: true,
-          chatMessage: true,
-          header: true,
-          chatArea: true,
-          collapsiblePanel: true,
-          dropdownMenu: true
-        };
         const mockResponse = {
           success: true,
           session_id: sessionId,
@@ -153,7 +94,6 @@ describe('Chat Mode Integration Tests', () => {
             timestamp: new Date().toISOString(),
             context: {}
           },
-          ui_defaults: uiDefaults,
           messages: [
             { kind: 'replayed', content: `${message}`, ui_overrides: { feedbackComponent: false } },
             { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }

@@ -64,36 +64,6 @@ describe('Chat Mode API Service - Unit Tests', () => {
 
   describe('Message Sending', () => {
     test('should send message successfully', async () => {
-      const uiDefaults = {
-        clientLogo: true,
-        mobiusLogo: true,
-        statusIndicator: true,
-        modeBadge: true,
-        alertButton: true,
-        settingsButton: true,
-        contextDisplay: true,
-        contextSummary: true,
-        quickActionButton: true,
-        tasksPanel: true,
-        taskItem: true,
-        thinkingBox: true,
-        systemMessage: true,
-        userMessage: true,
-        feedbackComponent: true,
-        guidanceActions: true,
-        chatInput: true,
-        chatTools: true,
-        recordIdInput: true,
-        workflowButtons: true,
-        userDetails: true,
-        preferencesPanel: true,
-        chatMessage: true,
-        header: true,
-        chatArea: true,
-        collapsiblePanel: true,
-        dropdownMenu: true
-      };
-
       const mockResponse = {
         success: true,
         session_id: testSessionId,
@@ -105,7 +75,6 @@ describe('Chat Mode API Service - Unit Tests', () => {
           timestamp: new Date().toISOString(),
           context: {}
         },
-        ui_defaults: uiDefaults,
         messages: [
           { kind: 'replayed', content: `${testMessage}`, ui_overrides: { feedbackComponent: false } },
           { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }
@@ -182,36 +151,6 @@ describe('Chat Mode API Service - Unit Tests', () => {
 
   describe('Response Handling', () => {
     test('should parse successful response', async () => {
-      const uiDefaults = {
-        clientLogo: true,
-        mobiusLogo: true,
-        statusIndicator: true,
-        modeBadge: true,
-        alertButton: true,
-        settingsButton: true,
-        contextDisplay: true,
-        contextSummary: true,
-        quickActionButton: true,
-        tasksPanel: true,
-        taskItem: true,
-        thinkingBox: true,
-        systemMessage: true,
-        userMessage: true,
-        feedbackComponent: true,
-        guidanceActions: true,
-        chatInput: true,
-        chatTools: true,
-        recordIdInput: true,
-        workflowButtons: true,
-        userDetails: true,
-        preferencesPanel: true,
-        chatMessage: true,
-        header: true,
-        chatArea: true,
-        collapsiblePanel: true,
-        dropdownMenu: true
-      };
-
       const mockResponse = {
         success: true,
         session_id: testSessionId,
@@ -223,7 +162,6 @@ describe('Chat Mode API Service - Unit Tests', () => {
           timestamp: new Date().toISOString(),
           context: {}
         },
-        ui_defaults: uiDefaults,
         messages: [
           { kind: 'replayed', content: `${testMessage}`, ui_overrides: { feedbackComponent: false } },
           { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }

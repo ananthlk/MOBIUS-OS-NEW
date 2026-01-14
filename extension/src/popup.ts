@@ -32,6 +32,8 @@ async function toggleSidebarOnActiveTab(): Promise<{ ok: true } | { ok: false; r
 import { getOrCreateSessionId } from './utils/session';
 import { sendChatMessage } from './services/api';
 import { getUiDefaultsForMode } from './utils/uiDefaults';
+import { getLayoutForMode } from './utils/modeLayout';
+import { renderSection } from './utils/uiLayout';
 import { 
   ClientLogo, 
   MobiusLogo, 
@@ -50,6 +52,15 @@ import {
   PreferencesPanel
 } from './components';
 import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode } from './types';
+
+const componentRegistry = {
+  contextSummary: ContextSummary,
+  quickActionButton: QuickActionButton,
+  recordIdInput: RecordIDInput,
+  workflowButtons: WorkflowButtons,
+  tasksPanel: TasksPanel,
+  chatInput: ChatInput,
+} as const;
 
 // App state
 let sessionId: string;
@@ -126,15 +137,9 @@ async function init() {
   // Second row - context summary
   const secondRow = document.createElement('div');
   secondRow.className = 'second-row';
-  const contextSummaryEl = ContextSummary({ 
-    summary: 'Chat mode active - ready to assist with questions and tasks.' 
-  });
-  const quickActionEl = QuickActionButton({ 
-    label: 'Start Chat', 
-    onClick: () => console.log('Quick action clicked') 
-  });
-  secondRow.appendChild(contextSummaryEl);
-  secondRow.appendChild(quickActionEl);
+  const contextMount = document.createElement('div');
+  contextMount.className = 'context-mount';
+  secondRow.appendChild(contextMount);
   app.appendChild(secondRow);
 
   // Tasks panel
@@ -271,27 +276,6 @@ async function init() {
   });
   app.appendChild(chatInput);
 
-  // Record ID input
-  const recordInput = RecordIDInput({
-    recordType,
-    value: recordId,
-    onChange: (type, value) => {
-      recordType = type;
-      recordId = value;
-      console.log('Record ID changed:', type, value);
-    }
-  });
-  app.appendChild(recordInput);
-
-  // Workflow buttons
-  const workflowButtons = WorkflowButtons({
-    buttons: [
-      { label: 'Generate Report', onClick: () => console.log('Generate report') },
-      { label: 'Schedule Follow-up', onClick: () => console.log('Schedule follow-up') }
-    ]
-  });
-  app.appendChild(workflowButtons);
-
   // Footer
   const footer = document.createElement('div');
   footer.className = 'footer';
@@ -319,21 +303,21 @@ async function init() {
   footer.appendChild(footerRow);
   app.appendChild(footer);
 
-  function applyModeUiDefaults(mode: string) {
+  function renderMode(mode: string) {
     const ui = getUiDefaultsForMode(mode);
+    const layout = getLayoutForMode(mode);
+
+    // Render dynamic context instances (multi-instance capable).
+    renderSection(contextMount, layout.context, ui, componentRegistry);
 
     setVisible(topRow, ui.header);
-    setVisible(contextSummaryEl, ui.contextSummary);
-    setVisible(quickActionEl, ui.quickActionButton);
-    setVisible(secondRow, ui.contextSummary || ui.quickActionButton);
     setVisible(tasksPanel, ui.tasksPanel);
     setVisible(chatAreaContainer, ui.chatArea);
     setVisible(chatInput, ui.chatInput);
-    setVisible(recordInput, ui.recordIdInput);
-    setVisible(workflowButtons, ui.workflowButtons);
     setVisible(userDetailsEl, ui.userDetails);
     setVisible(preferencesEl, ui.preferencesPanel);
     setVisible(footer, ui.userDetails || ui.preferencesPanel);
+    setVisible(secondRow, contextMount.childElementCount > 0);
   }
 
   function setMode(nextMode: string) {
@@ -343,14 +327,14 @@ async function init() {
     topRow.replaceChild(nextContext, contextDisplayEl);
     contextDisplayEl = nextContext;
 
-    applyModeUiDefaults(currentMode);
+    renderMode(currentMode);
   }
 
   // Example hook for future mode changes:
   // quickActionEl.addEventListener('click', () => setMode('Chat'));
 
   // Apply initial mode defaults.
-  applyModeUiDefaults(currentMode);
+  renderMode(currentMode);
 
   // Initial render
   renderMessages();

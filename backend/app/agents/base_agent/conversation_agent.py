@@ -49,6 +49,28 @@ class ConversationAgent:
         "dropdownMenu",
     ]
 
+    def get_ui_defaults_for_mode(self, mode: str | None = None) -> dict:
+        """
+        Mode-aware default UI visibility.
+
+        Note: The client is the source of truth for UI layout; the backend should generally only
+        send per-message ui_overrides. This helper exists for parity/future use.
+        """
+        base = {key: True for key in self.UI_COMPONENT_KEYS}
+        normalized = (mode or "").strip().lower()
+
+        # v1: only Chat. Extend this dict as new backend modes are introduced.
+        per_mode_overrides: dict[str, dict] = {
+            "chat": {
+                # Default: feedback UI off unless enabled per-message.
+                "feedbackComponent": False,
+            }
+        }
+
+        overrides = per_mode_overrides.get(normalized) or {}
+        base.update(overrides)
+        return base
+
     def get_ui_defaults(self) -> dict:
         """
         Default UI visibility: all components visible.
