@@ -7,6 +7,7 @@ import { SystemMessage as SystemMessageType } from '../../types';
 import { ThinkingBox } from './ThinkingBox';
 import { FeedbackComponent } from '../feedback/FeedbackComponent';
 import { GuidanceActions } from '../guidance/GuidanceActions';
+import { MessageTools } from './MessageTools';
 
 export interface SystemMessageProps {
   message: SystemMessageType;
@@ -16,6 +17,12 @@ export interface SystemMessageProps {
 export function SystemMessage({ message, onFeedbackSubmit }: SystemMessageProps): HTMLElement {
   const container = document.createElement('div');
   container.className = 'message system-message';
+
+  // Header row: tools menu (collapsed by default)
+  const header = document.createElement('div');
+  header.className = 'message-header';
+  header.appendChild(MessageTools({ text: message.content }));
+  container.appendChild(header);
   
   // Thinking box
   if (message.thinkingBox) {
@@ -27,7 +34,7 @@ export function SystemMessage({ message, onFeedbackSubmit }: SystemMessageProps)
   
   // Message content
   const content = document.createElement('div');
-  content.style.marginTop = '8px';
+  content.className = 'message-content';
   content.textContent = message.content;
   container.appendChild(content);
   

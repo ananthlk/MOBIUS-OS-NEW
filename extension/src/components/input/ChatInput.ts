@@ -1,9 +1,7 @@
 /**
  * ChatInput Component
- * Input field for chat messages with tools
+ * Multiline input for chat messages (wraps)
  */
-
-import { ChatTools } from './ChatTools';
 
 export interface ChatInputProps {
   onSend: (message: string) => void;
@@ -14,20 +12,31 @@ export function ChatInput({ onSend, placeholder = 'Type your message...' }: Chat
   const container = document.createElement('div');
   container.className = 'chat-input-area';
   
-  const input = document.createElement('input');
-  input.type = 'text';
+  const input = document.createElement('textarea');
   input.className = 'chat-input';
   input.placeholder = placeholder;
-  
-  input.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && input.value.trim()) {
-      onSend(input.value.trim());
+  input.rows = 1;
+
+  const autosize = () => {
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
+  };
+  input.addEventListener('input', autosize);
+  autosize();
+
+  input.addEventListener('keydown', (e) => {
+    // Enter sends, Shift+Enter adds a newline
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      onSend(text);
       input.value = '';
+      autosize();
     }
   });
-  
+
   container.appendChild(input);
-  container.appendChild(ChatTools({}));
   
   return container;
 }
