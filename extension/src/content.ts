@@ -6,6 +6,7 @@
 import './styles/sidebar.css';
 import { getOrCreateSessionId } from './utils/session';
 import { sendChatMessage } from './services/api';
+import { getUiDefaultsForMode } from './utils/uiDefaults';
 import { 
   ClientLogo, 
   MobiusLogo, 
@@ -180,7 +181,8 @@ async function initSidebar() {
         // Send to backend
         const response = await sendChatMessage(messageText, sessionId);
 
-        const uiDefaults = response.ui_defaults || ({} as any);
+        // Client is the source of truth for mode UI defaults. Backend is per-message overrides only.
+        const uiDefaults = getUiDefaultsForMode(currentMode);
         const serverMessages = Array.isArray(response.messages) ? response.messages : [];
 
         if (serverMessages.length > 0) {
@@ -299,9 +301,13 @@ async function initSidebar() {
     },
     isExpanded: false
   });
-  
-  footer.appendChild(userDetails);
-  footer.appendChild(preferences);
+
+  // One-line footer row: User | Role | LLM | Agent (with expandable preferences below)
+  const footerRow = document.createElement('div');
+  footerRow.className = 'user-details';
+  footerRow.appendChild(userDetails);
+  footerRow.appendChild(preferences);
+  footer.appendChild(footerRow);
   sidebarContainer.appendChild(footer);
 
   // Append to body (or html if body doesn't exist yet)

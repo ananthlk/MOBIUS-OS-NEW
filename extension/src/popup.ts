@@ -31,6 +31,7 @@ async function toggleSidebarOnActiveTab(): Promise<{ ok: true } | { ok: false; r
 
 import { getOrCreateSessionId } from './utils/session';
 import { sendChatMessage } from './services/api';
+import { getUiDefaultsForMode } from './utils/uiDefaults';
 import { 
   ClientLogo, 
   MobiusLogo, 
@@ -180,7 +181,8 @@ async function init() {
         // Send to backend
         const response = await sendChatMessage(messageText, sessionId);
 
-        const uiDefaults = response.ui_defaults || ({} as any);
+        // Client is the source of truth for mode UI defaults. Backend is per-message overrides only.
+        const uiDefaults = getUiDefaultsForMode(currentMode);
         const serverMessages = Array.isArray(response.messages) ? response.messages : [];
 
         if (serverMessages.length > 0) {
@@ -298,9 +300,13 @@ async function init() {
     },
     isExpanded: false
   });
-  
-  footer.appendChild(userDetails);
-  footer.appendChild(preferences);
+
+  // One-line footer row: User | Role | LLM | Agent (with expandable preferences below)
+  const footerRow = document.createElement('div');
+  footerRow.className = 'user-details';
+  footerRow.appendChild(userDetails);
+  footerRow.appendChild(preferences);
+  footer.appendChild(footerRow);
   app.appendChild(footer);
 
   // Initial render

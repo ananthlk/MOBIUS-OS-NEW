@@ -21,8 +21,11 @@ export function PreferencesPanel({
   onAgentModeChange,
   isExpanded = false
 }: PreferencesPanelProps): HTMLElement {
-  const container = document.createElement('div');
-  container.className = 'preferences';
+  const panel = document.createElement('div');
+  panel.className = 'preferences-panel';
+
+  const row = document.createElement('div');
+  row.className = 'preferences';
   
   // Collapsed view
   const llmItem = document.createElement('div');
@@ -104,13 +107,10 @@ export function PreferencesPanel({
   llmItem.addEventListener('click', togglePreferences);
   agentItem.addEventListener('click', togglePreferences);
   
-  container.appendChild(llmItem);
-  container.appendChild(agentItem);
-  
-  const wrapper = document.createElement('div');
-  wrapper.className = 'user-details';
-  wrapper.appendChild(container);
-  wrapper.appendChild(expanded);
-  
-  return wrapper;
+  row.appendChild(llmItem);
+  row.appendChild(agentItem);
+
+  panel.appendChild(row);
+  panel.appendChild(expanded);
+  return panel;
 }
