@@ -3,7 +3,7 @@
  * Injects the Mobius OS sidebar into web pages
  */
 
-import './styles/popup.css';
+import './styles/sidebar.css';
 import { getOrCreateSessionId } from './utils/session';
 import { sendChatMessage } from './services/api';
 import { 
