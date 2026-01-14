@@ -35,6 +35,8 @@ class TestConversationAgent(unittest.TestCase):
         self.assertIn("replayed", result)
         self.assertIn("acknowledgement", result)
         self.assertIn("captured", result)
+        self.assertIn("ui_defaults", result)
+        self.assertIn("messages", result)
         
         # Verify replayed message
         self.assertEqual(result["replayed"], f"You said: {self.test_message}")
@@ -42,12 +44,43 @@ class TestConversationAgent(unittest.TestCase):
         # Verify acknowledgement
         self.assertEqual(result["acknowledgement"], "Message received and acknowledged.")
         
+        # Verify UI defaults and per-message overrides
+        ui_defaults = result["ui_defaults"]
+        self.assertIsInstance(ui_defaults, dict)
+        self.assertEqual(len(ui_defaults.keys()), 27)
+        self.assertIn("feedbackComponent", ui_defaults)
+        self.assertTrue(ui_defaults["feedbackComponent"])
+
+        messages = result["messages"]
+        self.assertIsInstance(messages, list)
+        self.assertEqual(len(messages), 2)
+        self.assertEqual(messages[0]["kind"], "replayed")
+        self.assertEqual(messages[0]["content"], result["replayed"])
+        self.assertEqual(messages[0]["ui_overrides"]["feedbackComponent"], False)
+        self.assertEqual(messages[1]["kind"], "acknowledgement")
+        self.assertEqual(messages[1]["content"], result["acknowledgement"])
+        self.assertEqual(messages[1]["ui_overrides"]["feedbackComponent"], False)
+
         # Verify captured data
         captured = result["captured"]
         self.assertEqual(captured["message"], self.test_message)
         self.assertEqual(captured["session_id"], self.test_session_id)
         self.assertEqual(captured["context"], self.test_context)
         self.assertIn("timestamp", captured)
+
+    def test_process_message_per_message_ui_overrides(self):
+        """Test that callers can override per-message UI visibility"""
+        result = self.agent.process_message(
+            self.test_message,
+            self.test_session_id,
+            self.test_context,
+            per_message_ui_overrides={
+                "replayed": {"feedbackComponent": True},
+            },
+        )
+        self.assertTrue(result["success"])
+        self.assertEqual(result["messages"][0]["kind"], "replayed")
+        self.assertEqual(result["messages"][0]["ui_overrides"]["feedbackComponent"], True)
     
     def test_process_message_without_context(self):
         """Test message processing without context (should use empty dict)"""

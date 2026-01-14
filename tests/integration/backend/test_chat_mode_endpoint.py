@@ -43,6 +43,12 @@ class TestChatModeEndpoint(unittest.TestCase):
         self.assertIn("replayed", result)
         self.assertIn("acknowledgement", result)
         self.assertIn("captured", result)
+        self.assertIn("ui_defaults", result)
+        self.assertIn("messages", result)
+        self.assertEqual(len(result["ui_defaults"].keys()), 27)
+        self.assertEqual(len(result["messages"]), 2)
+        self.assertEqual(result["messages"][0]["kind"], "replayed")
+        self.assertEqual(result["messages"][0]["ui_overrides"]["feedbackComponent"], False)
     
     def test_post_message_missing_session_id(self):
         """Test POST request without session_id (should return 400)"""

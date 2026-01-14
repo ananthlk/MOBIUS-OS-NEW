@@ -12,6 +12,45 @@ export type TaskType = 'normal' | 'shared' | 'backend';
 export type LLMChoice = 'Gemini' | 'GPT-4' | 'Claude';
 export type AgentMode = 'Agentic' | 'Co-pilot' | 'Manual';
 
+// UI visibility controls (27 components)
+export type UiComponentKey =
+  | 'clientLogo'
+  | 'mobiusLogo'
+  | 'statusIndicator'
+  | 'modeBadge'
+  | 'alertButton'
+  | 'settingsButton'
+  | 'contextDisplay'
+  | 'contextSummary'
+  | 'quickActionButton'
+  | 'tasksPanel'
+  | 'taskItem'
+  | 'thinkingBox'
+  | 'systemMessage'
+  | 'userMessage'
+  | 'feedbackComponent'
+  | 'guidanceActions'
+  | 'chatInput'
+  | 'chatTools'
+  | 'recordIdInput'
+  | 'workflowButtons'
+  | 'userDetails'
+  | 'preferencesPanel'
+  | 'chatMessage'
+  | 'header'
+  | 'chatArea'
+  | 'collapsiblePanel'
+  | 'dropdownMenu';
+
+export type UiVisibilityDefaults = Record<UiComponentKey, boolean>;
+export type UiVisibilityOverrides = Partial<UiVisibilityDefaults>;
+
+export interface AgentMessage {
+  kind: 'replayed' | 'acknowledgement' | string;
+  content: string;
+  ui_overrides?: UiVisibilityOverrides;
+}
+
 export interface Message {
   id: MessageId;
   content: string;
@@ -70,4 +109,7 @@ export interface ChatResponse {
     timestamp: string;
     context: Record<string, any>;
   };
+
+  ui_defaults?: UiVisibilityDefaults;
+  messages?: AgentMessage[];
 }

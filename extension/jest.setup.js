@@ -17,3 +17,12 @@ global.chrome = {
 
 // Mock fetch
 global.fetch = jest.fn();
+
+// Polyfill crypto.randomUUID for Jest (jsdom) environments where it may be missing
+if (!global.crypto) {
+  global.crypto = {};
+}
+if (typeof global.crypto.randomUUID !== 'function') {
+  let __uuidCounter = 0;
+  global.crypto.randomUUID = () => `test-uuid-${++__uuidCounter}`;
+}

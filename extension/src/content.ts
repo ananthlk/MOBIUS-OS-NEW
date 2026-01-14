@@ -179,35 +179,64 @@ async function initSidebar() {
       try {
         // Send to backend
         const response = await sendChatMessage(messageText, sessionId);
-        
-        // Add system messages (replayed and acknowledgement)
-        const replayedMessage: Message = {
-          id: `msg_${Date.now()}_replayed`,
-          content: response.replayed,
-          timestamp: new Date().toISOString(),
-          sessionId,
-          type: 'system',
-          thinkingBox: {
-            content: ['Processing message...', 'Generating response...'],
-            isCollapsed: false
-          },
-          feedbackComponent: true,
-          guidanceActions: [
-            { label: 'View Details', onClick: () => console.log('View details') },
-            { label: 'Follow Up', onClick: () => console.log('Follow up') }
-          ]
-        };
-        messages.push(replayedMessage);
-        
-        const acknowledgementMessage: Message = {
-          id: `msg_${Date.now()}_ack`,
-          content: response.acknowledgement,
-          timestamp: new Date().toISOString(),
-          sessionId,
-          type: 'system',
-          feedbackComponent: true
-        };
-        messages.push(acknowledgementMessage);
+
+        const uiDefaults = response.ui_defaults || ({} as any);
+        const serverMessages = Array.isArray(response.messages) ? response.messages : [];
+
+        if (serverMessages.length > 0) {
+          for (const m of serverMessages) {
+            const ui = { ...uiDefaults, ...(m.ui_overrides || {}) };
+
+            const systemMsg: Message = {
+              id: `msg_${Date.now()}_${m.kind}`,
+              content: m.content,
+              timestamp: new Date().toISOString(),
+              sessionId,
+              type: 'system',
+              // Backend-driven visibility
+              feedbackComponent: ui.feedbackComponent === true,
+            };
+
+            // Optional local thinking / guidance scaffolding (only if visible)
+            if (ui.thinkingBox && m.kind === 'replayed') {
+              systemMsg.thinkingBox = {
+                content: ['Processing message...', 'Generating response...'],
+                isCollapsed: false,
+              };
+            }
+            if (ui.guidanceActions) {
+              systemMsg.guidanceActions = [
+                { label: 'View Details', onClick: () => console.log('View details') },
+                { label: 'Follow Up', onClick: () => console.log('Follow up') },
+              ];
+            }
+
+            messages.push(systemMsg);
+          }
+        } else {
+          // Fallback (older backend)
+          messages.push({
+            id: `msg_${Date.now()}_replayed`,
+            content: response.replayed,
+            timestamp: new Date().toISOString(),
+            sessionId,
+            type: 'system',
+            thinkingBox: {
+              content: ['Processing message...', 'Generating response...'],
+              isCollapsed: false,
+            },
+            feedbackComponent: false,
+          });
+
+          messages.push({
+            id: `msg_${Date.now()}_ack`,
+            content: response.acknowledgement,
+            timestamp: new Date().toISOString(),
+            sessionId,
+            type: 'system',
+            feedbackComponent: false,
+          });
+        }
         
         renderMessages();
       } catch (error) {

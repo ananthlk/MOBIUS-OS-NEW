@@ -43,6 +43,35 @@ describe('Chat Mode Integration Tests', () => {
 
       // Step 2: Mock successful API response
       const testMessage = 'Hello from integration test';
+      const uiDefaults = {
+        clientLogo: true,
+        mobiusLogo: true,
+        statusIndicator: true,
+        modeBadge: true,
+        alertButton: true,
+        settingsButton: true,
+        contextDisplay: true,
+        contextSummary: true,
+        quickActionButton: true,
+        tasksPanel: true,
+        taskItem: true,
+        thinkingBox: true,
+        systemMessage: true,
+        userMessage: true,
+        feedbackComponent: true,
+        guidanceActions: true,
+        chatInput: true,
+        chatTools: true,
+        recordIdInput: true,
+        workflowButtons: true,
+        userDetails: true,
+        preferencesPanel: true,
+        chatMessage: true,
+        header: true,
+        chatArea: true,
+        collapsiblePanel: true,
+        dropdownMenu: true
+      };
       const mockResponse = {
         success: true,
         session_id: sessionId,
@@ -53,7 +82,12 @@ describe('Chat Mode Integration Tests', () => {
           session_id: sessionId,
           timestamp: new Date().toISOString(),
           context: {}
-        }
+        },
+        ui_defaults: uiDefaults,
+        messages: [
+          { kind: 'replayed', content: `You said: ${testMessage}`, ui_overrides: { feedbackComponent: false } },
+          { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }
+        ]
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -69,6 +103,7 @@ describe('Chat Mode Integration Tests', () => {
       expect(response.session_id).toBe(sessionId);
       expect(response.replayed).toContain(testMessage);
       expect(response.acknowledgement).toBeDefined();
+      expect(response.messages).toBeDefined();
     });
 
     test('should handle multiple messages in same session', async () => {
@@ -78,6 +113,35 @@ describe('Chat Mode Integration Tests', () => {
       const responses = [];
 
       for (const message of messages) {
+        const uiDefaults = {
+          clientLogo: true,
+          mobiusLogo: true,
+          statusIndicator: true,
+          modeBadge: true,
+          alertButton: true,
+          settingsButton: true,
+          contextDisplay: true,
+          contextSummary: true,
+          quickActionButton: true,
+          tasksPanel: true,
+          taskItem: true,
+          thinkingBox: true,
+          systemMessage: true,
+          userMessage: true,
+          feedbackComponent: true,
+          guidanceActions: true,
+          chatInput: true,
+          chatTools: true,
+          recordIdInput: true,
+          workflowButtons: true,
+          userDetails: true,
+          preferencesPanel: true,
+          chatMessage: true,
+          header: true,
+          chatArea: true,
+          collapsiblePanel: true,
+          dropdownMenu: true
+        };
         const mockResponse = {
           success: true,
           session_id: sessionId,
@@ -88,7 +152,12 @@ describe('Chat Mode Integration Tests', () => {
             session_id: sessionId,
             timestamp: new Date().toISOString(),
             context: {}
-          }
+          },
+          ui_defaults: uiDefaults,
+          messages: [
+            { kind: 'replayed', content: `You said: ${message}`, ui_overrides: { feedbackComponent: false } },
+            { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }
+          ]
         };
 
         (global.fetch as jest.Mock).mockResolvedValueOnce({

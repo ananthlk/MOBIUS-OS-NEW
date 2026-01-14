@@ -23,6 +23,8 @@ def chat_message():
     agent = ConversationAgent()
     
     # Process message (with session_id)
+    # Chat mode can override per-message UI visibility in the future.
+    # Default: echo + acknowledgement include no feedback UI.
     result = agent.process_message(user_message, session_id)
     
     return jsonify(result)
