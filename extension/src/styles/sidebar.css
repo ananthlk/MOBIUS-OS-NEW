@@ -515,7 +515,34 @@
 }
 
 #mobius-os-sidebar .preferences-expanded {
+  display: none;
   margin-top: 6px;
+}
+
+#mobius-os-sidebar .preferences-expanded.show {
+  display: block;
+}
+
+#mobius-os-sidebar .preference-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+#mobius-os-sidebar .preference-group label {
+  font-size: 11px;
+  color: #5f6368;
+  white-space: nowrap;
+}
+
+#mobius-os-sidebar .preference-group select {
+  padding: 6px 8px;
+  border: 1px solid rgba(60, 64, 67, 0.18);
+  border-radius: 8px;
+  font-size: 12px;
+  background: #fff;
 }
 
 #mobius-os-sidebar .preference-item {

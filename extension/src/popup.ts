@@ -63,6 +63,10 @@ let llmChoice: LLMChoice = 'Gemini';
 let agentMode: AgentMode = 'Agentic';
 let tasks: Task[] = [];
 
+function setVisible(el: HTMLElement, visible: boolean) {
+  el.style.display = visible ? '' : 'none';
+}
+
 // Initialize app
 async function init() {
   // If we can toggle the sidebar, do it immediately and close the popup.
@@ -106,7 +110,8 @@ async function init() {
   headerLeft.appendChild(logoSection);
   
   topRow.appendChild(headerLeft);
-  topRow.appendChild(ContextDisplay({ status: currentStatus, mode: currentMode }));
+  let contextDisplayEl = ContextDisplay({ status: currentStatus, mode: currentMode });
+  topRow.appendChild(contextDisplayEl);
   topRow.appendChild(AlertButton({ 
     hasAlerts: false, 
     onClick: () => alert('Live Alerts:\n- No active alerts') 
@@ -118,13 +123,15 @@ async function init() {
   // Second row - context summary
   const secondRow = document.createElement('div');
   secondRow.className = 'second-row';
-  secondRow.appendChild(ContextSummary({ 
+  const contextSummaryEl = ContextSummary({ 
     summary: 'Chat mode active - ready to assist with questions and tasks.' 
-  }));
-  secondRow.appendChild(QuickActionButton({ 
+  });
+  const quickActionEl = QuickActionButton({ 
     label: 'Start Chat', 
     onClick: () => console.log('Quick action clicked') 
-  }));
+  });
+  secondRow.appendChild(contextSummaryEl);
+  secondRow.appendChild(quickActionEl);
   app.appendChild(secondRow);
 
   // Tasks panel
@@ -286,8 +293,8 @@ async function init() {
   const footer = document.createElement('div');
   footer.className = 'footer';
   
-  const userDetails = UserDetails({ userName: 'Dr. Smith', userRole: 'Provider' });
-  const preferences = PreferencesPanel({
+  const userDetailsEl = UserDetails({ userName: 'Dr. Smith', userRole: 'Provider' });
+  const preferencesEl = PreferencesPanel({
     llmChoice,
     agentMode,
     onLLMChange: (llm) => {
@@ -304,10 +311,43 @@ async function init() {
   // One-line footer row: User | Role | LLM | Agent (with expandable preferences below)
   const footerRow = document.createElement('div');
   footerRow.className = 'user-details';
-  footerRow.appendChild(userDetails);
-  footerRow.appendChild(preferences);
+  footerRow.appendChild(userDetailsEl);
+  footerRow.appendChild(preferencesEl);
   footer.appendChild(footerRow);
   app.appendChild(footer);
+
+  function applyModeUiDefaults(mode: string) {
+    const ui = getUiDefaultsForMode(mode);
+
+    setVisible(topRow, ui.header);
+    setVisible(contextSummaryEl, ui.contextSummary);
+    setVisible(quickActionEl, ui.quickActionButton);
+    setVisible(secondRow, ui.contextSummary || ui.quickActionButton);
+    setVisible(tasksPanel, ui.tasksPanel);
+    setVisible(chatAreaContainer, ui.chatArea);
+    setVisible(chatInput, ui.chatInput);
+    setVisible(recordInput, ui.recordIdInput);
+    setVisible(workflowButtons, ui.workflowButtons);
+    setVisible(userDetailsEl, ui.userDetails);
+    setVisible(preferencesEl, ui.preferencesPanel);
+    setVisible(footer, ui.userDetails || ui.preferencesPanel);
+  }
+
+  function setMode(nextMode: string) {
+    currentMode = nextMode;
+    // Update the header context display so ModeBadge reflects the new mode.
+    const nextContext = ContextDisplay({ status: currentStatus, mode: currentMode });
+    topRow.replaceChild(nextContext, contextDisplayEl);
+    contextDisplayEl = nextContext;
+
+    applyModeUiDefaults(currentMode);
+  }
+
+  // Example hook for future mode changes:
+  // quickActionEl.addEventListener('click', () => setMode('Chat'));
+
+  // Apply initial mode defaults.
+  applyModeUiDefaults(currentMode);
 
   // Initial render
   renderMessages();
