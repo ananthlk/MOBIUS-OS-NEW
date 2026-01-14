@@ -197,7 +197,7 @@ async function init() {
               feedbackComponent: ui.feedbackComponent === true,
             };
 
-            if (ui.thinkingBox && m.kind === 'replayed') {
+            if (ui.thinkingBox) {
               systemMsg.thinkingBox = {
                 content: ['Processing message...', 'Generating response...'],
                 isCollapsed: false,

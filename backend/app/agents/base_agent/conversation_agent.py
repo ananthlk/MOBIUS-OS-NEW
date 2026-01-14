@@ -137,10 +137,12 @@ class ConversationAgent:
     
     def _replay_message(self, user_message: str):
         """Replay user message (echo back)"""
-        return f"You said: {user_message}"
+        return (user_message or "")
     
     def _send_acknowledgement(self, user_message: str):
         """Send acknowledgement message"""
+        if (user_message or "").strip().lower() == "hello":
+            return "Hello — how can I help?"
         return "Message received and acknowledged."
     
     def _get_timestamp(self):

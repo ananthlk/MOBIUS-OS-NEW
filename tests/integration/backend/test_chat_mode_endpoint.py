@@ -116,7 +116,7 @@ class TestChatModeEndpoint(unittest.TestCase):
         
         self.assertEqual(response.status_code, 200)
         result = json.loads(response.data)
-        self.assertEqual(result["replayed"], "You said: ")
+        self.assertEqual(result["replayed"], "")
     
     def test_post_message_with_context(self):
         """Test POST request with additional context data"""

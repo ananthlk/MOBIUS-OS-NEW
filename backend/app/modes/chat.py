@@ -25,6 +25,21 @@ def chat_message():
     # Process message (with session_id)
     # Chat mode can override per-message UI visibility in the future.
     # Default: echo + acknowledgement include no feedback UI.
-    result = agent.process_message(user_message, session_id)
+    per_message_ui_overrides = None
+    if (user_message or "").strip().lower() == "hello":
+        # For "hello": echo is plain, then show full system blocks on the acknowledgement message.
+        per_message_ui_overrides = {
+            "acknowledgement": {
+                "thinkingBox": True,
+                "feedbackComponent": True,
+                "guidanceActions": True,
+            }
+        }
+
+    result = agent.process_message(
+        user_message,
+        session_id,
+        per_message_ui_overrides=per_message_ui_overrides,
+    )
     
     return jsonify(result)

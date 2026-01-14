@@ -97,7 +97,7 @@ describe('Chat Mode API Service - Unit Tests', () => {
       const mockResponse = {
         success: true,
         session_id: testSessionId,
-        replayed: `You said: ${testMessage}`,
+        replayed: `${testMessage}`,
         acknowledgement: 'Message received and acknowledged.',
         captured: {
           message: testMessage,
@@ -107,7 +107,7 @@ describe('Chat Mode API Service - Unit Tests', () => {
         },
         ui_defaults: uiDefaults,
         messages: [
-          { kind: 'replayed', content: `You said: ${testMessage}`, ui_overrides: { feedbackComponent: false } },
+          { kind: 'replayed', content: `${testMessage}`, ui_overrides: { feedbackComponent: false } },
           { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }
         ]
       };
@@ -215,7 +215,7 @@ describe('Chat Mode API Service - Unit Tests', () => {
       const mockResponse = {
         success: true,
         session_id: testSessionId,
-        replayed: `You said: ${testMessage}`,
+        replayed: `${testMessage}`,
         acknowledgement: 'Message received and acknowledged.',
         captured: {
           message: testMessage,
@@ -225,7 +225,7 @@ describe('Chat Mode API Service - Unit Tests', () => {
         },
         ui_defaults: uiDefaults,
         messages: [
-          { kind: 'replayed', content: `You said: ${testMessage}`, ui_overrides: { feedbackComponent: false } },
+          { kind: 'replayed', content: `${testMessage}`, ui_overrides: { feedbackComponent: false } },
           { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }
         ]
       };

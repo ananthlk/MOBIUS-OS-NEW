@@ -39,7 +39,7 @@ class TestConversationAgent(unittest.TestCase):
         self.assertIn("messages", result)
         
         # Verify replayed message
-        self.assertEqual(result["replayed"], f"You said: {self.test_message}")
+        self.assertEqual(result["replayed"], self.test_message)
         
         # Verify acknowledgement
         self.assertEqual(result["acknowledgement"], "Message received and acknowledged.")
@@ -123,12 +123,12 @@ class TestConversationAgent(unittest.TestCase):
     def test_replay_message(self):
         """Test message replay functionality"""
         replayed = self.agent._replay_message(self.test_message)
-        self.assertEqual(replayed, f"You said: {self.test_message}")
+        self.assertEqual(replayed, self.test_message)
     
     def test_replay_message_empty_string(self):
         """Test replay with empty message"""
         replayed = self.agent._replay_message("")
-        self.assertEqual(replayed, "You said: ")
+        self.assertEqual(replayed, "")
     
     def test_send_acknowledgement(self):
         """Test acknowledgement message"""
@@ -154,8 +154,8 @@ class TestConversationAgent(unittest.TestCase):
         
         self.assertEqual(result1["session_id"], self.test_session_id)
         self.assertEqual(result2["session_id"], self.test_session_id)
-        self.assertEqual(result1["replayed"], f"You said: {message1}")
-        self.assertEqual(result2["replayed"], f"You said: {message2}")
+        self.assertEqual(result1["replayed"], message1)
+        self.assertEqual(result2["replayed"], message2)
     
     def test_different_session_ids(self):
         """Test processing messages with different session IDs"""
@@ -173,7 +173,7 @@ class TestConversationAgent(unittest.TestCase):
         special_message = "Hello! @#$%^&*() Test with émojis 🎉"
         result = self.agent.process_message(special_message, self.test_session_id)
         
-        self.assertEqual(result["replayed"], f"You said: {special_message}")
+        self.assertEqual(result["replayed"], special_message)
         self.assertEqual(result["captured"]["message"], special_message)
     
     def test_long_message(self):
@@ -181,7 +181,7 @@ class TestConversationAgent(unittest.TestCase):
         long_message = "A" * 10000  # 10KB message
         result = self.agent.process_message(long_message, self.test_session_id)
         
-        self.assertEqual(result["replayed"], f"You said: {long_message}")
+        self.assertEqual(result["replayed"], long_message)
         self.assertEqual(len(result["captured"]["message"]), 10000)
     
     def test_context_preservation(self):

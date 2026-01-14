@@ -75,7 +75,7 @@ describe('Chat Mode Integration Tests', () => {
       const mockResponse = {
         success: true,
         session_id: sessionId,
-        replayed: `You said: ${testMessage}`,
+        replayed: `${testMessage}`,
         acknowledgement: 'Message received and acknowledged.',
         captured: {
           message: testMessage,
@@ -85,7 +85,7 @@ describe('Chat Mode Integration Tests', () => {
         },
         ui_defaults: uiDefaults,
         messages: [
-          { kind: 'replayed', content: `You said: ${testMessage}`, ui_overrides: { feedbackComponent: false } },
+          { kind: 'replayed', content: `${testMessage}`, ui_overrides: { feedbackComponent: false } },
           { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }
         ]
       };
@@ -145,7 +145,7 @@ describe('Chat Mode Integration Tests', () => {
         const mockResponse = {
           success: true,
           session_id: sessionId,
-          replayed: `You said: ${message}`,
+          replayed: `${message}`,
           acknowledgement: 'Message received and acknowledged.',
           captured: {
             message,
@@ -155,7 +155,7 @@ describe('Chat Mode Integration Tests', () => {
           },
           ui_defaults: uiDefaults,
           messages: [
-            { kind: 'replayed', content: `You said: ${message}`, ui_overrides: { feedbackComponent: false } },
+            { kind: 'replayed', content: `${message}`, ui_overrides: { feedbackComponent: false } },
             { kind: 'acknowledgement', content: 'Message received and acknowledged.', ui_overrides: { feedbackComponent: false } }
           ]
         };

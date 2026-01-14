@@ -198,7 +198,7 @@ async function initSidebar() {
             };
 
             // Optional local thinking / guidance scaffolding (only if visible)
-            if (ui.thinkingBox && m.kind === 'replayed') {
+            if (ui.thinkingBox) {
               systemMsg.thinkingBox = {
                 content: ['Processing message...', 'Generating response...'],
                 isCollapsed: false,
