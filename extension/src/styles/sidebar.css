@@ -96,6 +96,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 #mobius-os-sidebar .mobius-logo {
@@ -129,6 +131,7 @@
   font-weight: 500;
   font-size: 12px;
   color: #202124;
+  white-space: nowrap;
 }
 
 #mobius-os-sidebar .context-display {

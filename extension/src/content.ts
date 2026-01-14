@@ -38,6 +38,10 @@ let agentMode: AgentMode = 'Agentic';
 let tasks: Task[] = [];
 let sidebarContainer: HTMLElement | null = null;
 
+function setVisible(el: HTMLElement, visible: boolean) {
+  el.style.display = visible ? '' : 'none';
+}
+
 // Initialize sidebar
 async function initSidebar() {
   console.log('[Mobius OS] Initializing sidebar...');
@@ -106,7 +110,8 @@ async function initSidebar() {
   headerLeft.appendChild(logoSection);
   
   topRow.appendChild(headerLeft);
-  topRow.appendChild(ContextDisplay({ status: currentStatus, mode: currentMode }));
+  let contextDisplayEl = ContextDisplay({ status: currentStatus, mode: currentMode });
+  topRow.appendChild(contextDisplayEl);
   topRow.appendChild(AlertButton({ 
     hasAlerts: false, 
     onClick: () => alert('Live Alerts:\n- No active alerts') 
@@ -118,13 +123,15 @@ async function initSidebar() {
   // Second row - context summary
   const secondRow = document.createElement('div');
   secondRow.className = 'second-row';
-  secondRow.appendChild(ContextSummary({ 
+  const contextSummaryEl = ContextSummary({ 
     summary: 'Chat mode active - ready to assist with questions and tasks.' 
-  }));
-  secondRow.appendChild(QuickActionButton({ 
+  });
+  const quickActionEl = QuickActionButton({ 
     label: 'Start Chat', 
     onClick: () => console.log('Quick action clicked') 
-  }));
+  });
+  secondRow.appendChild(contextSummaryEl);
+  secondRow.appendChild(quickActionEl);
   sidebarContainer.appendChild(secondRow);
 
   // Tasks panel
@@ -287,8 +294,8 @@ async function initSidebar() {
   const footer = document.createElement('div');
   footer.className = 'footer';
   
-  const userDetails = UserDetails({ userName: 'Dr. Smith', userRole: 'Provider' });
-  const preferences = PreferencesPanel({
+  const userDetailsEl = UserDetails({ userName: 'Dr. Smith', userRole: 'Provider' });
+  const preferencesEl = PreferencesPanel({
     llmChoice,
     agentMode,
     onLLMChange: (llm) => {
@@ -305,10 +312,42 @@ async function initSidebar() {
   // One-line footer row: User | Role | LLM | Agent (with expandable preferences below)
   const footerRow = document.createElement('div');
   footerRow.className = 'user-details';
-  footerRow.appendChild(userDetails);
-  footerRow.appendChild(preferences);
+  footerRow.appendChild(userDetailsEl);
+  footerRow.appendChild(preferencesEl);
   footer.appendChild(footerRow);
   sidebarContainer.appendChild(footer);
+
+  function applyModeUiDefaults(mode: string) {
+    const ui = getUiDefaultsForMode(mode);
+
+    setVisible(topRow, ui.header);
+    setVisible(contextSummaryEl, ui.contextSummary);
+    setVisible(quickActionEl, ui.quickActionButton);
+    setVisible(secondRow, ui.contextSummary || ui.quickActionButton);
+    setVisible(tasksPanel, ui.tasksPanel);
+    setVisible(chatAreaContainer, ui.chatArea);
+    setVisible(chatInput, ui.chatInput);
+    setVisible(recordInput, ui.recordIdInput);
+    setVisible(workflowButtons, ui.workflowButtons);
+    setVisible(userDetailsEl, ui.userDetails);
+    setVisible(preferencesEl, ui.preferencesPanel);
+    setVisible(footer, ui.userDetails || ui.preferencesPanel);
+  }
+
+  function setMode(nextMode: string) {
+    currentMode = nextMode;
+    const nextContext = ContextDisplay({ status: currentStatus, mode: currentMode });
+    topRow.replaceChild(nextContext, contextDisplayEl);
+    contextDisplayEl = nextContext;
+
+    applyModeUiDefaults(currentMode);
+  }
+
+  // Example hook for future mode changes:
+  // quickActionEl.addEventListener('click', () => setMode('Chat'));
+
+  // Apply initial mode defaults.
+  applyModeUiDefaults(currentMode);
 
   // Append to body (or html if body doesn't exist yet)
   const target = document.body || document.documentElement;

@@ -130,6 +130,8 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .mobius-logo {
@@ -163,6 +165,7 @@ body {
   font-weight: 500;
   font-size: 13px;
   color: #202124;
+  white-space: nowrap;
 }
 
 .context-display {
