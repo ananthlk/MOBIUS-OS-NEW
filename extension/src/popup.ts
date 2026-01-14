@@ -305,7 +305,19 @@ async function init() {
 
   function renderMode(mode: string) {
     const ui = getUiDefaultsForMode(mode);
-    const layout = getLayoutForMode(mode);
+    const layout = getLayoutForMode(mode, {
+      recordType,
+      recordId,
+      onRecordChange: (type, value) => {
+        recordType = type;
+        recordId = value;
+        console.log('Record ID changed:', type, value);
+      },
+      workflowButtons: [
+        { label: 'Generate Report', onClick: () => console.log('Generate report') },
+        { label: 'Schedule Follow-up', onClick: () => console.log('Schedule follow-up') },
+      ],
+    });
 
     // Render dynamic context instances (multi-instance capable).
     renderSection(contextMount, layout.context, ui, componentRegistry);

@@ -408,8 +408,10 @@ body {
 
 .system-message {
   align-self: flex-start;
-  background: rgba(60, 64, 67, 0.08);
-  border: 1px solid rgba(60, 64, 67, 0.12);
+  background: transparent;
+  border: none;
+  padding: 0;
+  max-width: 100%;
   color: #202124;
 }
 
@@ -423,6 +425,40 @@ body {
   margin-top: 8px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Compact assistant "bubble" */
+.system-message .message-content {
+  margin-top: 4px;
+  display: inline-block;
+  background: rgba(60, 64, 67, 0.06);
+  border: 1px solid rgba(60, 64, 67, 0.10);
+  padding: 7px 10px;
+  border-radius: 12px;
+  max-width: 92%;
+}
+
+/* Make tools unobtrusive (Gemini-style) */
+.system-message .message-header {
+  margin-bottom: 2px;
+}
+
+.system-message .message-tools-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  opacity: 0.0;
+  transition: opacity 0.12s ease;
+}
+
+.system-message:hover .message-tools-btn {
+  opacity: 0.85;
+}
+
+.system-message .message-tools-btn:hover {
+  opacity: 1;
+  background: rgba(60, 64, 67, 0.06);
 }
 
 .thinking-box {

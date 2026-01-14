@@ -6,8 +6,16 @@
  */
 
 import type { ModeLayout } from './uiLayout';
+import type { RecordType } from '../components/input/RecordIDInput';
 
-export function getLayoutForMode(mode: string): ModeLayout {
+export type ModeLayoutContext = {
+  recordType: RecordType;
+  recordId: string;
+  onRecordChange: (recordType: RecordType, value: string) => void;
+  workflowButtons: { label: string; onClick: () => void }[];
+};
+
+export function getLayoutForMode(mode: string, ctx: ModeLayoutContext): ModeLayout {
   const normalized = (mode || '').trim().toLowerCase();
 
   // Default layout: keep context summary + quick action like the current UI.
@@ -24,10 +32,23 @@ export function getLayoutForMode(mode: string): ModeLayout {
         key: 'quickActionButton',
         props: { label: 'Start Chat', onClick: () => console.log('Quick action clicked') },
       },
-      // Examples of multi-instance (off by default via visibility if you prefer):
-      // { id: 'record_patient', key: 'recordIdInput', props: { recordType: 'Patient ID', value: '', onChange: (...) => {} } },
-      // { id: 'record_claim', key: 'recordIdInput', props: { recordType: 'Claim ID', value: '', onChange: (...) => {} } },
-      // { id: 'buttons_primary', key: 'workflowButtons', props: { buttons: [...] } },
+      // Form inputs / actions (multi-instance capable).
+      {
+        id: 'record_default',
+        key: 'recordIdInput',
+        props: {
+          recordType: ctx.recordType,
+          value: ctx.recordId,
+          onChange: ctx.onRecordChange,
+        },
+      },
+      {
+        id: 'workflow_default',
+        key: 'workflowButtons',
+        props: {
+          buttons: ctx.workflowButtons,
+        },
+      },
     ],
     tasks: [],
     chat: [],
