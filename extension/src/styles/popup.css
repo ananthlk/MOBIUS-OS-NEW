@@ -392,8 +392,8 @@ body {
 
 .system-message {
   align-self: flex-start;
-  background: #f8f9fa;
-  border: none;
+  background: rgba(60, 64, 67, 0.08);
+  border: 1px solid rgba(60, 64, 67, 0.12);
   color: #202124;
 }
 
@@ -405,6 +405,8 @@ body {
 
 .message-content {
   margin-top: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .thinking-box {

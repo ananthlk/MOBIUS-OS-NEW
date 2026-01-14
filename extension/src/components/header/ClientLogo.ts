@@ -20,7 +20,13 @@ export function ClientLogo({ logoUrl, clientName }: ClientLogoProps): HTMLElemen
   } else {
     const placeholder = document.createElement('div');
     placeholder.className = 'client-logo-placeholder';
-    placeholder.textContent = clientName.substring(0, 4).toUpperCase();
+    const initials = clientName
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w) => w[0]?.toUpperCase())
+      .join('')
+      .slice(0, 3);
+    placeholder.textContent = initials || clientName.slice(0, 1).toUpperCase();
     container.appendChild(placeholder);
   }
   
