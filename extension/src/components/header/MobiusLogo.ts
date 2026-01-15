@@ -11,6 +11,13 @@ export interface MobiusLogoProps {
 }
 
 export function MobiusLogo({ status, size = 32 }: MobiusLogoProps): HTMLElement {
+  const uid =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : String(Math.random()).slice(2);
+  const normalId = `infinityGradNormal_${uid}`;
+  const processingId = `infinityGradProcessing_${uid}`;
+
   const container = document.createElement('div');
   container.className = `mobius-logo status-${status}`;
   
@@ -23,7 +30,7 @@ export function MobiusLogo({ status, size = 32 }: MobiusLogoProps): HTMLElement 
   
   // Normal gradient (grey to white)
   const normalGrad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-  normalGrad.setAttribute('id', 'infinityGradNormal');
+  normalGrad.setAttribute('id', normalId);
   normalGrad.setAttribute('x1', '0%');
   normalGrad.setAttribute('y1', '50%');
   normalGrad.setAttribute('x2', '100%');
@@ -48,7 +55,7 @@ export function MobiusLogo({ status, size = 32 }: MobiusLogoProps): HTMLElement 
   
   // Processing gradient (animated)
   const processingGrad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
-  processingGrad.setAttribute('id', 'infinityGradProcessing');
+  processingGrad.setAttribute('id', processingId);
   processingGrad.setAttribute('x1', '0%');
   processingGrad.setAttribute('y1', '50%');
   processingGrad.setAttribute('x2', '100%');
@@ -98,7 +105,7 @@ export function MobiusLogo({ status, size = 32 }: MobiusLogoProps): HTMLElement 
   normalGroup.setAttribute('class', 'path-normal');
   const normalPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   normalPath.setAttribute('d', pathData);
-  normalPath.setAttribute('stroke', 'url(#infinityGradNormal)');
+  normalPath.setAttribute('stroke', `url(#${normalId})`);
   normalPath.setAttribute('stroke-width', '4.5');
   normalPath.setAttribute('fill', 'none');
   normalPath.setAttribute('stroke-linecap', 'round');
@@ -110,7 +117,7 @@ export function MobiusLogo({ status, size = 32 }: MobiusLogoProps): HTMLElement 
   processingGroup.setAttribute('class', 'path-processing');
   const processingPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   processingPath.setAttribute('d', pathData);
-  processingPath.setAttribute('stroke', 'url(#infinityGradProcessing)');
+  processingPath.setAttribute('stroke', `url(#${processingId})`);
   processingPath.setAttribute('stroke-width', '4.5');
   processingPath.setAttribute('fill', 'none');
   processingPath.setAttribute('stroke-linecap', 'round');

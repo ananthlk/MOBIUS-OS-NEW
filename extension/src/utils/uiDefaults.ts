@@ -54,6 +54,9 @@ export function getUiDefaultsForMode(mode: string): UiVisibilityDefaults {
         ...base,
         // Chat defaults: keep feedback off unless a server message enables it per-message.
         feedbackComponent: false,
+        // Chat defaults: keep scaffolding off unless the server explicitly enables it.
+        thinkingBox: false,
+        guidanceActions: false,
       };
     default:
       return base;

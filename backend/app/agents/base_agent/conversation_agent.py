@@ -64,6 +64,9 @@ class ConversationAgent:
             "chat": {
                 # Default: feedback UI off unless enabled per-message.
                 "feedbackComponent": False,
+                # Default: hide scaffolding unless explicitly enabled per-message.
+                "thinkingBox": False,
+                "guidanceActions": False,
             }
         }
 

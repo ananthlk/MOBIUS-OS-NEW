@@ -224,6 +224,25 @@
   background: #f5f5f5;
 }
 
+/* Collapse button (added to header actions) */
+#mobius-os-sidebar .collapse-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(60, 64, 67, 0.18);
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+}
+
+#mobius-os-sidebar .collapse-btn:hover {
+  background: #f5f5f5;
+}
+
 /* Second Row */
 #mobius-os-sidebar .second-row {
   padding-top: 10px;
@@ -326,7 +345,9 @@
 }
 
 #mobius-os-sidebar .system-message {
-  align-self: flex-start;
+  /* Stretch to full width to avoid shrink-to-fit issues with inline-block bubble max-width. */
+  align-self: stretch;
+  width: 100%;
   /* Gemini-like: keep the container lightweight; style the text as the bubble */
   background: transparent;
   border: none;
@@ -380,50 +401,46 @@
   color: white;
 }
 
-#mobius-os-sidebar .thinking-box {
-  background: rgba(60, 64, 67, 0.04);
-  border: 1px solid rgba(60, 64, 67, 0.10);
-  border-radius: 10px;
-  padding: 6px 8px;
-  margin-bottom: 8px;
-  font-size: 11px;
+/* Thinking (minimal, collapsible line) */
+#mobius-os-sidebar .thinking-line {
+  margin: 0 0 6px 0;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: #5f6368;
+  font-size: 11px;
 }
 
-#mobius-os-sidebar .thinking-box-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+#mobius-os-sidebar .thinking-line summary {
+  list-style: none;
   cursor: pointer;
   user-select: none;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
 }
 
-#mobius-os-sidebar .thinking-box-header span:first-child {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-#mobius-os-sidebar .thinking-box-content {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(60, 64, 67, 0.10);
-  white-space: pre-wrap;
-  word-break: break-word;
-  display: block;
-}
-
-#mobius-os-sidebar .thinking-box-content.collapsed {
+#mobius-os-sidebar .thinking-line summary::-webkit-details-marker {
   display: none;
 }
 
-#mobius-os-sidebar .thinking-box-arrow {
-  transition: transform 0.15s ease;
+#mobius-os-sidebar .thinking-line summary::after {
+  content: '▸';
+  margin-left: auto;
+  opacity: 0.7;
 }
 
-#mobius-os-sidebar .thinking-box-arrow.collapsed {
-  transform: rotate(-90deg);
+#mobius-os-sidebar .thinking-line[open] summary::after {
+  content: '▾';
+}
+
+#mobius-os-sidebar .thinking-body {
+  margin-top: 4px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(60, 64, 67, 0.12);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Chat Input */
@@ -725,5 +742,642 @@
   color: #1a73e8;
   font-weight: 600;
   font-size: 11px;
+}
+
+/* Guidance / Follow-up actions (system message CTA buttons) */
+#mobius-os-sidebar .guidance-actions {
+  margin-top: 8px;
+  padding: 6px 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-radius: 10px;
+  border: 1px solid rgba(26, 115, 232, 0.18);
+  background: rgba(26, 115, 232, 0.06);
+}
+
+#mobius-os-sidebar .guidance-action-btn {
+  appearance: none;
+  border: 1px solid rgba(26, 115, 232, 0.28);
+  background: rgba(26, 115, 232, 0.10);
+  color: #174ea6;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+#mobius-os-sidebar .guidance-action-btn:hover {
+  background: rgba(26, 115, 232, 0.16);
+  border-color: rgba(26, 115, 232, 0.38);
+}
+
+/**
+ * Mini widget styles (scoped; does not affect host page nor #mobius-os-sidebar).
+ */
+#mobius-os-mini,
+#mobius-os-mini * {
+  box-sizing: border-box;
+}
+
+#mobius-os-mini {
+  position: fixed !important;
+  z-index: 2147483646 !important;
+  width: 300px;
+  background: #ffffff !important;
+  color: #0b1220 !important;
+  border: 1px solid rgba(11, 18, 32, 0.12) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.14) !important;
+  overflow: hidden !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Google Sans', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  user-select: none !important;
+}
+
+#mobius-os-mini button,
+#mobius-os-mini input {
+  font: inherit;
+}
+
+#mobius-os-mini .mobius-mini-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+  background: rgba(11, 18, 32, 0.02);
+  cursor: grab;
+  touch-action: none;
+}
+
+#mobius-os-mini .mobius-mini-drag-handle {
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 18, 32, 0.10);
+  background: rgba(11, 18, 32, 0.03);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  flex: 0 0 auto;
+  touch-action: none;
+}
+
+#mobius-os-mini .mobius-mini-drag-handle:active {
+  cursor: grabbing;
+}
+
+#mobius-os-mini .mobius-mini-drag-dots {
+  width: 10px;
+  height: 18px;
+  background:
+    radial-gradient(circle, rgba(11,18,32,0.35) 2px, transparent 3px) 0 0/6px 6px;
+  border-radius: 6px;
+}
+
+#mobius-os-mini .mobius-mini-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#mobius-os-mini .mobius-mini-brand .mobius-logo {
+  width: 24px;
+  height: 24px;
+}
+
+#mobius-os-mini .mobius-logo {
+  width: 24px;
+  height: 24px;
+  position: relative;
+}
+
+#mobius-os-mini .mobius-logo svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Match sidebar/popup behavior: show only one path depending on status */
+#mobius-os-mini .mobius-logo .path-normal {
+  display: none;
+}
+
+#mobius-os-mini .mobius-logo .path-processing {
+  display: block;
+}
+
+#mobius-os-mini .mobius-logo:not(.status-processing) .path-normal {
+  display: block;
+}
+
+#mobius-os-mini .mobius-logo:not(.status-processing) .path-processing {
+  display: none;
+}
+
+#mobius-os-mini .mobius-mini-brand-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0b1220;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#mobius-os-mini .mobius-mini-menu-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+}
+
+#mobius-os-mini .mobius-mini-expand-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1;
+}
+
+#mobius-os-mini .mobius-mini-expand-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+#mobius-os-mini .mobius-mini-menu-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+#mobius-os-mini .mobius-mini-menu {
+  position: absolute;
+  top: 42px;
+  right: 10px;
+  background: #fff;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 14px 28px rgba(2,6,23,0.18);
+  overflow: hidden;
+  z-index: 2147483647;
+}
+
+#mobius-os-mini .mobius-mini-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#mobius-os-mini .mobius-mini-menu-item:hover {
+  background: rgba(11, 18, 32, 0.04);
+}
+
+#mobius-os-mini .mobius-mini-menu-item.danger {
+  color: #b3261e;
+}
+
+#mobius-os-mini .mobius-mini-row {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#mobius-os-mini .mobius-mini-row:last-child {
+  border-bottom: none;
+}
+
+#mobius-os-mini .mobius-mini-row-label {
+  width: 56px;
+  flex: 0 0 auto;
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(91,102,122,0.95);
+  font-weight: 600;
+}
+
+#mobius-os-mini .mobius-mini-row-body {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#mobius-os-mini .mobius-mini-patient-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#mobius-os-mini .mobius-mini-patient-id {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(91,102,122,0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#mobius-os-mini .mobius-mini-patient-dob {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(91,102,122,0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#mobius-os-mini .mobius-mini-inline-btn {
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 0 10px;
+}
+
+#mobius-os-mini .mobius-mini-inline-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+/* Icon-only button (e.g., edit patient) */
+#mobius-os-mini .mobius-mini-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+#mobius-os-mini .mobius-mini-icon-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+#mobius-os-mini .mobius-mini-icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: rgba(11, 18, 32, 0.80);
+}
+
+#mobius-os-mini .mobius-mini-status {
+  width: 100%;
+  border: 1px solid rgba(11, 18, 32, 0.10);
+  background: rgba(11, 18, 32, 0.03);
+  border-radius: 12px;
+  padding: 7px 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0b1220;
+}
+
+#mobius-os-mini .mobius-mini-status:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+#mobius-os-mini .mobius-mini-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.18);
+  background: #94a3b8;
+}
+
+#mobius-os-mini .dot-green {
+  background: #16a34a;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.14);
+}
+
+#mobius-os-mini .dot-yellow {
+  background: #f59e0b;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
+}
+
+#mobius-os-mini .dot-blue {
+  background: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16);
+}
+
+#mobius-os-mini .dot-grey {
+  background: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.18);
+}
+
+#mobius-os-mini .mobius-mini-status-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+#mobius-os-mini .mobius-mini-note-wrap {
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+#mobius-os-mini .mobius-mini-note-input {
+  width: 100%;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(11, 18, 32, 0.14);
+  background: #fff;
+  padding: 0 40px 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0b1220;
+  outline: none;
+}
+
+#mobius-os-mini .mobius-mini-note-input::placeholder {
+  color: rgba(91,102,122,0.75);
+  font-weight: 500;
+}
+
+#mobius-os-mini .mobius-mini-note-input:focus {
+  border-color: rgba(37, 99, 235, 0.55);
+}
+
+#mobius-os-mini .mobius-mini-send-btn {
+  position: absolute;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+#mobius-os-mini .mobius-mini-send-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+#mobius-os-mini .mobius-mini-send-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: rgba(11, 18, 32, 0.85);
+}
+
+/* Patient edit modal */
+.mobius-mini-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.28);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.mobius-mini-modal {
+  width: 360px;
+  max-width: calc(100vw - 36px);
+  background: #fff;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.20);
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Google Sans', sans-serif;
+  color: #0b1220;
+}
+
+.mobius-mini-modal-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mobius-mini-modal-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mobius-mini-modal-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+}
+
+.mobius-mini-modal-close:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.mobius-mini-modal-body {
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobius-mini-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mobius-mini-field-label {
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: rgba(91,102,122,0.95);
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.mobius-mini-search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mobius-mini-search-icon {
+  position: absolute;
+  left: 10px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.mobius-mini-search-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: rgba(91, 102, 122, 0.95);
+}
+
+.mobius-mini-input.mobius-mini-input-with-icon {
+  padding-left: 34px;
+}
+
+.mobius-mini-input {
+  width: 100%;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid rgba(11, 18, 32, 0.14);
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+}
+
+.mobius-mini-input:focus {
+  border-color: rgba(37, 99, 235, 0.55);
+}
+
+.mobius-mini-field-hint {
+  font-size: 12px;
+  color: rgba(91,102,122,0.95);
+}
+
+.mobius-mini-suggestions {
+  display: none;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 12px 24px rgba(2,6,23,0.12);
+}
+
+.mobius-mini-suggestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.mobius-mini-suggestion:hover {
+  background: rgba(11, 18, 32, 0.04);
+}
+
+.mobius-mini-suggestion.active {
+  background: rgba(37, 99, 235, 0.10);
+}
+
+.mobius-mini-suggestion .name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0b1220;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobius-mini-suggestion .id {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(91,102,122,0.95);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.mobius-mini-modal-actions {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(11, 18, 32, 0.08);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mobius-mini-btn-secondary,
+.mobius-mini-btn-primary {
+  height: 34px;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mobius-mini-btn-secondary {
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+}
+
+.mobius-mini-btn-secondary:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.mobius-mini-btn-primary {
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  background: rgba(37, 99, 235, 0.12);
+  color: #1e40af;
+}
+
+.mobius-mini-btn-primary:hover {
+  background: rgba(37, 99, 235, 0.16);
+}
+
+/* Mini toast */
+.mobius-mini-toast {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  background: rgba(15,23,42,0.92);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 2147483647;
+  box-shadow: 0 14px 28px rgba(2,6,23,0.22);
 }
 

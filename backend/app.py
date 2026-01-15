@@ -4,6 +4,7 @@ Flask application entry point for testing
 
 from flask import Flask
 from app.modes.chat import bp as chat_bp
+from app.modes.mini import bp as mini_bp
 
 
 def create_app():
@@ -20,6 +21,7 @@ def create_app():
     
     # Register blueprints
     app.register_blueprint(chat_bp)
+    app.register_blueprint(mini_bp)
     
     return app
 

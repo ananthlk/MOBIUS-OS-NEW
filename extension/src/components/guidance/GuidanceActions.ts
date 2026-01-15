@@ -19,25 +19,11 @@ export function GuidanceActions({ actions, isVisible = true }: GuidanceActionsPr
   
   actions.forEach(action => {
     const button = document.createElement('button');
+    button.className = 'guidance-action-btn';
     button.textContent = action.label;
     button.addEventListener('click', action.onClick);
     container.appendChild(button);
   });
-  
-  const toggle = document.createElement('span');
-  toggle.className = 'guidance-toggle';
-  toggle.textContent = 'Hide guidance';
-  toggle.addEventListener('click', () => {
-    if (container.style.display === 'none') {
-      container.style.display = 'flex';
-      toggle.textContent = 'Hide guidance';
-    } else {
-      container.style.display = 'none';
-      toggle.textContent = 'Show guidance';
-    }
-  });
-  
-  container.appendChild(toggle);
   
   return container;
 }

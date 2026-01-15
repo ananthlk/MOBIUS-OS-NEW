@@ -8,35 +8,21 @@ export interface ThinkingBoxProps {
   isCollapsed?: boolean;
 }
 
-export function ThinkingBox({ content, isCollapsed = false }: ThinkingBoxProps): HTMLElement {
-  const container = document.createElement('div');
-  container.className = 'thinking-box';
-  
-  const header = document.createElement('div');
-  header.className = 'thinking-box-header';
-  
-  const label = document.createElement('span');
-  label.textContent = 'Thinking';
-  
-  const arrow = document.createElement('span');
-  arrow.className = `thinking-box-arrow ${isCollapsed ? 'collapsed' : ''}`;
-  arrow.textContent = '▼';
-  
-  header.appendChild(label);
-  header.appendChild(arrow);
-  
-  const contentDiv = document.createElement('div');
-  contentDiv.className = `thinking-box-content ${isCollapsed ? 'collapsed' : ''}`;
-  contentDiv.textContent = content.join('\n');
-  
-  header.addEventListener('click', () => {
-    // Toggle collapsed state
-    contentDiv.classList.toggle('collapsed');
-    arrow.classList.toggle('collapsed');
-  });
-  
-  container.appendChild(header);
-  container.appendChild(contentDiv);
-  
-  return container;
+export function ThinkingBox({ content, isCollapsed = true }: ThinkingBoxProps): HTMLElement {
+  // Minimalist, reliable collapse using native <details>/<summary>
+  const details = document.createElement('details');
+  details.className = 'thinking-line';
+  details.open = !isCollapsed;
+
+  const summary = document.createElement('summary');
+  summary.className = 'thinking-summary';
+  summary.textContent = 'Thinking';
+
+  const body = document.createElement('div');
+  body.className = 'thinking-body';
+  body.textContent = content.join('\n');
+
+  details.appendChild(summary);
+  details.appendChild(body);
+  return details;
 }
