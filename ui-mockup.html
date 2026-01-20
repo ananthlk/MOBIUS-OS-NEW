@@ -57,6 +57,18 @@
             height: 24px;
             border-radius: 4px;
         }
+        
+        .client-logo-svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        
+        .client-logo-svg svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
 
         .client-logo .client-name {
             font-weight: 500;
@@ -819,8 +831,15 @@
         <div class="top-row">
             <div class="header-left">
                 <div class="client-logo">
-                    <div style="width: 24px; height: 24px; background: #e8eaed; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #5f6368;">CMHC</div>
-                    <span class="client-name">CMHC</span>
+                    <div class="client-logo-svg" style="width: 24px; height: 24px;">
+                        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" rx="6" fill="#0891b2"/>
+                            <path d="M16 6L22 18H10L16 6Z" fill="white" opacity="0.9"/>
+                            <circle cx="16" cy="22" r="4" fill="white" opacity="0.9"/>
+                            <path d="M8 24C8 20 11 17 16 17C21 17 24 20 24 24" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+                        </svg>
+                    </div>
+                    <span class="client-name">Aspire Health FL</span>
                 </div>
                 <div class="logo-section">
                     <div class="mobius-logo status-processing">

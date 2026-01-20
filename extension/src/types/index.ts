@@ -251,3 +251,154 @@ export interface ResolvedPatientContext {
   display_name?: string;
   id_masked?: string;
 }
+
+
+// =============================================================================
+// User Context Detection Types (User Awareness Sprint)
+// =============================================================================
+
+/**
+ * Types of user identifiers that can be detected
+ */
+export type UserIdType = 'user_id' | 'staff_id' | 'email' | 'name' | 'unknown';
+
+/**
+ * A user identifier detected from a webpage
+ */
+export interface DetectedUser {
+  id_type: UserIdType;
+  id_value: string;
+  display_name?: string;
+  email?: string;
+  source: 'dataAttributes' | 'domSelectors' | 'url';
+}
+
+/**
+ * Options for the UserContextDetector
+ */
+export interface UserContextDetectorOptions {
+  /** Debounce time in milliseconds (default: 500) */
+  debounceMs?: number;
+  /** Detection strategies to use in priority order */
+  strategies?: Array<'dataAttributes' | 'domSelectors' | 'url'>;
+  /** Custom patterns (merged with defaults) */
+  customPatterns?: Record<string, unknown>;
+  /** Whether to auto-start detection on initialization */
+  autoStart?: boolean;
+}
+
+/**
+ * Event types emitted by UserContextDetector
+ */
+export type UserDetectionEvent = 
+  | 'userDetected'
+  | 'userChanged'
+  | 'userCleared'
+  | 'detectionError';
+
+/**
+ * Callback for user detection events
+ */
+export type UserDetectionCallback = (user: DetectedUser | null, event: UserDetectionEvent) => void;
+
+
+// =============================================================================
+// Authentication Types (User Awareness Sprint)
+// =============================================================================
+
+/**
+ * Authentication state
+ */
+export type AuthState = 'unauthenticated' | 'authenticated' | 'onboarding';
+
+/**
+ * User profile from backend
+ */
+export interface UserProfile {
+  user_id: string;
+  tenant_id: string;
+  email?: string;
+  display_name?: string;
+  first_name?: string;
+  preferred_name?: string;
+  greeting_name: string;
+  avatar_url?: string;
+  timezone: string;
+  locale: string;
+  is_onboarded: boolean;
+  activities: string[];
+  tone: 'professional' | 'friendly' | 'concise';
+  greeting_enabled: boolean;
+  autonomy_routine_tasks?: 'automatic' | 'confirm_first' | 'manual';
+  autonomy_sensitive_tasks?: 'automatic' | 'confirm_first' | 'manual';
+}
+
+/**
+ * Authentication tokens
+ */
+export interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+/**
+ * Personalization data from backend
+ */
+export interface PersonalizationData {
+  greeting: string | null;
+  tone: string;
+  quick_actions: Array<{ code: string; label: string; from_activity?: string }>;
+  prioritized_fields: string[];
+  default_execution_mode: {
+    routine: 'agentic' | 'copilot' | 'user_driven';
+    sensitive: 'agentic' | 'copilot' | 'user_driven';
+  };
+  activities?: Array<{ code: string; label: string }>;
+}
+
+/**
+ * Mini status response with user awareness fields
+ */
+export interface MiniStatusResponse {
+  ok: boolean;
+  session_id: string;
+  surface: string;
+  system_response_id?: string;
+  authenticated: boolean;
+  user?: {
+    user_id: string;
+    display_name?: string;
+    greeting_name?: string;
+    is_onboarded: boolean;
+    activities: string[];
+  };
+  personalization?: PersonalizationData;
+  patient?: {
+    found: boolean;
+    display_name?: string;
+    id_masked?: string;
+  };
+  needs_attention: {
+    color: string;
+    problem_statement?: string;
+    user_status?: string;
+  };
+  proceed: {
+    indicator: string;
+    color: string;
+    text: string;
+  };
+  has_tasks: boolean;
+  task_count: number;
+  tasking?: {
+    text: string;
+    summary: string;
+    needs_ack: boolean;
+    color: string;
+    mode: string;
+    mode_text: string;
+  };
+  mode?: string;
+  computed_at: string;
+}

@@ -6,10 +6,16 @@ Delegates to PatientDataAgent for data and DecisionOrchestrator for decisions.
 Persists System Responses and handles acknowledgements via services.
 
 Loads payment_probability and task_instances for decision agents.
+
+User Awareness Sprint:
+- Loads user profile for personalization
+- Generates personalized greetings
+- Filters quick actions based on user activities
 """
 
 import uuid
 from datetime import datetime
+from typing import Optional
 from flask import Blueprint, request, jsonify
 
 from app.agents.patient_data_agent import PatientDataAgent
@@ -17,6 +23,9 @@ from app.agents.decision_agents import DecisionOrchestrator, DecisionContext
 from app.services.patient_state import PatientStateService
 from app.services.event_log import EventLogService
 from app.services.projection import ProjectionService
+from app.services.auth_service import get_auth_service
+from app.services.user_context import get_user_context_service, UserProfile
+from app.services.personalization import get_personalization_service
 from app.db.postgres import get_db_session
 from app.models.probability import PaymentProbability, TaskInstance, TaskTemplate, UserPreference
 from app.models.patient import PatientContext
@@ -33,6 +42,24 @@ _projection_service = ProjectionService()
 # Default tenant/user IDs for development (no auth yet)
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 DEFAULT_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
+
+
+def _get_current_user() -> Optional[UserProfile]:
+    """Get current user profile from Authorization header."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    
+    token = auth_header[7:]  # Remove "Bearer " prefix
+    auth_service = get_auth_service()
+    user = auth_service.validate_access_token(token)
+    
+    if not user:
+        return None
+    
+    # Load full user profile
+    user_context_service = get_user_context_service()
+    return user_context_service.get_user_profile(user.user_id)
 
 
 def _get_tenant_id(data: dict) -> uuid.UUID:
@@ -295,11 +322,37 @@ def status():
     if patient_context:
         task_count = _get_task_count(patient_context.patient_context_id)
     
+    # User Awareness Sprint: Load user profile and personalization
+    user_profile = _get_current_user()
+    personalization_service = get_personalization_service()
+    
+    # Build personalization payload if user is authenticated
+    user_data = None
+    personalization_data = None
+    
+    if user_profile:
+        user_data = {
+            "user_id": str(user_profile.user_id),
+            "display_name": user_profile.display_name,
+            "greeting_name": user_profile.greeting_name,
+            "is_onboarded": user_profile.is_onboarded,
+            "activities": user_profile.activity_codes,
+        }
+        personalization_data = personalization_service.build_personalization_payload(
+            user_profile,
+            include_greeting=True,
+            max_quick_actions=5
+        )
+    
     return jsonify({
         "ok": True,
         "session_id": session_id,
         "surface": "mini",
         "system_response_id": str(system_response_id) if system_response_id else None,
+        # User Awareness Sprint: User and personalization data
+        "user": user_data,
+        "personalization": personalization_data,
+        "authenticated": user_profile is not None,
         "patient": {
             "found": bool(patient_key and patient_snapshot),
             "display_name": patient_snapshot.get("display_name") if patient_snapshot else None,

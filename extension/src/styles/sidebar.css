@@ -85,6 +85,18 @@
   border-radius: 4px;
 }
 
+#mobius-os-sidebar .client-logo-svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+#mobius-os-sidebar .client-logo-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 #mobius-os-sidebar .client-logo-placeholder {
   width: 24px;
   height: 24px;
@@ -864,6 +876,64 @@
   height: 18px;
 }
 
+/* Client logo in Mini widget */
+#mobius-os-mini .client-logo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+#mobius-os-mini .client-logo.client-logo-compact {
+  gap: 0;
+}
+
+#mobius-os-mini .client-logo img {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+}
+
+#mobius-os-mini .client-logo-svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+#mobius-os-mini .client-logo-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#mobius-os-mini .client-logo-placeholder {
+  width: 18px;
+  height: 18px;
+  background: #e8eaed;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: #5f6368;
+  font-weight: 600;
+}
+
+#mobius-os-mini .client-name {
+  font-size: 9px;
+  font-weight: 500;
+  color: #5f6368;
+  white-space: nowrap;
+}
+
+/* Divider between client logo and Mobius brand */
+#mobius-os-mini .mobius-mini-brand-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(11, 18, 32, 0.12);
+  margin: 0 2px;
+}
+
 #mobius-os-mini .mobius-logo {
   width: 18px;
   height: 18px;
@@ -966,7 +1036,7 @@
 
 #mobius-os-mini.mobius-mini-minimized .mobius-mini-header {
   padding: 6px 10px;
-  gap: 6px;
+  gap: 8px;
 }
 
 #mobius-os-mini.mobius-mini-minimized .mobius-mini-brand {
@@ -983,6 +1053,28 @@
 #mobius-os-mini.mobius-mini-minimized .mobius-mini-task-badge-row,
 #mobius-os-mini.mobius-mini-minimized .mobius-mini-note-row {
   display: none !important;
+}
+
+/* Minimized info - patient name + attention dot (hidden by default) */
+#mobius-os-mini .mobius-mini-minimized-info {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 140px;
+}
+
+#mobius-os-mini .mobius-mini-minimized-patient {
+  font-size: 10px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Show minimized info only when minimized */
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-minimized-info {
+  display: flex;
 }
 
 #mobius-os-mini .mobius-mini-menu {
@@ -1321,6 +1413,108 @@
   font-weight: 700;
 }
 
+/* User Greeting Row */
+#mobius-os-mini .mobius-mini-greeting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.04), rgba(99, 102, 241, 0.02));
+  border-bottom: 1px solid rgba(11, 18, 32, 0.06);
+  position: relative;
+}
+
+#mobius-os-mini .mobius-mini-greeting-main {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+#mobius-os-mini .mobius-mini-greeting-main:hover {
+  opacity: 0.8;
+}
+
+#mobius-os-mini .mobius-mini-greeting-text {
+  font-size: 9px;
+  font-weight: 500;
+  color: #3b82f6;
+}
+
+#mobius-os-mini .mobius-mini-greeting-chevron {
+  color: #60a5fa;
+  opacity: 0.6;
+  width: 10px;
+  height: 10px;
+}
+
+#mobius-os-mini .mobius-mini-greeting-dismiss {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 0;
+}
+
+#mobius-os-mini .mobius-mini-greeting-dismiss:hover {
+  background: rgba(11, 18, 32, 0.06);
+  color: #64748b;
+}
+
+#mobius-os-mini .mobius-mini-greeting-dismiss svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* User Dropdown */
+#mobius-os-mini .mobius-mini-user-dropdown {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Locked Overlay */
+#mobius-os-mini .mobius-mini-locked-overlay {
+  padding: 16px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+}
+
+/* Theme variations for greeting */
+#mobius-os-mini.theme-dark .mobius-mini-greeting-row {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.12), rgba(99, 102, 241, 0.08));
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-greeting-text {
+  color: #93c5fd;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-greeting-chevron {
+  color: #60a5fa;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-greeting-dismiss {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-greeting-row {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.1), rgba(96, 165, 250, 0.08));
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-greeting-text {
+  color: #1d4ed8;
+}
+
 /* Attention dropdown - compact */
 #mobius-os-mini .mobius-mini-attention-dropdown {
   min-width: 180px !important;
@@ -1427,6 +1621,10 @@
   color: rgba(148, 163, 184, 0.9);
 }
 
+#mobius-os-mini.theme-dark .mobius-mini-minimized-patient {
+  color: #e2e8f0;
+}
+
 #mobius-os-mini.theme-dark .mobius-mini-problem-text {
   color: #e2e8f0;
 }
@@ -1530,6 +1728,10 @@
 #mobius-os-mini.theme-glass .mobius-mini-minimize-btn,
 #mobius-os-mini.theme-glass .mobius-mini-drag-handle {
   background: rgba(255, 255, 255, 0.4);
+}
+
+#mobius-os-mini.theme-glass .mobius-mini-minimized-patient {
+  color: #1e293b;
 }
 
 /* Patient edit modal */

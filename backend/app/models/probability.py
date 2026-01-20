@@ -260,6 +260,13 @@ class UserPreference(Base):
     
     Used by ExecutionModeAgent to determine if user wants
     COPILOT mode even when AGENTIC is possible.
+    
+    Extended for User Awareness Sprint with:
+    - tone: Communication style preference
+    - greeting_enabled: Whether to show personalized greetings
+    - ai_experience_level: User's familiarity with AI
+    - autonomy_routine_tasks: Preference for routine task automation
+    - autonomy_sensitive_tasks: Preference for sensitive task automation
     """
     
     __tablename__ = "user_preference"
@@ -272,14 +279,44 @@ class UserPreference(Base):
         unique=True
     )
     
-    # Oversight preference
+    # Oversight preference (legacy, kept for compatibility)
     always_require_oversight = Column(Boolean, default=False, nullable=False)
     
-    # Other preferences can be added here
+    # Other preferences
     notification_preferences = Column(JSONB, nullable=True)
+    
+    # User Awareness Sprint - Personalization preferences
+    tone = Column(String(20), default="professional", nullable=True)  # 'professional', 'friendly', 'concise'
+    greeting_enabled = Column(Boolean, default=True, nullable=False)
+    
+    # AI comfort level (derived from onboarding questions)
+    ai_experience_level = Column(String(20), default="beginner", nullable=True)  # 'none', 'beginner', 'regular'
+    autonomy_routine_tasks = Column(String(20), default="confirm_first", nullable=True)  # 'automatic', 'confirm_first', 'manual'
+    autonomy_sensitive_tasks = Column(String(20), default="confirm_first", nullable=True)  # 'automatic', 'confirm_first', 'manual'
+    
+    # UI customization
+    display_preferences_json = Column(JSONB, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationship
-    user = relationship("AppUser")
+    user = relationship("AppUser", back_populates="preference")
+    
+    def get_default_execution_mode(self, is_sensitive: bool = False) -> str:
+        """Get default execution mode based on user preferences.
+        
+        Args:
+            is_sensitive: Whether the task affects billing/patient records
+            
+        Returns:
+            'agentic', 'copilot', or 'user_driven'
+        """
+        autonomy = self.autonomy_sensitive_tasks if is_sensitive else self.autonomy_routine_tasks
+        
+        mode_map = {
+            "automatic": "agentic",
+            "confirm_first": "copilot",
+            "manual": "user_driven",
+        }
+        return mode_map.get(autonomy, "copilot")

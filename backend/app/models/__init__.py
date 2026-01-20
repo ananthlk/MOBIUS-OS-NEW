@@ -4,7 +4,7 @@ SQLAlchemy models for Mobius OS (PRD §13.2).
 These are the authoritative PostgreSQL tables.
 """
 
-from .tenant import Tenant, Role, AppUser, Application, PolicyConfig
+from .tenant import Tenant, Role, AppUser, Application, PolicyConfig, AuthProviderLink, UserSession
 from .patient import PatientIdentityRef, PatientContext, PatientSnapshot
 from .response import SystemResponse, MiniSubmission
 from .assignment import Assignment
@@ -20,6 +20,7 @@ from .probability import (
     StepInstance,
     UserPreference,
 )
+from .activity import Activity, UserActivity
 from .appointment import Appointment, AppointmentReminder
 from .intake import IntakeForm, InsuranceVerification, IntakeChecklist
 from .user_issue import UserReportedIssue
@@ -36,6 +37,12 @@ __all__ = [
     "AppUser",
     "Application",
     "PolicyConfig",
+    # User Awareness - Auth
+    "AuthProviderLink",
+    "UserSession",
+    # User Awareness - Activities
+    "Activity",
+    "UserActivity",
     # Patient
     "PatientIdentityRef",
     "PatientContext",

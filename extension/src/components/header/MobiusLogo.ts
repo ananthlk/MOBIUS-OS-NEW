@@ -20,6 +20,7 @@ export function MobiusLogo({ status, size = 32 }: MobiusLogoProps): HTMLElement 
 
   const container = document.createElement('div');
   container.className = `mobius-logo status-${status}`;
+  container.style.cssText = `width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;`;
   
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 100 100');

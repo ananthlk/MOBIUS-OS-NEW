@@ -39,6 +39,8 @@ class Config:
     POSTGRES_DB_CLOUD = os.getenv("POSTGRES_DB_CLOUD", "mobius")
     POSTGRES_USER_CLOUD = os.getenv("POSTGRES_USER_CLOUD", "postgres")
     POSTGRES_PASSWORD_CLOUD = os.getenv("POSTGRES_PASSWORD_CLOUD", "")
+    # Cloud SQL Unix socket (for Cloud Run)
+    CLOUDSQL_CONNECTION_NAME = os.getenv("CLOUDSQL_CONNECTION_NAME", "")
 
     # Firestore / GCP
     GCP_CREDENTIALS_PATH = os.getenv("GCP_CREDENTIALS_PATH", "./gcp-credentials.json")
@@ -51,11 +53,23 @@ class Config:
     def get_database_url(cls) -> str:
         """Build PostgreSQL connection URL based on DATABASE_MODE."""
         if cls.DATABASE_MODE == "cloud":
-            host = cls.POSTGRES_HOST_CLOUD
-            port = cls.POSTGRES_PORT_CLOUD
             db = cls.POSTGRES_DB_CLOUD
             user = cls.POSTGRES_USER_CLOUD
             password = cls.POSTGRES_PASSWORD_CLOUD
+            
+            # Use Unix socket if Cloud SQL connection name is provided (Cloud Run)
+            if cls.CLOUDSQL_CONNECTION_NAME:
+                socket_path = f"/cloudsql/{cls.CLOUDSQL_CONNECTION_NAME}"
+                if password:
+                    url = f"postgresql+psycopg://{user}:{password}@/{db}?host={socket_path}"
+                else:
+                    url = f"postgresql+psycopg://{user}@/{db}?host={socket_path}"
+                print(f"[Config] PostgreSQL: CLOUD via Unix socket ({cls.CLOUDSQL_CONNECTION_NAME})")
+                return url
+            
+            # Fall back to TCP connection
+            host = cls.POSTGRES_HOST_CLOUD
+            port = cls.POSTGRES_PORT_CLOUD
             mode_label = "CLOUD"
         else:
             host = cls.POSTGRES_HOST_LOCAL

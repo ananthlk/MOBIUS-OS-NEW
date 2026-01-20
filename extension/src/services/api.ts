@@ -13,9 +13,40 @@ import {
   ContextDetectionResponse,
   ResolvedPatientContext,
   PatternConfig,
+  MiniStatusResponse as MiniStatusResponseType,
+  UserProfile,
 } from '../types';
+import { getAuthService } from './auth';
 
 const API_BASE_URL = 'http://localhost:5001/api/v1';
+
+// =============================================================================
+// Authenticated Fetch Helper
+// =============================================================================
+
+/**
+ * Make an authenticated API request.
+ * Automatically adds Authorization header if user is logged in.
+ */
+async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const authService = getAuthService();
+  const token = await authService.getAccessToken();
+  
+  const headers = new Headers(options.headers);
+  headers.set('Content-Type', 'application/json');
+  
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  
+  return fetch(url, {
+    ...options,
+    headers,
+  });
+}
 
 // =============================================================================
 // Chat Mode (existing)
@@ -87,9 +118,9 @@ export async function fetchMiniStatus(
   sessionId: SessionId,
   patientKey?: string
 ): Promise<MiniStatusResponse> {
-  const response = await fetch(`${API_BASE_URL}/mini/status`, {
+  // Use authenticated fetch to include user context
+  const response = await authenticatedFetch(`${API_BASE_URL}/mini/status`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ session_id: sessionId, patient_key: patientKey }),
   });
 

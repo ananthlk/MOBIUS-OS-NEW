@@ -13,6 +13,7 @@ from app.modes.sidecar import bp as sidecar_bp
 from app.modes.mock_emr import bp as mock_emr_bp
 from app.modes.mock_crm import bp as mock_crm_bp
 from app.modes.context import bp as context_bp
+from app.routes.auth import bp as auth_bp
 
 
 def create_app(init_database: bool = False):
@@ -32,6 +33,7 @@ def create_app(init_database: bool = False):
         return response
 
     # Register blueprints (surface-specific routes)
+    app.register_blueprint(auth_bp)      # /api/v1/auth/*
     app.register_blueprint(chat_bp)      # /api/v1/modes/chat/*
     app.register_blueprint(mini_bp)      # /api/v1/mini/*
     app.register_blueprint(sidecar_bp)   # /api/v1/sidecar/*
@@ -60,6 +62,7 @@ if __name__ == "__main__":
     print(f"[Mobius] Firestore enabled: {config.ENABLE_FIRESTORE}")
     print(f"[Mobius] Debug mode: {config.DEBUG}")
     print(f"[Mobius] Routes:")
+    print(f"  - /api/v1/auth/* (Authentication)")
     print(f"  - /api/v1/mini/* (Mini surface)")
     print(f"  - /api/v1/sidecar/* (Sidecar surface)")
     print(f"  - /api/v1/context/* (Patient context detection)")

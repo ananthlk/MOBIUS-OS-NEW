@@ -30,3 +30,52 @@ chrome.runtime.onInstalled.addListener(() => {
     });
   });
 });
+
+/**
+ * Auth Storage Message Handler
+ * Content scripts cannot access chrome.storage.session directly,
+ * so we proxy storage operations through the background script.
+ */
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!message || !message.type) return false;
+
+  // Handle auth storage operations
+  if (message.type === 'mobius:auth:getStorage') {
+    const keys = message.keys as string[];
+    chrome.storage.session.get(keys).then((result) => {
+      sendResponse({ ok: true, data: result });
+    }).catch((error) => {
+      console.error('[Mobius Background] Storage get error:', error);
+      sendResponse({ ok: false, error: String(error) });
+    });
+    return true; // Keep channel open for async response
+  }
+
+  if (message.type === 'mobius:auth:setStorage') {
+    const items = message.items as Record<string, unknown>;
+    chrome.storage.session.set(items).then(() => {
+      sendResponse({ ok: true });
+    }).catch((error) => {
+      console.error('[Mobius Background] Storage set error:', error);
+      sendResponse({ ok: false, error: String(error) });
+    });
+    return true;
+  }
+
+  if (message.type === 'mobius:auth:clearStorage') {
+    const keys = message.keys as string[] | undefined;
+    const clearPromise = keys 
+      ? chrome.storage.session.remove(keys)
+      : chrome.storage.session.clear();
+    
+    clearPromise.then(() => {
+      sendResponse({ ok: true });
+    }).catch((error) => {
+      console.error('[Mobius Background] Storage clear error:', error);
+      sendResponse({ ok: false, error: String(error) });
+    });
+    return true;
+  }
+
+  return false;
+});

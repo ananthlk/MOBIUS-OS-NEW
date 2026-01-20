@@ -25,8 +25,10 @@ import {
   UserDetails,
   PreferencesPanel
 } from './components';
-import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, DetectedPatient, ResolvedPatientContext } from './types';
+import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, DetectedPatient, ResolvedPatientContext, UserProfile, PersonalizationData, MiniStatusResponse as MiniStatusResponseType } from './types';
 import { PatientContextDetector } from './services/patientContextDetector';
+import { getAuthService } from './services/auth';
+import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
 
 const componentRegistry = {
   contextSummary: ContextSummary,
@@ -131,6 +133,12 @@ let needsAttention: {
   userStatus: AttentionStatus;
 } = { color: 'grey', problemStatement: null, userStatus: null };
 let taskCount = 0;
+
+// User Awareness state
+let isAuthenticated = false;
+let currentUserProfile: UserProfile | null = null;
+let currentPersonalization: PersonalizationData | null = null;
+let greetingDismissed = false;
 
 function setVisible(el: HTMLElement, visible: boolean) {
   el.style.display = visible ? '' : 'none';
@@ -341,6 +349,10 @@ async function updateMiniWithResolvedPatient(resolved: ResolvedPatientContext): 
   if (nameEl) nameEl.textContent = resolved.display_name || 'Unknown';
   if (idEl && resolved.id_masked) idEl.textContent = `ID ${resolved.id_masked}`;
   
+  // Update minimized info patient name
+  const minimizedPatient = mini.querySelector<HTMLElement>('.mobius-mini-minimized-patient');
+  if (minimizedPatient) minimizedPatient.textContent = resolved.display_name || 'Unknown';
+  
   // Fetch updated status for the detected patient
   if (resolved.patient_key) {
     try {
@@ -364,15 +376,16 @@ async function updateMiniWithResolvedPatient(resolved: ResolvedPatientContext): 
       
       // Re-render Mini attention UI
       const attentionRow = mini.querySelector<HTMLElement>('.mobius-mini-attention-row');
+      let effectiveColor = needsAttention.color;
+      if (needsAttention.userStatus === 'resolved') effectiveColor = 'green';
+      else if (needsAttention.userStatus === 'confirmed_unresolved') effectiveColor = 'yellow';
+      else if (needsAttention.userStatus === 'unable_to_confirm') effectiveColor = 'grey';
+      
       if (attentionRow) {
         const dot = attentionRow.querySelector<HTMLElement>('.mobius-mini-dot');
         const text = attentionRow.querySelector<HTMLElement>('.mobius-mini-problem-text');
         if (dot) {
-          let color = needsAttention.color;
-          if (needsAttention.userStatus === 'resolved') color = 'green';
-          else if (needsAttention.userStatus === 'confirmed_unresolved') color = 'yellow';
-          else if (needsAttention.userStatus === 'unable_to_confirm') color = 'grey';
-          dot.className = `mobius-mini-dot ${colorToCssClass(color)}`;
+          dot.className = `mobius-mini-dot ${colorToCssClass(effectiveColor)}`;
         }
         if (text) {
           if (needsAttention.userStatus === 'resolved') {
@@ -383,6 +396,12 @@ async function updateMiniWithResolvedPatient(resolved: ResolvedPatientContext): 
             text.textContent = 'No issues detected';
           }
         }
+      }
+      
+      // Update minimized info dot
+      const minimizedDot = mini.querySelector<HTMLElement>('.mobius-mini-minimized-info .mobius-mini-dot');
+      if (minimizedDot) {
+        minimizedDot.className = `mobius-mini-dot ${colorToCssClass(effectiveColor)}`;
       }
       
       // Update task badge
@@ -682,7 +701,7 @@ function createMini(): HTMLElement {
   root.id = MINI_IDS.root;
   root.className = 'mobius-mini';
 
-  // Header (drag handle + logo + menu)
+  // Header (drag handle + client logo + divider + Mobius logo + menu)
   const header = document.createElement('div');
   header.className = 'mobius-mini-header';
 
@@ -691,8 +710,17 @@ function createMini(): HTMLElement {
   dragHandle.title = 'Drag';
   dragHandle.innerHTML = '<div class="mobius-mini-drag-dots"></div>';
 
+  // Client logo (Aspire Health FL for CMHC)
+  const clientLogoEl = ClientLogo({ clientName: 'CMHC', compact: true });
+  
+  // Divider between client and Mobius branding
+  const brandDivider = document.createElement('div');
+  brandDivider.className = 'mobius-mini-brand-divider';
+
   const brand = document.createElement('div');
   brand.className = 'mobius-mini-brand';
+  brand.appendChild(clientLogoEl);
+  brand.appendChild(brandDivider);
   brand.appendChild(MobiusLogo({ status: mobiusStatus }));
 
   const brandText = document.createElement('div');
@@ -705,6 +733,14 @@ function createMini(): HTMLElement {
   minimizeBtn.type = 'button';
   minimizeBtn.textContent = '−';
   minimizeBtn.setAttribute('aria-label', 'Minimize');
+
+  // Minimized state info (dot + patient name) - visible only when minimized
+  const minimizedInfo = document.createElement('div');
+  minimizedInfo.className = 'mobius-mini-minimized-info';
+  minimizedInfo.innerHTML = `
+    <span class="mobius-mini-dot"></span>
+    <span class="mobius-mini-minimized-patient"></span>
+  `;
 
   const expandBtn = document.createElement('button');
   expandBtn.className = 'mobius-mini-expand-btn';
@@ -883,13 +919,208 @@ function createMini(): HTMLElement {
     }
   });
 
-  header.appendChild(dragHandle);
+  // Note: dragHandle removed for cleaner look - Mini can still be dragged by header
+  header.appendChild(minimizedInfo);
   header.appendChild(brand);
   header.appendChild(minimizeBtn);
   header.appendChild(expandBtn);
   header.appendChild(menuBtn);
   // Note: menu is appended to document.body when opened (to escape overflow:hidden)
   root.appendChild(header);
+
+  // Greeting row (User Awareness Sprint)
+  const greetingRow = document.createElement('div');
+  greetingRow.className = 'mobius-mini-greeting-row';
+  greetingRow.style.display = 'none'; // Hidden by default, shown when authenticated
+  greetingRow.innerHTML = `
+    <button class="mobius-mini-greeting-main" type="button">
+      <span class="mobius-mini-greeting-text">Hello</span>
+      <svg class="mobius-mini-greeting-chevron" viewBox="0 0 24 24" width="14" height="14">
+        <path fill="currentColor" d="M7 10l5 5 5-5z"/>
+      </svg>
+    </button>
+    <button class="mobius-mini-greeting-dismiss" type="button" title="Hide greeting">
+      <svg viewBox="0 0 24 24" width="12" height="12">
+        <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+      </svg>
+    </button>
+  `;
+  root.appendChild(greetingRow);
+
+  // User dropdown (shown when clicking greeting)
+  let userDropdown: HTMLElement | null = null;
+  
+  const showUserDropdown = () => {
+    if (userDropdown) {
+      userDropdown.remove();
+      userDropdown = null;
+      return;
+    }
+    
+    // Get position of greeting row for fixed dropdown
+    const greetingRect = greetingRow.getBoundingClientRect();
+    
+    userDropdown = document.createElement('div');
+    userDropdown.className = 'mobius-mini-user-dropdown';
+    userDropdown.style.cssText = `
+      position: fixed;
+      top: ${greetingRect.bottom + 4}px;
+      left: ${greetingRect.left}px;
+      width: ${greetingRect.width}px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      z-index: 2147483647;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+    
+    const displayName = currentUserProfile?.display_name || currentUserProfile?.email || 'User';
+    const email = currentUserProfile?.email || '';
+    const initial = (displayName || '?')[0].toUpperCase();
+    
+    userDropdown.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:#f8fafc;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#3b82f6;color:white;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;">${initial}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:600;color:#0b1220;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</div>
+          ${email ? `<div style="font-size:9px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${email}</div>` : ''}
+        </div>
+      </div>
+      <div style="height:1px;background:#e2e8f0;"></div>
+      <button class="mobius-mini-dropdown-item" data-action="preferences" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:none;border:none;cursor:pointer;font-size:10px;color:#374151;text-align:left;">
+        <svg viewBox="0 0 24 24" width="14" height="14" style="color:#64748b;flex-shrink:0;">
+          <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+        </svg>
+        <span>My Preferences</span>
+      </button>
+      <button class="mobius-mini-dropdown-item" data-action="switch" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:none;border:none;cursor:pointer;font-size:10px;color:#374151;text-align:left;">
+        <svg viewBox="0 0 24 24" width="14" height="14" style="color:#64748b;flex-shrink:0;">
+          <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+        <span>Not you? Sign in differently</span>
+      </button>
+      <div style="height:1px;background:#e2e8f0;"></div>
+      <button class="mobius-mini-dropdown-item" data-action="signout" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:none;border:none;cursor:pointer;font-size:10px;color:#dc2626;text-align:left;">
+        <svg viewBox="0 0 24 24" width="14" height="14" style="color:#dc2626;flex-shrink:0;">
+          <path fill="currentColor" d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+        </svg>
+        <span>Sign out</span>
+      </button>
+    `;
+    
+    // Append to document body (fixed position escapes Mini widget overflow)
+    document.body.appendChild(userDropdown);
+    
+    // Wire up dropdown actions
+    userDropdown.querySelectorAll('.mobius-mini-dropdown-item').forEach(item => {
+      (item as HTMLElement).addEventListener('mouseenter', () => {
+        (item as HTMLElement).style.background = '#f8fafc';
+      });
+      (item as HTMLElement).addEventListener('mouseleave', () => {
+        (item as HTMLElement).style.background = 'transparent';
+      });
+      item.addEventListener('click', async () => {
+        const action = (item as HTMLElement).dataset.action;
+        if (action === 'signout') {
+          const authService = getAuthService();
+          await authService.logout();
+          isAuthenticated = false;
+          currentUserProfile = null;
+          currentPersonalization = null;
+          await renderMiniIfAllowed();
+          showToast('Signed out');
+        } else if (action === 'preferences') {
+          // Show preferences modal
+          openPreferencesModal();
+        } else if (action === 'switch') {
+          const authService = getAuthService();
+          await authService.logout();
+          isAuthenticated = false;
+          currentUserProfile = null;
+          await renderMiniIfAllowed();
+        }
+        if (userDropdown) {
+          userDropdown.remove();
+          userDropdown = null;
+        }
+      });
+    });
+    
+    // Close on outside click
+    const closeDropdown = (e: MouseEvent) => {
+      if (userDropdown && !userDropdown.contains(e.target as Node) && !greetingRow.contains(e.target as Node)) {
+        userDropdown.remove();
+        userDropdown = null;
+        document.removeEventListener('click', closeDropdown);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeDropdown), 0);
+  };
+  
+  // Wire up greeting click
+  greetingRow.querySelector('.mobius-mini-greeting-main')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showUserDropdown();
+  });
+  
+  // Wire up dismiss button
+  greetingRow.querySelector('.mobius-mini-greeting-dismiss')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    greetingDismissed = true;
+    greetingRow.style.display = 'none';
+  });
+
+  // Open preferences modal
+  const openPreferencesModal = async () => {
+    // Inject modal styles if not already present
+    if (!document.getElementById('mobius-prefs-styles')) {
+      const style = document.createElement('style');
+      style.id = 'mobius-prefs-styles';
+      style.textContent = PREFERENCES_MODAL_STYLES;
+      document.head.appendChild(style);
+    }
+    
+    // Build preferences from current user profile and personalization
+    // Extract activity codes from user profile or personalization
+    const activityCodes = currentUserProfile?.activities || 
+      currentPersonalization?.activities?.map(a => a.code) || [];
+    
+    const currentPrefs: UserPreferences = {
+      preferred_name: currentUserProfile?.preferred_name || currentUserProfile?.first_name || '',
+      timezone: currentUserProfile?.timezone || 'America/New_York',
+      activities: activityCodes,
+      tone: (currentUserProfile?.tone as 'professional' | 'friendly' | 'concise') || 'professional',
+      greeting_enabled: currentUserProfile?.greeting_enabled !== false,
+      autonomy_routine_tasks: (currentUserProfile?.autonomy_routine_tasks as 'automatic' | 'confirm_first' | 'manual') || 'confirm_first',
+      autonomy_sensitive_tasks: (currentUserProfile?.autonomy_sensitive_tasks as 'automatic' | 'confirm_first' | 'manual') || 'manual',
+    };
+    
+    // Create and show modal
+    const modal = await PreferencesModal({
+      preferences: currentPrefs,
+      onSave: async (newPrefs) => {
+        showToast('Preferences saved!');
+        
+        // Clear cached user profile to force refresh
+        currentUserProfile = null;
+        currentPersonalization = null;
+        
+        // Refresh user profile from backend
+        const authService = getAuthService();
+        currentUserProfile = await authService.getCurrentUser();
+        
+        // Refresh Mini to reflect new preferences
+        await renderMiniIfAllowed();
+        modal.remove();
+      },
+      onClose: () => {
+        modal.remove();
+      },
+    });
+    
+    document.body.appendChild(modal);
+  };
 
   // Minimize/restore state
   let isMinimized = false;
@@ -990,6 +1221,9 @@ function createMini(): HTMLElement {
     if (nameEl) nameEl.textContent = p.name || 'Unknown';
     if (idEl) idEl.textContent = p.id ? `ID ${p.id}` : '';
     if (dobEl) dobEl.textContent = p.dob ? `DOB ${p.dob}` : '';
+    // Also update minimized info patient name
+    const minimizedName = minimizedInfo.querySelector<HTMLElement>('.mobius-mini-minimized-patient');
+    if (minimizedName) minimizedName.textContent = p.name || 'Unknown';
   };
   renderPatient();
 
@@ -1018,13 +1252,21 @@ function createMini(): HTMLElement {
     const badgeText = attentionRow.querySelector<HTMLElement>('.mobius-mini-badge-text');
     const badge = attentionRow.querySelector<HTMLElement>('.mobius-mini-status-badge');
     
+    // Calculate effective color based on status
+    let effectiveColor = needsAttention.color;
+    if (needsAttention.userStatus === 'resolved') effectiveColor = 'green';
+    else if (needsAttention.userStatus === 'confirmed_unresolved') effectiveColor = 'yellow';
+    else if (needsAttention.userStatus === 'unable_to_confirm') effectiveColor = 'grey';
+    
     // Dot color reflects status
     if (dot) {
-      let color = needsAttention.color;
-      if (needsAttention.userStatus === 'resolved') color = 'green';
-      else if (needsAttention.userStatus === 'confirmed_unresolved') color = 'yellow';
-      else if (needsAttention.userStatus === 'unable_to_confirm') color = 'grey';
-      dot.className = `mobius-mini-dot ${colorToCssClass(color)}`;
+      dot.className = `mobius-mini-dot ${colorToCssClass(effectiveColor)}`;
+    }
+    
+    // Also update minimized info dot
+    const minimizedDot = minimizedInfo.querySelector<HTMLElement>('.mobius-mini-dot');
+    if (minimizedDot) {
+      minimizedDot.className = `mobius-mini-dot ${colorToCssClass(effectiveColor)}`;
     }
     
     // Problem statement always visible
@@ -1057,8 +1299,28 @@ function createMini(): HTMLElement {
     taskBadgeRow.style.display = taskCount > 0 ? '' : 'none';
   };
 
+  // Update minimized state info (dot + patient name)
+  const updateMinimizedInfo = () => {
+    const dot = minimizedInfo.querySelector<HTMLElement>('.mobius-mini-dot');
+    const name = minimizedInfo.querySelector<HTMLElement>('.mobius-mini-minimized-patient');
+    
+    // Patient name
+    const p = getPatientDisplay();
+    if (name) name.textContent = p.name || 'Unknown';
+    
+    // Attention dot color
+    if (dot) {
+      let color = needsAttention.color;
+      if (needsAttention.userStatus === 'resolved') color = 'green';
+      else if (needsAttention.userStatus === 'confirmed_unresolved') color = 'yellow';
+      else if (needsAttention.userStatus === 'unable_to_confirm') color = 'grey';
+      dot.className = `mobius-mini-dot ${colorToCssClass(color)}`;
+    }
+  };
+
   applyAttention();
   applyTaskCount();
+  updateMinimizedInfo();
   
   // Legacy (hidden)
   applyStatus(proceedRow, miniProceed);
@@ -1527,6 +1789,14 @@ async function renderMiniIfAllowed(): Promise<void> {
 
   if (!sessionId) sessionId = await getOrCreateSessionId();
 
+  // Check authentication state
+  const authService = getAuthService();
+  isAuthenticated = await authService.isAuthenticated();
+  
+  if (isAuthenticated) {
+    currentUserProfile = await authService.getUserProfile();
+  }
+
   // Create mini if needed
   let mini = document.getElementById(MINI_IDS.root) as HTMLElement | null;
   if (!mini) {
@@ -1543,26 +1813,813 @@ async function renderMiniIfAllowed(): Promise<void> {
     mini.style.display = '';
   }
 
+  // Handle locked state for unauthenticated users
+  const greetingRow = mini.querySelector<HTMLElement>('.mobius-mini-greeting-row');
+  const patientRow = mini.querySelector<HTMLElement>('.mobius-mini-row');
+  const attentionRow = mini.querySelector<HTMLElement>('.mobius-mini-attention-row');
+  const taskBadgeRow = mini.querySelector<HTMLElement>('.mobius-mini-task-badge-row');
+  const noteRow = mini.querySelectorAll<HTMLElement>('.mobius-mini-row')[3]; // note row
+  
+  // Get or create locked overlay
+  let lockedOverlay = mini.querySelector<HTMLElement>('.mobius-mini-locked-overlay');
+  
+  // =========================================================================
+  // Account Creation & Onboarding Flow (scoped to have access to lockedOverlay)
+  // =========================================================================
+  
+  const API_BASE_AUTH = 'http://localhost:5001';
+  
+  // Fetch available activities from backend
+  const fetchActivities = async (): Promise<Array<{activity_code: string; label: string; description?: string}>> => {
+    try {
+      const response = await fetch(`${API_BASE_AUTH}/api/v1/auth/activities`);
+      const data = await response.json();
+      if (data.ok && data.activities) {
+        return data.activities;
+      }
+    } catch (err) {
+      console.error('[Mobius] Failed to fetch activities:', err);
+    }
+    // Fallback activities if backend fails
+    return [
+      { activity_code: 'verify_eligibility', label: 'Verify Insurance Eligibility' },
+      { activity_code: 'check_in_patients', label: 'Check In Patients' },
+      { activity_code: 'schedule_appointments', label: 'Schedule Appointments' },
+      { activity_code: 'submit_claims', label: 'Submit Claims' },
+      { activity_code: 'rework_claims', label: 'Rework Denied Claims' },
+      { activity_code: 'prior_auth', label: 'Prior Authorizations' },
+      { activity_code: 'patient_collections', label: 'Patient Collections' },
+      { activity_code: 'post_payments', label: 'Post Payments' },
+    ];
+  };
+  
+  // Show onboarding form (Step 2 of account creation)
+  const showOnboardingForm = async (firstName: string, accessToken: string) => {
+    if (!lockedOverlay) return;
+    
+    // Fetch available activities
+    const activities = await fetchActivities();
+    
+    // Update locked overlay to be a flex container for proper scrolling
+    lockedOverlay.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-height: 500px;
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+      overflow: hidden;
+    `;
+    
+    lockedOverlay.innerHTML = `
+      <div style="text-align: center; margin-bottom: 10px; flex-shrink: 0;">
+        <div style="font-size: 16px; margin-bottom: 4px;">👋</div>
+        <div style="font-size: 11px; font-weight: 600; color: #0b1220;">Welcome, ${firstName}!</div>
+        <div style="font-size: 9px; color: #64748b; margin-top: 2px;">Step 2 of 2 - Your preferences</div>
+      </div>
+      
+      <div class="mobius-mini-onboarding-form" style="flex: 1; overflow-y: auto; padding-right: 4px; min-height: 0;">
+        <!-- Preferred Name -->
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 9px; font-weight: 500; color: #374151; display: block; margin-bottom: 4px;">What should we call you?</label>
+          <input type="text" class="mobius-mini-onb-name" placeholder="${firstName}" value="${firstName}" style="
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            border: 1px solid rgba(11, 18, 32, 0.15);
+            border-radius: 6px;
+            font-size: 10px;
+            outline: none;
+          " />
+        </div>
+        
+        <!-- Activities -->
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 9px; font-weight: 500; color: #374151; display: block; margin-bottom: 4px;">What do you do? (select all that apply)</label>
+          <div class="mobius-mini-onb-activities" style="display: flex; flex-wrap: wrap; gap: 4px;">
+            ${activities.map((a: {activity_code: string; label: string}) => `
+              <label style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: #f8fafc; border-radius: 12px; cursor: pointer; font-size: 9px; color: #374151; border: 1px solid transparent; transition: all 0.15s;">
+                <input type="checkbox" value="${a.activity_code}" style="width: 12px; height: 12px; margin: 0;" />
+                <span>${a.label}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+        
+        <!-- AI Experience -->
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 9px; font-weight: 500; color: #374151; display: block; margin-bottom: 4px;">How familiar are you with AI tools?</label>
+          <div class="mobius-mini-onb-experience" style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px;">
+              <input type="radio" name="ai_exp" value="beginner" style="margin: 0;" />
+              <span><strong>New to AI</strong> - I haven't used ChatGPT or similar tools</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px;">
+              <input type="radio" name="ai_exp" value="regular" checked style="margin: 0;" />
+              <span><strong>Regular user</strong> - I've used AI tools for work or personal use</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px;">
+              <input type="radio" name="ai_exp" value="power_user" style="margin: 0;" />
+              <span><strong>Power user</strong> - I use AI daily and understand its capabilities</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Autonomy - Routine Tasks -->
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 9px; font-weight: 500; color: #374151; display: block; margin-bottom: 4px;">For routine tasks (like sending reminders), should Mobius:</label>
+          <div class="mobius-mini-onb-routine" style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px;">
+              <input type="radio" name="routine" value="automatic" style="margin: 0;" />
+              <span><strong>Act automatically</strong> - Just do it and let me know</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px;">
+              <input type="radio" name="routine" value="confirm_first" checked style="margin: 0;" />
+              <span><strong>Ask first</strong> - Show me what you'll do before doing it</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px;">
+              <input type="radio" name="routine" value="manual" style="margin: 0;" />
+              <span><strong>I'll do it</strong> - Just guide me, I'll take action myself</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Autonomy - Sensitive Tasks -->
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 9px; font-weight: 500; color: #374151; display: block; margin-bottom: 4px;">For sensitive tasks (like submitting claims), should Mobius:</label>
+          <div class="mobius-mini-onb-sensitive" style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px;">
+              <input type="radio" name="sensitive" value="confirm_first" style="margin: 0;" />
+              <span><strong>Ask first</strong> - Always confirm before taking action</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px;">
+              <input type="radio" name="sensitive" value="manual" checked style="margin: 0;" />
+              <span><strong>I'll do it</strong> - Just prepare it, I'll submit myself</span>
+            </label>
+          </div>
+        </div>
+        
+        <!-- Communication Style -->
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 9px; font-weight: 500; color: #374151; display: block; margin-bottom: 4px;">How should Mobius communicate with you?</label>
+          <div class="mobius-mini-onb-tone" style="display: flex; gap: 6px;">
+            <label style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px; border: 2px solid transparent;" class="tone-option" data-tone="professional">
+              <input type="radio" name="tone" value="professional" checked style="margin: 0 0 4px 0;" />
+              <span style="font-weight: 500;">Professional</span>
+              <span style="color: #64748b; font-size: 8px;">Clear & formal</span>
+            </label>
+            <label style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px; border: 2px solid transparent;" class="tone-option" data-tone="friendly">
+              <input type="radio" name="tone" value="friendly" style="margin: 0 0 4px 0;" />
+              <span style="font-weight: 500;">Friendly</span>
+              <span style="color: #64748b; font-size: 8px;">Warm & helpful</span>
+            </label>
+            <label style="flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px; background: #f8fafc; border-radius: 6px; cursor: pointer; font-size: 9px; border: 2px solid transparent;" class="tone-option" data-tone="concise">
+              <input type="radio" name="tone" value="concise" style="margin: 0 0 4px 0;" />
+              <span style="font-weight: 500;">Concise</span>
+              <span style="color: #64748b; font-size: 8px;">Brief & direct</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <div style="flex-shrink: 0; padding-top: 8px;">
+        <button class="mobius-mini-onb-submit" style="
+          width: 100%;
+          padding: 10px 12px;
+          background: #2563eb;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 10px;
+          font-weight: 500;
+          cursor: pointer;
+        ">Get Started</button>
+        <div class="mobius-mini-onb-error" style="
+          font-size: 9px;
+          color: #dc2626;
+          margin-top: 6px;
+          display: none;
+        "></div>
+        <div style="text-align: center; font-size: 8px; color: #94a3b8; margin-top: 6px;">
+          You can change these anytime in preferences
+        </div>
+      </div>
+    `;
+    
+    // Wire up form interactions
+    const nameInput = lockedOverlay.querySelector<HTMLInputElement>('.mobius-mini-onb-name');
+    const submitBtn = lockedOverlay.querySelector<HTMLButtonElement>('.mobius-mini-onb-submit');
+    const errorDiv = lockedOverlay.querySelector<HTMLElement>('.mobius-mini-onb-error');
+    
+    // Highlight selected tone
+    lockedOverlay.querySelectorAll('.tone-option').forEach((opt: Element) => {
+      const radio = opt.querySelector('input[type="radio"]') as HTMLInputElement;
+      if (radio?.checked) {
+        (opt as HTMLElement).style.borderColor = '#2563eb';
+        (opt as HTMLElement).style.background = '#eff6ff';
+      }
+      opt.addEventListener('click', () => {
+        lockedOverlay!.querySelectorAll('.tone-option').forEach((o: Element) => {
+          (o as HTMLElement).style.borderColor = 'transparent';
+          (o as HTMLElement).style.background = '#f8fafc';
+        });
+        (opt as HTMLElement).style.borderColor = '#2563eb';
+        (opt as HTMLElement).style.background = '#eff6ff';
+      });
+    });
+    
+    // Highlight checked activity checkboxes
+    lockedOverlay.querySelectorAll('.mobius-mini-onb-activities input[type="checkbox"]').forEach((cb: Element) => {
+      cb.addEventListener('change', () => {
+        const label = cb.closest('label') as HTMLElement;
+        if ((cb as HTMLInputElement).checked) {
+          label.style.borderColor = '#2563eb';
+          label.style.background = '#eff6ff';
+        } else {
+          label.style.borderColor = 'transparent';
+          label.style.background = '#f8fafc';
+        }
+      });
+    });
+    
+    const doOnboarding = async () => {
+      const preferredName = nameInput?.value.trim() || firstName;
+      
+      // Gather selected activities
+      const selectedActivities: string[] = [];
+      lockedOverlay!.querySelectorAll('.mobius-mini-onb-activities input[type="checkbox"]:checked').forEach((cb: Element) => {
+        selectedActivities.push((cb as HTMLInputElement).value);
+      });
+      
+      // Get AI experience level
+      const aiExp = (lockedOverlay!.querySelector('input[name="ai_exp"]:checked') as HTMLInputElement)?.value || 'regular';
+      
+      // Get autonomy preferences
+      const routineAutonomy = (lockedOverlay!.querySelector('input[name="routine"]:checked') as HTMLInputElement)?.value || 'confirm_first';
+      const sensitiveAutonomy = (lockedOverlay!.querySelector('input[name="sensitive"]:checked') as HTMLInputElement)?.value || 'manual';
+      
+      // Get tone preference
+      const tone = (lockedOverlay!.querySelector('input[name="tone"]:checked') as HTMLInputElement)?.value || 'professional';
+      
+      if (submitBtn) {
+        submitBtn.textContent = 'Setting up...';
+        submitBtn.disabled = true;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE_AUTH}/api/v1/auth/onboarding`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            preferred_name: preferredName,
+            activities: selectedActivities,
+            ai_experience_level: aiExp,
+            autonomy_routine_tasks: routineAutonomy,
+            autonomy_sensitive_tasks: sensitiveAutonomy,
+            tone,
+            greeting_enabled: true,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          showToast(`Welcome to Mobius, ${preferredName}!`);
+          
+          // Refresh user profile and re-render Mini
+          const authService = getAuthService();
+          currentUserProfile = await authService.getCurrentUser();
+          isAuthenticated = true;
+          
+          await renderMiniIfAllowed();
+        } else {
+          if (errorDiv) {
+            errorDiv.textContent = data.error || 'Failed to save preferences';
+            errorDiv.style.display = 'block';
+          }
+          if (submitBtn) {
+            submitBtn.textContent = 'Get Started';
+            submitBtn.disabled = false;
+          }
+        }
+      } catch (err) {
+        if (errorDiv) {
+          errorDiv.textContent = 'Connection error. Please try again.';
+          errorDiv.style.display = 'block';
+        }
+        if (submitBtn) {
+          submitBtn.textContent = 'Get Started';
+          submitBtn.disabled = false;
+        }
+      }
+    };
+    
+    submitBtn?.addEventListener('click', () => void doOnboarding());
+  };
+  
+  // Show registration form (Step 1 of account creation)
+  const showRegistrationForm = () => {
+    if (!lockedOverlay) {
+      // Create lockedOverlay if it doesn't exist
+      lockedOverlay = document.createElement('div');
+      lockedOverlay.className = 'mobius-mini-locked-overlay';
+      lockedOverlay.style.cssText = `
+        padding: 12px;
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+      `;
+      mini.appendChild(lockedOverlay);
+    }
+    
+    lockedOverlay.innerHTML = `
+      <div style="text-align: center; margin-bottom: 12px;">
+        <div style="font-size: 18px; margin-bottom: 4px;">✨</div>
+        <div style="font-size: 11px; font-weight: 600; color: #0b1220;">Create Your Account</div>
+        <div style="font-size: 9px; color: #64748b; margin-top: 2px;">Step 1 of 2</div>
+      </div>
+      <div class="mobius-mini-register-form">
+        <input type="text" class="mobius-mini-reg-firstname" placeholder="First name *" style="
+          width: 100%;
+          box-sizing: border-box;
+          padding: 8px 10px;
+          border: 1px solid rgba(11, 18, 32, 0.15);
+          border-radius: 6px;
+          font-size: 10px;
+          margin-bottom: 6px;
+          outline: none;
+        " />
+        <input type="text" class="mobius-mini-reg-lastname" placeholder="Last name (optional)" style="
+          width: 100%;
+          box-sizing: border-box;
+          padding: 8px 10px;
+          border: 1px solid rgba(11, 18, 32, 0.15);
+          border-radius: 6px;
+          font-size: 10px;
+          margin-bottom: 6px;
+          outline: none;
+        " />
+        <input type="email" class="mobius-mini-reg-email" placeholder="Email address *" style="
+          width: 100%;
+          box-sizing: border-box;
+          padding: 8px 10px;
+          border: 1px solid rgba(11, 18, 32, 0.15);
+          border-radius: 6px;
+          font-size: 10px;
+          margin-bottom: 6px;
+          outline: none;
+        " />
+        <input type="password" class="mobius-mini-reg-password" placeholder="Password (8+ characters) *" style="
+          width: 100%;
+          box-sizing: border-box;
+          padding: 8px 10px;
+          border: 1px solid rgba(11, 18, 32, 0.15);
+          border-radius: 6px;
+          font-size: 10px;
+          margin-bottom: 6px;
+          outline: none;
+        " />
+        <input type="password" class="mobius-mini-reg-confirm" placeholder="Confirm password *" style="
+          width: 100%;
+          box-sizing: border-box;
+          padding: 8px 10px;
+          border: 1px solid rgba(11, 18, 32, 0.15);
+          border-radius: 6px;
+          font-size: 10px;
+          margin-bottom: 8px;
+          outline: none;
+        " />
+        <button class="mobius-mini-reg-submit" style="
+          width: 100%;
+          padding: 8px 12px;
+          background: #2563eb;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 10px;
+          font-weight: 500;
+          cursor: pointer;
+        ">Continue</button>
+        <div class="mobius-mini-reg-error" style="
+          font-size: 9px;
+          color: #dc2626;
+          margin-top: 6px;
+          display: none;
+        "></div>
+        <div style="text-align: center; font-size: 9px; color: #64748b; margin-top: 10px;">
+          Already have an account? 
+          <a href="#" class="mobius-mini-back-to-login" style="color: #2563eb; text-decoration: none; font-weight: 500;">Sign in</a>
+        </div>
+      </div>
+    `;
+    
+    // Wire up form
+    const firstNameInput = lockedOverlay.querySelector<HTMLInputElement>('.mobius-mini-reg-firstname');
+    const lastNameInput = lockedOverlay.querySelector<HTMLInputElement>('.mobius-mini-reg-lastname');
+    const emailInput = lockedOverlay.querySelector<HTMLInputElement>('.mobius-mini-reg-email');
+    const passwordInput = lockedOverlay.querySelector<HTMLInputElement>('.mobius-mini-reg-password');
+    const confirmInput = lockedOverlay.querySelector<HTMLInputElement>('.mobius-mini-reg-confirm');
+    const submitBtn = lockedOverlay.querySelector<HTMLButtonElement>('.mobius-mini-reg-submit');
+    const errorDiv = lockedOverlay.querySelector<HTMLElement>('.mobius-mini-reg-error');
+    const backToLoginLink = lockedOverlay.querySelector('.mobius-mini-back-to-login');
+    
+    const showError = (msg: string) => {
+      if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+      }
+    };
+    
+    const doRegister = async () => {
+      const firstName = firstNameInput?.value.trim() || '';
+      const lastName = lastNameInput?.value.trim() || '';
+      const email = emailInput?.value.trim() || '';
+      const password = passwordInput?.value || '';
+      const confirm = confirmInput?.value || '';
+      
+      // Validation
+      if (!firstName) { showError('First name is required'); return; }
+      if (!email) { showError('Email is required'); return; }
+      if (!password) { showError('Password is required'); return; }
+      if (password.length < 8) { showError('Password must be at least 8 characters'); return; }
+      if (password !== confirm) { showError('Passwords do not match'); return; }
+      
+      if (submitBtn) {
+        submitBtn.textContent = 'Creating account...';
+        submitBtn.disabled = true;
+      }
+      if (errorDiv) errorDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch(`${API_BASE_AUTH}/api/v1/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            first_name: firstName,
+            display_name: lastName ? `${firstName} ${lastName}` : firstName,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok && data.access_token) {
+          // Store auth tokens
+          const authService = getAuthService();
+          await authService.storeTokens({
+            access_token: data.access_token,
+            refresh_token: data.refresh_token,
+            expires_in: data.expires_in || 3600,
+          });
+          
+          // Show onboarding step
+          showOnboardingForm(firstName, data.access_token);
+        } else {
+          showError(data.error || 'Registration failed');
+          if (submitBtn) {
+            submitBtn.textContent = 'Continue';
+            submitBtn.disabled = false;
+          }
+        }
+      } catch (err) {
+        showError('Connection error. Please try again.');
+        if (submitBtn) {
+          submitBtn.textContent = 'Continue';
+          submitBtn.disabled = false;
+        }
+      }
+    };
+    
+    submitBtn?.addEventListener('click', () => void doRegister());
+    confirmInput?.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') void doRegister();
+    });
+    
+    // Back to login
+    backToLoginLink?.addEventListener('click', (e: Event) => {
+      e.preventDefault();
+      void renderMiniIfAllowed(); // Re-render shows login form
+    });
+  };
+
+  if (!isAuthenticated) {
+    // Show locked state with login form
+    if (!lockedOverlay) {
+      lockedOverlay = document.createElement('div');
+      lockedOverlay.className = 'mobius-mini-locked-overlay';
+      lockedOverlay.style.cssText = `
+        padding: 12px;
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.98));
+      `;
+      lockedOverlay.innerHTML = `
+        <div style="text-align: center; margin-bottom: 10px;">
+          <div style="font-size: 20px; margin-bottom: 4px;">🔒</div>
+          <div style="font-size: 10px; font-weight: 600; color: #0b1220;">Sign in to Mobius</div>
+        </div>
+        <div class="mobius-mini-login-form">
+          <input type="email" class="mobius-mini-login-email" placeholder="Email" style="
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid rgba(11, 18, 32, 0.15);
+            border-radius: 6px;
+            font-size: 10px;
+            margin-bottom: 6px;
+            outline: none;
+          " value="sarah.chen@demo.clinic" />
+          <input type="password" class="mobius-mini-login-password" placeholder="Password" style="
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px 10px;
+            border: 1px solid rgba(11, 18, 32, 0.15);
+            border-radius: 6px;
+            font-size: 10px;
+            margin-bottom: 8px;
+            outline: none;
+          " value="demo1234" />
+          <button class="mobius-mini-signin-btn" style="
+            width: 100%;
+            padding: 8px 12px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+          ">Sign in</button>
+          <div class="mobius-mini-login-error" style="
+            font-size: 9px;
+            color: #dc2626;
+            margin-top: 6px;
+            display: none;
+          "></div>
+          
+          <!-- Divider -->
+          <div style="display: flex; align-items: center; margin: 12px 0 10px;">
+            <div style="flex: 1; height: 1px; background: rgba(11, 18, 32, 0.1);"></div>
+            <span style="padding: 0 8px; font-size: 8px; color: #94a3b8;">or continue with</span>
+            <div style="flex: 1; height: 1px; background: rgba(11, 18, 32, 0.1);"></div>
+          </div>
+          
+          <!-- OAuth options -->
+          <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <button class="mobius-mini-oauth-btn" data-provider="google" style="
+              flex: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+              padding: 8px;
+              background: white;
+              border: 1px solid rgba(11, 18, 32, 0.15);
+              border-radius: 6px;
+              font-size: 9px;
+              color: #374151;
+              cursor: pointer;
+            ">
+              <svg width="12" height="12" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              Google
+            </button>
+            <button class="mobius-mini-oauth-btn" data-provider="microsoft" style="
+              flex: 1;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 6px;
+              padding: 8px;
+              background: white;
+              border: 1px solid rgba(11, 18, 32, 0.15);
+              border-radius: 6px;
+              font-size: 9px;
+              color: #374151;
+              cursor: pointer;
+            ">
+              <svg width="12" height="12" viewBox="0 0 23 23">
+                <path fill="#f35325" d="M1 1h10v10H1z"/>
+                <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                <path fill="#ffba08" d="M12 12h10v10H12z"/>
+              </svg>
+              Microsoft
+            </button>
+          </div>
+          
+          <!-- Enterprise SSO -->
+          <button class="mobius-mini-sso-btn" style="
+            width: 100%;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid rgba(11, 18, 32, 0.15);
+            border-radius: 6px;
+            font-size: 9px;
+            color: #374151;
+            cursor: pointer;
+            margin-bottom: 10px;
+          ">
+            <span style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
+              Enterprise SSO
+            </span>
+          </button>
+          
+          <!-- Create account link -->
+          <div style="text-align: center; font-size: 9px; color: #64748b;">
+            Don't have an account? 
+            <a href="#" class="mobius-mini-create-account" style="color: #2563eb; text-decoration: none; font-weight: 500;">Create one</a>
+          </div>
+          
+          <div style="font-size: 8px; color: #94a3b8; margin-top: 8px; text-align: center;">
+            Demo: sarah.chen@demo.clinic
+          </div>
+        </div>
+      `;
+      mini.appendChild(lockedOverlay);
+      
+      // Wire up login form
+      const emailInput = lockedOverlay.querySelector<HTMLInputElement>('.mobius-mini-login-email');
+      const passwordInput = lockedOverlay.querySelector<HTMLInputElement>('.mobius-mini-login-password');
+      const signInBtn = lockedOverlay.querySelector<HTMLButtonElement>('.mobius-mini-signin-btn');
+      const errorDiv = lockedOverlay.querySelector<HTMLElement>('.mobius-mini-login-error');
+      
+      const doLogin = async () => {
+        const email = emailInput?.value.trim() || '';
+        const password = passwordInput?.value || '';
+        
+        if (!email || !password) {
+          if (errorDiv) {
+            errorDiv.textContent = 'Please enter email and password';
+            errorDiv.style.display = 'block';
+          }
+          return;
+        }
+        
+        if (signInBtn) {
+          signInBtn.textContent = 'Signing in...';
+          signInBtn.disabled = true;
+        }
+        
+        try {
+          const authService = getAuthService();
+          const result = await authService.login(email, password);
+          
+          if (result.success) {
+            showToast('Signed in successfully!');
+            // Refresh Mini to show authenticated state
+            await renderMiniIfAllowed();
+          } else {
+            if (errorDiv) {
+              errorDiv.textContent = result.error || 'Login failed';
+              errorDiv.style.display = 'block';
+            }
+          }
+        } catch (err) {
+          if (errorDiv) {
+            errorDiv.textContent = 'Connection error';
+            errorDiv.style.display = 'block';
+          }
+        } finally {
+          if (signInBtn) {
+            signInBtn.textContent = 'Sign in';
+            signInBtn.disabled = false;
+          }
+        }
+      };
+      
+      signInBtn?.addEventListener('click', () => void doLogin());
+      passwordInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') void doLogin();
+      });
+      
+      // OAuth button handlers
+      lockedOverlay.querySelectorAll('.mobius-mini-oauth-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const provider = (btn as HTMLElement).dataset.provider;
+          // TODO: Implement OAuth flow
+          showToast(`${provider === 'google' ? 'Google' : 'Microsoft'} sign-in coming soon`);
+          console.log(`[Mobius] OAuth login with ${provider}`);
+        });
+        // Hover effect
+        btn.addEventListener('mouseenter', () => {
+          (btn as HTMLElement).style.background = '#f1f5f9';
+        });
+        btn.addEventListener('mouseleave', () => {
+          (btn as HTMLElement).style.background = 'white';
+        });
+      });
+      
+      // SSO button handler
+      const ssoBtn = lockedOverlay.querySelector('.mobius-mini-sso-btn');
+      ssoBtn?.addEventListener('click', () => {
+        // TODO: Implement Enterprise SSO flow
+        showToast('Enterprise SSO coming soon');
+        console.log('[Mobius] Enterprise SSO login');
+      });
+      ssoBtn?.addEventListener('mouseenter', () => {
+        (ssoBtn as HTMLElement).style.background = '#f1f5f9';
+      });
+      ssoBtn?.addEventListener('mouseleave', () => {
+        (ssoBtn as HTMLElement).style.background = '#f8fafc';
+      });
+      
+      // Create account link handler
+      const createAccountLink = lockedOverlay.querySelector('.mobius-mini-create-account');
+      createAccountLink?.addEventListener('click', (e) => {
+        e.preventDefault();
+        showRegistrationForm();
+      });
+    }
+    lockedOverlay.style.display = '';
+    
+    // Hide content rows when locked
+    if (greetingRow) greetingRow.style.display = 'none';
+    if (patientRow) patientRow.style.display = 'none';
+    if (attentionRow) attentionRow.style.display = 'none';
+    if (taskBadgeRow) taskBadgeRow.style.display = 'none';
+    if (noteRow) noteRow.style.display = 'none';
+    
+    return;
+  }
+  
+  // Hide locked overlay when authenticated
+  if (lockedOverlay) lockedOverlay.style.display = 'none';
+  
+  // Show content rows
+  if (patientRow) patientRow.style.display = '';
+  if (attentionRow) attentionRow.style.display = '';
+  if (noteRow) noteRow.style.display = '';
+
   // Fetch status from backend
   try {
     const patientKey = patientOverride?.id || undefined;
-    const status = await fetchMiniStatus(sessionId, patientKey);
-    miniProceed = status.proceed;
+    const status = await fetchMiniStatus(sessionId, patientKey) as MiniStatusResponseType;
+    miniProceed = {
+      color: (status.proceed.color || 'grey') as MiniColor,
+      text: status.proceed.text || '',
+    };
     if (status.tasking) {
-      miniTasking = status.tasking;
+      miniTasking = {
+        color: (status.tasking.color || 'grey') as MiniColor,
+        text: status.tasking.text || '',
+        mode: status.tasking.mode as ExecutionMode | undefined,
+        mode_text: status.tasking.mode_text,
+      };
+    }
+    
+    // Extract user/personalization data from response
+    if (status.user) {
+      // Merge response user data with existing profile (response has simplified structure)
+      currentUserProfile = {
+        ...currentUserProfile,
+        user_id: status.user.user_id,
+        display_name: status.user.display_name,
+        greeting_name: status.user.greeting_name,
+        is_onboarded: status.user.is_onboarded,
+      } as UserProfile;
+    }
+    if (status.personalization) {
+      currentPersonalization = status.personalization;
+      
+      // Update greeting row
+      if (greetingRow && currentPersonalization.greeting && !greetingDismissed) {
+        const greetingText = greetingRow.querySelector<HTMLElement>('.mobius-mini-greeting-text');
+        if (greetingText) {
+          greetingText.textContent = currentPersonalization.greeting;
+        }
+        greetingRow.style.display = '';
+      }
+    } else if (currentUserProfile && !greetingDismissed) {
+      // Fallback greeting if no personalization from server
+      const displayName = currentUserProfile.display_name || currentUserProfile.email?.split('@')[0] || 'there';
+      const greetingText = greetingRow?.querySelector<HTMLElement>('.mobius-mini-greeting-text');
+      if (greetingText) {
+        greetingText.textContent = `Hello, ${displayName}`;
+      }
+      if (greetingRow) greetingRow.style.display = '';
     }
     
     // Update needs_attention state
     if (status.needs_attention) {
       needsAttention = {
-        color: status.needs_attention.color,
-        problemStatement: status.needs_attention.problem_statement,
-        userStatus: status.needs_attention.user_status,
+        color: (status.needs_attention.color || 'grey') as MiniColor,
+        problemStatement: status.needs_attention.problem_statement || null,
+        userStatus: (status.needs_attention.user_status || null) as AttentionStatus,
       };
     } else {
       needsAttention = {
-        color: status.proceed.color,
-        problemStatement: status.proceed.text,
+        color: (status.proceed.color || 'grey') as MiniColor,
+        problemStatement: status.proceed.text || null,
         userStatus: null,
       };
     }
@@ -1574,13 +2631,21 @@ async function renderMiniIfAllowed(): Promise<void> {
       const idEl = mini.querySelector<HTMLElement>('.mobius-mini-patient-id');
       if (nameEl) nameEl.textContent = status.patient.display_name;
       if (idEl && status.patient.id_masked) idEl.textContent = `ID ${status.patient.id_masked}`;
+      // Update minimized info patient name
+      const minimizedPatient = mini.querySelector<HTMLElement>('.mobius-mini-minimized-patient');
+      if (minimizedPatient) minimizedPatient.textContent = status.patient.display_name;
     }
   } catch {
     // keep defaults
   }
 
+  // Calculate effective attention color
+  let effectiveAttentionColor = needsAttention.color;
+  if (needsAttention.userStatus === 'resolved') effectiveAttentionColor = 'green';
+  else if (needsAttention.userStatus === 'confirmed_unresolved') effectiveAttentionColor = 'yellow';
+  else if (needsAttention.userStatus === 'unable_to_confirm') effectiveAttentionColor = 'grey';
+
   // Update Needs Attention UI (new layout: problem text + status badge)
-  const attentionRow = mini.querySelector<HTMLElement>('.mobius-mini-attention-row');
   if (attentionRow) {
     const dot = attentionRow.querySelector<HTMLElement>('.mobius-mini-dot');
     const problemText = attentionRow.querySelector<HTMLElement>('.mobius-mini-problem-text');
@@ -1589,11 +2654,7 @@ async function renderMiniIfAllowed(): Promise<void> {
     
     // Dot color reflects status
     if (dot) {
-      let color = needsAttention.color;
-      if (needsAttention.userStatus === 'resolved') color = 'green';
-      else if (needsAttention.userStatus === 'confirmed_unresolved') color = 'yellow';
-      else if (needsAttention.userStatus === 'unable_to_confirm') color = 'grey';
-      dot.className = `mobius-mini-dot ${colorToCssClass(color)}`;
+      dot.className = `mobius-mini-dot ${colorToCssClass(effectiveAttentionColor)}`;
     }
     
     // Problem statement always visible
@@ -1618,9 +2679,17 @@ async function renderMiniIfAllowed(): Promise<void> {
       }
     }
   }
+  
+  // Update minimized info dot
+  const minimizedInfoEl = mini.querySelector<HTMLElement>('.mobius-mini-minimized-info');
+  if (minimizedInfoEl) {
+    const minimizedDot = minimizedInfoEl.querySelector<HTMLElement>('.mobius-mini-dot');
+    if (minimizedDot) {
+      minimizedDot.className = `mobius-mini-dot ${colorToCssClass(effectiveAttentionColor)}`;
+    }
+  }
 
   // Update task badge
-  const taskBadgeRow = mini.querySelector<HTMLElement>('.mobius-mini-task-badge-row');
   if (taskBadgeRow) {
     const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
     if (countEl) countEl.textContent = String(taskCount);
