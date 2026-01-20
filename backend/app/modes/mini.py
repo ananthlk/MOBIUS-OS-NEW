@@ -492,6 +492,81 @@ def note():
     })
 
 
+@bp.route("/issue", methods=["POST"])
+def report_issue():
+    """
+    Report a new issue from the Mini widget.
+    
+    Creates a UserReportedIssue record for batch job processing.
+    The batch job will calculate probability and create PaymentProbability.
+    """
+    from app.models.user_issue import UserReportedIssue
+    
+    data = request.json or {}
+    session_id = (data.get("session_id") or "").strip()
+    patient_key = (data.get("patient_key") or "").strip()
+    issue_text = (data.get("issue_text") or "").strip()
+    
+    if not session_id:
+        return jsonify({"error": "session_id is required"}), 400
+    if not patient_key:
+        return jsonify({"error": "patient_key is required"}), 400
+    if not issue_text:
+        return jsonify({"error": "issue_text is required"}), 400
+    if len(issue_text) > 500:
+        return jsonify({"error": "issue_text must be 500 characters or less"}), 400
+    
+    tenant_id = _get_tenant_id(data)
+    user_id = _get_user_id(data)
+    
+    with get_db_session() as session:
+        # Find or create PatientContext
+        patient_context = session.query(PatientContext).filter(
+            PatientContext.tenant_id == tenant_id,
+            PatientContext.patient_key == patient_key
+        ).first()
+        
+        if not patient_context:
+            # Create new PatientContext if doesn't exist
+            patient_context = PatientContext(
+                tenant_id=tenant_id,
+                patient_key=patient_key,
+            )
+            session.add(patient_context)
+            session.flush()
+        
+        # Create the UserReportedIssue
+        issue = UserReportedIssue(
+            patient_context_id=patient_context.patient_context_id,
+            reported_by_id=user_id,
+            issue_text=issue_text,
+            status="pending",
+        )
+        session.add(issue)
+        session.commit()
+        
+        issue_id = str(issue.issue_id)
+    
+    # Log the event
+    _event_log_service.append_event(
+        tenant_id=tenant_id,
+        event_type="issue_reported",
+        actor_user_id=user_id if user_id else None,
+        payload={
+            "entity_type": "user_reported_issue",
+            "entity_id": issue_id,
+            "session_id": session_id,
+            "patient_key": patient_key,
+            "issue_text": issue_text,
+        }
+    )
+    
+    return jsonify({
+        "ok": True,
+        "issue_id": issue_id,
+    })
+
+
 @bp.route("/patient/search", methods=["GET"])
 def patient_search():
     """

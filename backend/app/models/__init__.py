@@ -22,6 +22,8 @@ from .probability import (
 )
 from .appointment import Appointment, AppointmentReminder
 from .intake import IntakeForm, InsuranceVerification, IntakeChecklist
+from .user_issue import UserReportedIssue
+from .detection_config import DetectionConfig
 
 __all__ = [
     # Tenant/user
@@ -62,4 +64,8 @@ __all__ = [
     "IntakeForm",
     "InsuranceVerification",
     "IntakeChecklist",
+    # User-reported issues
+    "UserReportedIssue",
+    # Detection configuration
+    "DetectionConfig",
 ]

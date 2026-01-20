@@ -932,8 +932,57 @@
   background: rgba(11, 18, 32, 0.06);
 }
 
+#mobius-os-mini .mobius-mini-minimize-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  color: #374151;
+}
+
+#mobius-os-mini .mobius-mini-minimize-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
 #mobius-os-mini .mobius-mini-menu-btn:hover {
   background: rgba(11, 18, 32, 0.06);
+}
+
+/* Minimized state - compact pill */
+#mobius-os-mini.mobius-mini-minimized {
+  width: auto !important;
+  min-width: unset !important;
+  max-width: unset !important;
+  padding: 0 !important;
+  border-radius: 20px !important;
+}
+
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-header {
+  padding: 6px 10px;
+  gap: 6px;
+}
+
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-brand {
+  display: none;
+}
+
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-expand-btn,
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-menu-btn {
+  display: none;
+}
+
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-row,
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-attention-row,
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-task-badge-row,
+#mobius-os-mini.mobius-mini-minimized .mobius-mini-note-row {
+  display: none !important;
 }
 
 #mobius-os-mini .mobius-mini-menu {
@@ -944,8 +993,10 @@
   border: 1px solid rgba(11, 18, 32, 0.12);
   border-radius: 12px;
   box-shadow: 0 14px 28px rgba(2,6,23,0.18);
-  overflow: hidden;
+  overflow: visible;
   z-index: 2147483647;
+  min-width: 140px;
+  pointer-events: auto !important;
 }
 
 #mobius-os-mini .mobius-mini-menu-item {
@@ -958,6 +1009,7 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  pointer-events: auto !important;
 }
 
 #mobius-os-mini .mobius-mini-menu-item:hover {
@@ -966,6 +1018,36 @@
 
 #mobius-os-mini .mobius-mini-menu-item.danger {
   color: #b3261e;
+}
+
+/* Theme submenu */
+#mobius-os-mini .mobius-mini-theme-trigger {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: #0b1220;
+}
+
+#mobius-os-mini .mobius-mini-theme-trigger:hover {
+  background: rgba(11, 18, 32, 0.04);
+}
+
+#mobius-os-mini .mobius-mini-theme-submenu {
+  background: #f8fafc;
+  border-top: 1px solid rgba(11, 18, 32, 0.08);
+  margin: 0;
+  padding: 0;
+}
+
+#mobius-os-mini .mobius-mini-theme-submenu .mobius-mini-menu-item {
+  padding: 8px 12px 8px 16px;
+  font-size: 11px;
+  background: #f8fafc;
+  color: #0b1220;
+}
+
+#mobius-os-mini .mobius-mini-theme-submenu .mobius-mini-menu-item:hover {
+  background: rgba(11, 18, 32, 0.08);
 }
 
 #mobius-os-mini .mobius-mini-row {
@@ -1123,38 +1205,30 @@
   flex: 1;
 }
 
-/* Needs Attention row - compact styling */
+/* Needs Attention row - refined spacing */
 #mobius-os-mini .mobius-mini-attention-row {
-  padding: 5px 8px;
+  padding: 8px 10px;
+  gap: 10px;
 }
 
 #mobius-os-mini .mobius-mini-attention-row .mobius-mini-row-label {
-  width: 40px;
+  width: 42px;
   font-size: 7px;
   line-height: 1.2;
+  flex-shrink: 0;
 }
 
-#mobius-os-mini .mobius-mini-attention-btn {
-  width: 100%;
-  border: 1px solid rgba(11, 18, 32, 0.10);
-  background: rgba(11, 18, 32, 0.03);
-  border-radius: 8px;
-  padding: 4px 6px;
-  cursor: pointer;
+#mobius-os-mini .mobius-mini-attention-content {
+  flex: 1;
   display: flex;
   align-items: flex-start;
-  gap: 5px;
-  font-size: 9px;
-  font-weight: 500;
-  color: #0b1220;
+  gap: 8px;
+  min-width: 0;
 }
 
-#mobius-os-mini .mobius-mini-attention-btn:hover {
-  background: rgba(11, 18, 32, 0.06);
-}
-
-#mobius-os-mini .mobius-mini-attention-btn .mobius-mini-dot {
-  margin-top: 2px;
+#mobius-os-mini .mobius-mini-attention-content .mobius-mini-dot {
+  margin-top: 4px;
+  margin-left: 2px;
   flex-shrink: 0;
 }
 
@@ -1165,14 +1239,54 @@
   text-align: left;
   min-width: 0;
   font-size: 9px;
-  line-height: 1.25;
+  line-height: 1.35;
+  color: #0b1220;
+  padding-right: 6px;
+}
+
+/* Status badge - clickable */
+#mobius-os-mini .mobius-mini-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid rgba(11, 18, 32, 0.15);
+  border-radius: 4px;
+  background: rgba(11, 18, 32, 0.04);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 8px;
+  font-weight: 500;
+  color: #64748b;
+  margin-left: 4px;
+}
+
+#mobius-os-mini .mobius-mini-status-badge:hover {
+  background: rgba(11, 18, 32, 0.08);
+}
+
+#mobius-os-mini .mobius-mini-status-badge.status-resolved {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.3);
+  color: #16a34a;
+}
+
+#mobius-os-mini .mobius-mini-status-badge.status-unresolved {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #d97706;
+}
+
+#mobius-os-mini .mobius-mini-status-badge.status-unconfirmed {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #64748b;
 }
 
 #mobius-os-mini .mobius-mini-dropdown-icon {
-  font-size: 7px;
-  color: rgba(91, 102, 122, 0.8);
-  flex-shrink: 0;
-  margin-top: 1px;
+  font-size: 6px;
+  color: inherit;
+  opacity: 0.7;
 }
 
 /* Task badge row - compact */
@@ -1265,6 +1379,157 @@
   height: 16px;
   display: block;
   fill: rgba(11, 18, 32, 0.85);
+}
+
+/* =============================================================================
+   Mini Widget Themes
+   ============================================================================= */
+
+/* Theme: Light (default) - already applied via base styles */
+#mobius-os-mini.theme-light {
+  background: #ffffff !important;
+  color: #0b1220 !important;
+  border-color: rgba(11, 18, 32, 0.12) !important;
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.14) !important;
+}
+
+/* Theme: Dark */
+#mobius-os-mini.theme-dark {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4) !important;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-header {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-brand-text {
+  color: #f1f5f9;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-row {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-row-label {
+  color: rgba(148, 163, 184, 0.9);
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-patient-name {
+  color: #f1f5f9;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-patient-id,
+#mobius-os-mini.theme-dark .mobius-mini-patient-dob {
+  color: rgba(148, 163, 184, 0.9);
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-problem-text {
+  color: #e2e8f0;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-status-badge {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-note-input {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-note-input::placeholder {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-menu-btn,
+#mobius-os-mini.theme-dark .mobius-mini-expand-btn,
+#mobius-os-mini.theme-dark .mobius-mini-minimize-btn,
+#mobius-os-mini.theme-dark .mobius-mini-drag-handle,
+#mobius-os-mini.theme-dark .mobius-mini-icon-btn,
+#mobius-os-mini.theme-dark .mobius-mini-send-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-task-badge {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+/* Theme: Blue */
+#mobius-os-mini.theme-blue {
+  background: #eff6ff !important;
+  color: #1e3a5f !important;
+  border-color: #bfdbfe !important;
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.15) !important;
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-header {
+  background: rgba(37, 99, 235, 0.05);
+  border-bottom-color: rgba(37, 99, 235, 0.1);
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-brand-text {
+  color: #1e40af;
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-row {
+  border-bottom-color: rgba(37, 99, 235, 0.1);
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-row-label {
+  color: #3b82f6;
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-patient-name {
+  color: #1e3a5f;
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-status-badge {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+#mobius-os-mini.theme-blue .mobius-mini-note-input {
+  background: #ffffff;
+  border-color: #bfdbfe;
+}
+
+/* Theme: Glass */
+#mobius-os-mini.theme-glass {
+  background: rgba(255, 255, 255, 0.8) !important;
+  color: #0b1220 !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.12), 0 0 0 1px rgba(255,255,255,0.2) inset !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+#mobius-os-mini.theme-glass .mobius-mini-header {
+  background: rgba(255, 255, 255, 0.3);
+  border-bottom-color: rgba(11, 18, 32, 0.06);
+}
+
+#mobius-os-mini.theme-glass .mobius-mini-row {
+  border-bottom-color: rgba(11, 18, 32, 0.06);
+}
+
+#mobius-os-mini.theme-glass .mobius-mini-note-input {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+#mobius-os-mini.theme-glass .mobius-mini-menu-btn,
+#mobius-os-mini.theme-glass .mobius-mini-expand-btn,
+#mobius-os-mini.theme-glass .mobius-mini-minimize-btn,
+#mobius-os-mini.theme-glass .mobius-mini-drag-handle {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 /* Patient edit modal */

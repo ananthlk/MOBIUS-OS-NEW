@@ -11,6 +11,8 @@ from app.modes.chat import bp as chat_bp
 from app.modes.mini import bp as mini_bp
 from app.modes.sidecar import bp as sidecar_bp
 from app.modes.mock_emr import bp as mock_emr_bp
+from app.modes.mock_crm import bp as mock_crm_bp
+from app.modes.context import bp as context_bp
 
 
 def create_app(init_database: bool = False):
@@ -33,7 +35,9 @@ def create_app(init_database: bool = False):
     app.register_blueprint(chat_bp)      # /api/v1/modes/chat/*
     app.register_blueprint(mini_bp)      # /api/v1/mini/*
     app.register_blueprint(sidecar_bp)   # /api/v1/sidecar/*
+    app.register_blueprint(context_bp)   # /api/v1/context/*
     app.register_blueprint(mock_emr_bp)  # /mock-emr/*
+    app.register_blueprint(mock_crm_bp)  # /mock-crm/*
 
     # Health check endpoint
     @app.route("/health")
@@ -58,7 +62,9 @@ if __name__ == "__main__":
     print(f"[Mobius] Routes:")
     print(f"  - /api/v1/mini/* (Mini surface)")
     print(f"  - /api/v1/sidecar/* (Sidecar surface)")
+    print(f"  - /api/v1/context/* (Patient context detection)")
     print(f"  - /api/v1/modes/chat/* (Chat mode)")
     print(f"  - /mock-emr (Mock EMR page)")
+    print(f"  - /mock-crm (Mock CRM/Scheduler page)")
     print(f"  - /health (Health check)")
     app.run(debug=config.DEBUG, port=5001)

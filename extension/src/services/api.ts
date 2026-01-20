@@ -5,7 +5,15 @@
  * both referencing the same underlying patient state.
  */
 
-import { SessionId, ChatResponse } from '../types';
+import { 
+  SessionId, 
+  ChatResponse, 
+  DetectedPatient, 
+  ContextDetectionRequest, 
+  ContextDetectionResponse,
+  ResolvedPatientContext,
+  PatternConfig,
+} from '../types';
 
 const API_BASE_URL = 'http://localhost:5001/api/v1';
 
@@ -163,6 +171,33 @@ export async function submitAttentionStatus(
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to update attention status');
+  }
+
+  return response.json();
+}
+
+/**
+ * Report a new issue from Mini widget.
+ * Creates a UserReportedIssue for batch job processing.
+ */
+export async function reportIssue(
+  sessionId: SessionId,
+  patientKey: string,
+  issueText: string
+): Promise<{ ok: true; issue_id: string }> {
+  const response = await fetch(`${API_BASE_URL}/mini/issue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: sessionId,
+      patient_key: patientKey,
+      issue_text: issueText,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to report issue');
   }
 
   return response.json();
@@ -377,6 +412,131 @@ export async function fetchSidecarInbox(
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch inbox');
+  }
+
+  return response.json();
+}
+
+// =============================================================================
+// Context Detection (/api/v1/context/*)
+// =============================================================================
+
+/**
+ * Resolve a detected patient identifier to internal Mobius context.
+ * 
+ * This is called by the PatientContextDetector when it detects a potential
+ * patient identifier on the current webpage.
+ * 
+ * @param detected - The detected patient identifier from the webpage
+ * @param tenantId - Optional tenant ID
+ * @returns Resolved patient context with internal IDs and display info
+ */
+export async function resolvePatientContext(
+  detected: DetectedPatient,
+  tenantId?: string
+): Promise<ResolvedPatientContext> {
+  const domain = window.location.hostname;
+  
+  const requestBody: ContextDetectionRequest = {
+    id_type: detected.id_type,
+    id_value: detected.id_value,
+    source_hint: detected.source_hint,
+    domain,
+    tenant_id: tenantId,
+  };
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/context/detect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to resolve patient context');
+    }
+
+    const data: ContextDetectionResponse = await response.json();
+
+    return {
+      found: data.found,
+      detected,
+      patient_context_id: data.patient_context_id,
+      patient_key: data.patient_key,
+      display_name: data.display_name,
+      id_masked: data.id_masked,
+    };
+  } catch (error) {
+    console.error('[API] Error resolving patient context:', error);
+    return {
+      found: false,
+      detected,
+    };
+  }
+}
+
+/**
+ * Get tenant-specific detection configuration for a domain.
+ * 
+ * This allows tenants to customize detection patterns for their specific
+ * EMR systems or custom implementations.
+ * 
+ * @param domain - The domain to get configuration for
+ * @param tenantId - Optional tenant ID
+ * @returns Pattern configuration or null if no custom config exists
+ */
+export async function fetchDetectionConfig(
+  domain: string,
+  tenantId?: string
+): Promise<PatternConfig | null> {
+  const url = new URL(`${API_BASE_URL}/context/config`);
+  url.searchParams.set('domain', domain);
+  if (tenantId) {
+    url.searchParams.set('tenant_id', tenantId);
+  }
+
+  try {
+    const response = await fetch(url.toString(), { method: 'GET' });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch detection config');
+    }
+
+    const data = await response.json();
+    return data.has_config ? data.patterns : null;
+  } catch (error) {
+    console.error('[API] Error fetching detection config:', error);
+    return null;
+  }
+}
+
+/**
+ * Simple patient lookup by ID type and value.
+ * 
+ * @param idType - Type of identifier (mrn, insurance, patient_key, etc.)
+ * @param idValue - The identifier value
+ * @param tenantId - Optional tenant ID
+ * @returns Context detection response
+ */
+export async function lookupPatientById(
+  idType: string,
+  idValue: string,
+  tenantId?: string
+): Promise<ContextDetectionResponse> {
+  const url = new URL(`${API_BASE_URL}/context/lookup`);
+  url.searchParams.set('id_type', idType);
+  url.searchParams.set('id_value', idValue);
+  if (tenantId) {
+    url.searchParams.set('tenant_id', tenantId);
+  }
+
+  const response = await fetch(url.toString(), { method: 'GET' });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to lookup patient');
   }
 
   return response.json();

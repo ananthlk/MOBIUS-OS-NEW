@@ -29,7 +29,7 @@ bp = Blueprint("mock_emr", __name__, url_prefix="/mock-emr")
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 # Available EMR styles
-EMR_STYLES = ["epic", "cerner", "allscripts", "athena", "legacy"]
+EMR_STYLES = ["epic", "cerner", "allscripts", "athena", "legacy", "netsmart", "qualifacts"]
 
 
 def _get_tenant_id() -> uuid.UUID:
@@ -114,6 +114,8 @@ def mock_emr_page():
         "allscripts": _render_allscripts_style,
         "athena": _render_athena_style,
         "legacy": _render_legacy_style,
+        "netsmart": _render_netsmart_style,
+        "qualifacts": _render_qualifacts_style,
     }
     
     renderer = renderers.get(style, _render_epic_style)
@@ -765,6 +767,729 @@ def _render_legacy_style(patients: list, style: str) -> str:
 
 
 # =============================================================================
+# NETSMART (myAvatar) STYLE - Behavioral Health Focus
+# =============================================================================
+
+def _render_netsmart_style(patients: list, style: str) -> str:
+    """Render Netsmart myAvatar-like EMR with teal/dark theme for behavioral health."""
+    
+    patient_rows = []
+    for p in patients:
+        status = "critical" if p["critical_alert"] else ("review" if p["needs_review"] else "active")
+        status_dot = {"critical": "🔴", "review": "🟡", "active": "🟢"}.get(status, "⚪")
+        patient_rows.append(f'''
+        <div class="netsmart-client-row {status}" 
+             data-netsmart-mrn="{p['mrn'] or ''}"
+             data-netsmart-client="{p['display_name'] or ''}"
+             onclick="selectPatient(this, '{p['patient_key']}')">
+            <span class="netsmart-status">{status_dot}</span>
+            <span class="netsmart-name">{p['display_name'] or 'Unknown'}</span>
+            <span class="netsmart-id">{p['mrn'] or 'N/A'}</span>
+            <span class="netsmart-dob">{p['dob'] or 'N/A'}</span>
+        </div>
+        ''')
+    
+    detail_panels = _build_detail_panels(patients, style)
+    
+    return f'''<!DOCTYPE html>
+<html>
+<head>
+    <title>myAvatar NX - Netsmart</title>
+    <meta charset="utf-8">
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #1a2332;
+            color: #e8ecf1;
+            min-height: 100vh;
+        }}
+        .netsmart-header {{
+            background: linear-gradient(135deg, #0d4f5c 0%, #147a8a 100%);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid #00a5b5;
+        }}
+        .netsmart-logo {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .netsmart-logo-icon {{
+            width: 32px;
+            height: 32px;
+            background: #00d4e5;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }}
+        .netsmart-nav {{
+            display: flex;
+            gap: 4px;
+        }}
+        .netsmart-nav-item {{
+            padding: 8px 16px;
+            color: rgba(255,255,255,0.8);
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            font-size: 13px;
+            transition: all 0.2s;
+        }}
+        .netsmart-nav-item:hover, .netsmart-nav-item.active {{
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }}
+        .netsmart-user {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+        }}
+        .netsmart-user-avatar {{
+            width: 36px;
+            height: 36px;
+            background: #00a5b5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }}
+        .netsmart-container {{
+            display: flex;
+            height: calc(100vh - 56px);
+        }}
+        .netsmart-sidebar {{
+            width: 280px;
+            background: #243447;
+            border-right: 1px solid #3a4d63;
+            display: flex;
+            flex-direction: column;
+        }}
+        .netsmart-search {{
+            padding: 16px;
+            border-bottom: 1px solid #3a4d63;
+        }}
+        .netsmart-search input {{
+            width: 100%;
+            padding: 10px 14px;
+            background: #1a2332;
+            border: 1px solid #3a4d63;
+            border-radius: 6px;
+            color: #e8ecf1;
+            font-size: 13px;
+        }}
+        .netsmart-search input::placeholder {{ color: #6b7a8f; }}
+        .netsmart-client-list {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }}
+        .netsmart-client-row {{
+            display: grid;
+            grid-template-columns: 24px 1fr 100px 90px;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            align-items: center;
+            margin-bottom: 4px;
+            transition: all 0.15s;
+        }}
+        .netsmart-client-row:hover {{ background: rgba(0,165,181,0.15); }}
+        .netsmart-client-row.active, .netsmart-client-row.selected {{ 
+            background: rgba(0,165,181,0.25);
+            border: 1px solid #00a5b5;
+        }}
+        .netsmart-client-row.critical {{ border-left: 3px solid #ef4444; }}
+        .netsmart-client-row.review {{ border-left: 3px solid #f59e0b; }}
+        .netsmart-name {{ font-weight: 500; font-size: 14px; }}
+        .netsmart-id {{ color: #6b7a8f; font-size: 12px; font-family: monospace; }}
+        .netsmart-dob {{ color: #6b7a8f; font-size: 12px; }}
+        .netsmart-main {{
+            flex: 1;
+            background: #1e2d3d;
+            overflow-y: auto;
+        }}
+        .netsmart-toolbar {{
+            background: #243447;
+            padding: 12px 20px;
+            display: flex;
+            gap: 12px;
+            border-bottom: 1px solid #3a4d63;
+        }}
+        .netsmart-btn {{
+            padding: 8px 16px;
+            background: #147a8a;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }}
+        .netsmart-btn:hover {{ background: #0d6570; }}
+        .netsmart-content {{
+            padding: 20px;
+        }}
+        .detail-panel {{ display: none; }}
+        .detail-panel.active {{ display: block; }}
+        .netsmart-detail-card {{
+            background: #243447;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }}
+        .netsmart-detail-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #3a4d63;
+        }}
+        .netsmart-client-name {{
+            font-size: 24px;
+            font-weight: 600;
+            color: #fff;
+        }}
+        .netsmart-client-meta {{
+            font-size: 13px;
+            color: #6b7a8f;
+            margin-top: 4px;
+        }}
+        .netsmart-section {{
+            margin-bottom: 20px;
+        }}
+        .netsmart-section-title {{
+            font-size: 14px;
+            font-weight: 600;
+            color: #00d4e5;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        .netsmart-pill {{
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(0,165,181,0.2);
+            color: #00d4e5;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 2px 4px 2px 0;
+        }}
+        .netsmart-pill.danger {{
+            background: rgba(239,68,68,0.2);
+            color: #f87171;
+        }}
+        .netsmart-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }}
+        .netsmart-stat {{
+            background: #1a2332;
+            padding: 16px;
+            border-radius: 8px;
+        }}
+        .netsmart-stat-label {{
+            font-size: 11px;
+            color: #6b7a8f;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }}
+        .netsmart-stat-value {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }}
+        .netsmart-style-badge {{
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: #00a5b5;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 600;
+            z-index: 100;
+        }}
+        .netsmart-ai-badge {{
+            background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="netsmart-header">
+        <div class="netsmart-logo">
+            <span class="netsmart-logo-icon">🏥</span>
+            myAvatar NX
+        </div>
+        <div class="netsmart-nav">
+            <span class="netsmart-nav-item active">Dashboard</span>
+            <span class="netsmart-nav-item">Clients</span>
+            <span class="netsmart-nav-item">Scheduling</span>
+            <span class="netsmart-nav-item">Clinical</span>
+            <span class="netsmart-nav-item">Billing</span>
+            <span class="netsmart-nav-item">Reports</span>
+        </div>
+        <div class="netsmart-user">
+            <span class="netsmart-ai-badge">✨ Bells AI</span>
+            <span>Dr. Sarah Miller</span>
+            <div class="netsmart-user-avatar">SM</div>
+        </div>
+    </div>
+    <div class="netsmart-container">
+        <div class="netsmart-sidebar">
+            <div class="netsmart-search">
+                <input type="text" placeholder="Search clients..." />
+            </div>
+            <div class="netsmart-client-list">
+                {"".join(patient_rows)}
+            </div>
+        </div>
+        <div class="netsmart-main">
+            <div class="netsmart-toolbar">
+                <button class="netsmart-btn">📋 New Note</button>
+                <button class="netsmart-btn">📅 Schedule</button>
+                <button class="netsmart-btn">💊 Medications</button>
+                <button class="netsmart-btn">📊 Assessments</button>
+            </div>
+            <div class="netsmart-content">
+                {detail_panels}
+            </div>
+        </div>
+    </div>
+    <div class="netsmart-style-badge">Style: Netsmart | Clients: {len(patients)}</div>
+    {_get_common_script()}
+</body>
+</html>'''
+
+
+# =============================================================================
+# QUALIFACTS (CareLogic) STYLE - Modern Behavioral Health
+# =============================================================================
+
+def _render_qualifacts_style(patients: list, style: str) -> str:
+    """Render Qualifacts CareLogic-like EMR with modern light theme."""
+    
+    patient_cards = []
+    for p in patients:
+        status_class = "critical" if p["critical_alert"] else ("review" if p["needs_review"] else "")
+        status_badge = '<span class="qf-badge qf-badge-critical">Critical</span>' if p["critical_alert"] else (
+            '<span class="qf-badge qf-badge-review">Review</span>' if p["needs_review"] else '')
+        patient_cards.append(f'''
+        <div class="qf-client-card {status_class}" 
+             data-qualifacts-mrn="{p['mrn'] or ''}"
+             data-qualifacts-client="{p['display_name'] or ''}"
+             onclick="selectPatient(this, '{p['patient_key']}')">
+            <div class="qf-client-info">
+                <span class="qf-client-name">{p['display_name'] or 'Unknown'}</span>
+                <span class="qf-client-id">{p['mrn'] or 'N/A'}</span>
+            </div>
+            <div class="qf-client-meta">
+                <span>DOB: {p['dob'] or 'N/A'}</span>
+                {status_badge}
+            </div>
+        </div>
+        ''')
+    
+    detail_panels = _build_detail_panels(patients, style)
+    
+    return f'''<!DOCTYPE html>
+<html>
+<head>
+    <title>CareLogic - Qualifacts</title>
+    <meta charset="utf-8">
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+        }}
+        .qf-header {{
+            background: #fff;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e2e8f0;
+            height: 60px;
+        }}
+        .qf-logo {{
+            font-size: 20px;
+            font-weight: 700;
+            color: #6366f1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .qf-logo-mark {{
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 16px;
+        }}
+        .qf-nav {{
+            display: flex;
+            gap: 8px;
+            height: 100%;
+        }}
+        .qf-nav-item {{
+            padding: 0 20px;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }}
+        .qf-nav-item:hover {{ color: #6366f1; }}
+        .qf-nav-item.active {{
+            color: #6366f1;
+            border-bottom-color: #6366f1;
+        }}
+        .qf-user {{
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }}
+        .qf-ai-btn {{
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            border: none;
+        }}
+        .qf-user-avatar {{
+            width: 36px;
+            height: 36px;
+            background: #e0e7ff;
+            color: #6366f1;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }}
+        .qf-container {{
+            display: flex;
+            height: calc(100vh - 60px);
+        }}
+        .qf-sidebar {{
+            width: 320px;
+            background: #fff;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+        }}
+        .qf-sidebar-header {{
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }}
+        .qf-sidebar-title {{
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 12px;
+        }}
+        .qf-search {{
+            position: relative;
+        }}
+        .qf-search input {{
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #1e293b;
+        }}
+        .qf-search input:focus {{
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+        }}
+        .qf-search::before {{
+            content: "🔍";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+        }}
+        .qf-client-list {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }}
+        .qf-client-card {{
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }}
+        .qf-client-card:hover {{
+            border-color: #6366f1;
+            box-shadow: 0 2px 8px rgba(99,102,241,0.1);
+        }}
+        .qf-client-card.active, .qf-client-card.selected {{
+            border-color: #6366f1;
+            background: #f5f3ff;
+        }}
+        .qf-client-card.critical {{ border-left: 3px solid #ef4444; }}
+        .qf-client-card.review {{ border-left: 3px solid #f59e0b; }}
+        .qf-client-info {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }}
+        .qf-client-name {{
+            font-weight: 600;
+            font-size: 14px;
+            color: #1e293b;
+        }}
+        .qf-client-id {{
+            font-size: 12px;
+            color: #64748b;
+            font-family: 'JetBrains Mono', monospace;
+        }}
+        .qf-client-meta {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #64748b;
+        }}
+        .qf-badge {{
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }}
+        .qf-badge-critical {{
+            background: #fef2f2;
+            color: #dc2626;
+        }}
+        .qf-badge-review {{
+            background: #fffbeb;
+            color: #d97706;
+        }}
+        .qf-main {{
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }}
+        .detail-panel {{ display: none; }}
+        .detail-panel.active {{ display: block; }}
+        .qf-detail-card {{
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            padding: 24px;
+            margin-bottom: 16px;
+        }}
+        .qf-detail-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }}
+        .qf-client-title {{
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+        }}
+        .qf-client-subtitle {{
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+        }}
+        .qf-actions {{
+            display: flex;
+            gap: 8px;
+        }}
+        .qf-btn {{
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #1e293b;
+            transition: all 0.15s;
+        }}
+        .qf-btn:hover {{
+            background: #f8fafc;
+            border-color: #6366f1;
+        }}
+        .qf-btn-primary {{
+            background: #6366f1;
+            color: #fff;
+            border-color: #6366f1;
+        }}
+        .qf-btn-primary:hover {{
+            background: #4f46e5;
+        }}
+        .qf-section {{
+            margin-bottom: 24px;
+        }}
+        .qf-section-title {{
+            font-size: 13px;
+            font-weight: 600;
+            color: #6366f1;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        .qf-pill {{
+            display: inline-block;
+            padding: 6px 14px;
+            background: #f1f5f9;
+            color: #475569;
+            border-radius: 20px;
+            font-size: 13px;
+            margin: 2px 4px 2px 0;
+        }}
+        .qf-pill.danger {{
+            background: #fef2f2;
+            color: #dc2626;
+        }}
+        .qf-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+        }}
+        .qf-stat {{
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 10px;
+        }}
+        .qf-stat-label {{
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }}
+        .qf-stat-value {{
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+        }}
+        .qf-style-badge {{
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: #6366f1;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 600;
+            z-index: 100;
+        }}
+        .qf-mbc {{
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #86efac;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 16px;
+        }}
+        .qf-mbc-title {{
+            font-size: 13px;
+            font-weight: 600;
+            color: #166534;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .qf-mbc-content {{
+            font-size: 13px;
+            color: #15803d;
+        }}
+    </style>
+</head>
+<body>
+    <div class="qf-header">
+        <div class="qf-logo">
+            <span class="qf-logo-mark">Q</span>
+            CareLogic
+        </div>
+        <div class="qf-nav">
+            <span class="qf-nav-item active">Dashboard</span>
+            <span class="qf-nav-item">Clients</span>
+            <span class="qf-nav-item">Scheduling</span>
+            <span class="qf-nav-item">Documentation</span>
+            <span class="qf-nav-item">Billing</span>
+            <span class="qf-nav-item">Reports</span>
+        </div>
+        <div class="qf-user">
+            <button class="qf-ai-btn">✨ iQ Assistant</button>
+            <div class="qf-user-avatar">SM</div>
+        </div>
+    </div>
+    <div class="qf-container">
+        <div class="qf-sidebar">
+            <div class="qf-sidebar-header">
+                <div class="qf-sidebar-title">Client Search</div>
+                <div class="qf-search">
+                    <input type="text" placeholder="Search by name or MRN..." />
+                </div>
+            </div>
+            <div class="qf-client-list">
+                {" ".join(patient_cards)}
+            </div>
+        </div>
+        <div class="qf-main">
+            {detail_panels}
+        </div>
+    </div>
+    <div class="qf-style-badge">Style: Qualifacts | Clients: {len(patients)}</div>
+    {_get_common_script()}
+</body>
+</html>'''
+
+
+# =============================================================================
 # SHARED HELPERS
 # =============================================================================
 
@@ -874,6 +1599,61 @@ def _build_detail_panels(patients: list, style: str) -> str:
                 <div class="athena-section"><h3>Care Team</h3>Primary: {clinical.get('primary_care_provider', 'N/A')}</div>
             </div>
             '''
+        elif style == "netsmart":
+            # Netsmart style pills
+            netsmart_allergy_html = " ".join([f'<span class="netsmart-pill danger">{a}</span>' for a in allergies]) if allergies else '<span class="netsmart-pill">None reported</span>'
+            panel = f'''
+            <div class="detail-panel netsmart-detail-card" id="detail-{p['patient_key']}" style="display:none">
+                <div class="netsmart-detail-header">
+                    <div>
+                        <div class="netsmart-client-name">{p['display_name'] or 'Unknown'}</div>
+                        <div class="netsmart-client-meta">MRN: {p['mrn'] or 'N/A'} • DOB: {p['dob'] or 'N/A'} • Blood Type: {clinical.get('blood_type', 'N/A')}</div>
+                    </div>
+                    <span class="netsmart-ai-badge">✨ Bells AI Ready</span>
+                </div>
+                <div class="netsmart-grid">
+                    <div class="netsmart-stat"><div class="netsmart-stat-label">Blood Pressure</div><div class="netsmart-stat-value">{vitals.get('bp', 'N/A')}</div></div>
+                    <div class="netsmart-stat"><div class="netsmart-stat-label">Heart Rate</div><div class="netsmart-stat-value">{vitals.get('hr', 'N/A')} bpm</div></div>
+                    <div class="netsmart-stat"><div class="netsmart-stat-label">Temperature</div><div class="netsmart-stat-value">{vitals.get('temp', 'N/A')}°F</div></div>
+                    <div class="netsmart-stat"><div class="netsmart-stat-label">Weight</div><div class="netsmart-stat-value">{vitals.get('weight_lbs', 'N/A')} lbs</div></div>
+                </div>
+                <div class="netsmart-section"><div class="netsmart-section-title">Allergies</div>{netsmart_allergy_html}</div>
+                <div class="netsmart-section"><div class="netsmart-section-title">Current Medications</div>{med_list}</div>
+                <div class="netsmart-section"><div class="netsmart-section-title">Emergency Contact</div><p style="color:#e8ecf1">{clinical.get('emergency_contact_name', 'N/A')} ({clinical.get('emergency_contact_relation', '')}) - {clinical.get('emergency_contact_phone', 'N/A')}</p></div>
+                <div class="netsmart-section"><div class="netsmart-section-title">Care Team</div><p style="color:#e8ecf1">Primary: {clinical.get('primary_care_provider', 'N/A')}</p></div>
+            </div>
+            '''
+        elif style == "qualifacts":
+            # Qualifacts style pills
+            qf_allergy_html = " ".join([f'<span class="qf-pill danger">{a}</span>' for a in allergies]) if allergies else '<span class="qf-pill">None reported</span>'
+            panel = f'''
+            <div class="detail-panel qf-detail-card" id="detail-{p['patient_key']}" style="display:none">
+                <div class="qf-detail-header">
+                    <div>
+                        <div class="qf-client-title">{p['display_name'] or 'Unknown'}</div>
+                        <div class="qf-client-subtitle">MRN: {p['mrn'] or 'N/A'} • DOB: {p['dob'] or 'N/A'} • Blood Type: {clinical.get('blood_type', 'N/A')}</div>
+                    </div>
+                    <div class="qf-actions">
+                        <button class="qf-btn">📋 Add Note</button>
+                        <button class="qf-btn qf-btn-primary">📊 Assessments</button>
+                    </div>
+                </div>
+                <div class="qf-grid">
+                    <div class="qf-stat"><div class="qf-stat-label">Blood Pressure</div><div class="qf-stat-value">{vitals.get('bp', 'N/A')}</div></div>
+                    <div class="qf-stat"><div class="qf-stat-label">Heart Rate</div><div class="qf-stat-value">{vitals.get('hr', 'N/A')} bpm</div></div>
+                    <div class="qf-stat"><div class="qf-stat-label">Temperature</div><div class="qf-stat-value">{vitals.get('temp', 'N/A')}°F</div></div>
+                    <div class="qf-stat"><div class="qf-stat-label">Weight</div><div class="qf-stat-value">{vitals.get('weight_lbs', 'N/A')} lbs</div></div>
+                </div>
+                <div class="qf-section"><div class="qf-section-title">Allergies</div>{qf_allergy_html}</div>
+                <div class="qf-section"><div class="qf-section-title">Current Medications</div>{med_list}</div>
+                <div class="qf-section"><div class="qf-section-title">Emergency Contact</div><p>{clinical.get('emergency_contact_name', 'N/A')} ({clinical.get('emergency_contact_relation', '')}) - {clinical.get('emergency_contact_phone', 'N/A')}</p></div>
+                <div class="qf-section"><div class="qf-section-title">Care Team</div><p>Primary Provider: {clinical.get('primary_care_provider', 'N/A')}</p></div>
+                <div class="qf-mbc">
+                    <div class="qf-mbc-title">📈 Measurement-Based Care</div>
+                    <div class="qf-mbc-content">PHQ-9: 8 (Mild) • GAD-7: 5 (Mild) • Last assessed: 7 days ago</div>
+                </div>
+            </div>
+            '''
         else:  # legacy
             panel = f'''
             <div class="detail-panel" id="detail-{p['patient_key']}" style="display:none">
@@ -915,19 +1695,50 @@ def _get_common_script() -> str:
             activeElement = element;
             
             // Hide all detail panels
-            document.querySelectorAll('.detail-panel').forEach(p => p.style.display = 'none');
+            document.querySelectorAll('.detail-panel').forEach(p => {
+                p.style.display = 'none';
+                // Clear patient context from hidden panels
+                p.removeAttribute('data-selected-patient-mrn');
+            });
             
-            // Show selected detail panel
+            // Get MRN from the clicked element (various EMR formats)
+            const mrn = element.dataset.patientMrn || element.dataset.cernerMrn || 
+                       element.dataset.allscriptsId || element.dataset.athenaRecordNumber || 
+                       element.dataset.netsmartMrn || element.dataset.qualifactsMrn ||
+                       element.dataset.id || '';
+            const name = element.dataset.patientName || element.dataset.cernerPatient || 
+                        element.dataset.allscriptsName || element.dataset.athenaFullName || 
+                        element.dataset.netsmartClient || element.dataset.qualifactsClient ||
+                        element.dataset.name || '';
+            
+            // Show selected detail panel and set patient context
             const detail = document.getElementById('detail-' + patientKey);
             if (detail) {
                 detail.style.display = 'block';
+                
+                // Set data attributes on the visible detail panel for Mobius detection
+                detail.setAttribute('data-selected-patient-mrn', mrn);
+                detail.setAttribute('data-selected-patient-name', name);
+                detail.setAttribute('data-patient-key', patientKey);
             }
+            
+            // Also update/create a dedicated context element for reliable detection
+            let contextEl = document.getElementById('mobius-patient-context');
+            if (!contextEl) {
+                contextEl = document.createElement('div');
+                contextEl.id = 'mobius-patient-context';
+                contextEl.style.display = 'none';
+                document.body.appendChild(contextEl);
+            }
+            contextEl.setAttribute('data-patient-mrn', mrn);
+            contextEl.setAttribute('data-patient-name', name);
+            contextEl.setAttribute('data-patient-key', patientKey);
             
             // Log for debugging
             console.log('[Mock EMR] Selected patient:', {
                 patientKey: patientKey,
-                mrn: element.dataset.patientMrn || element.dataset.cernerMrn || element.dataset.allscriptsId || element.dataset.athenaRecordNumber || element.dataset.id,
-                name: element.dataset.patientName || element.dataset.cernerPatient || element.dataset.allscriptsName || element.dataset.athenaFullName || element.dataset.name
+                mrn: mrn,
+                name: name
             });
         }
         
