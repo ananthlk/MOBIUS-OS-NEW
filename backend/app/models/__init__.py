@@ -24,6 +24,10 @@ from .appointment import Appointment, AppointmentReminder
 from .intake import IntakeForm, InsuranceVerification, IntakeChecklist
 from .user_issue import UserReportedIssue
 from .detection_config import DetectionConfig
+from .scheduling import Provider, ProviderSchedule, TimeSlot, ScheduleException
+from .orders import ClinicalOrder, LabOrder, ImagingOrder, MedicationOrder, ReferralOrder
+from .billing import PatientInsurance, Charge, Claim, Payment, PatientStatement
+from .messages import MessageThread, Message, MessageAttachment, MessageRecipient, MessageTemplate
 
 __all__ = [
     # Tenant/user
@@ -68,4 +72,27 @@ __all__ = [
     "UserReportedIssue",
     # Detection configuration
     "DetectionConfig",
+    # Scheduling
+    "Provider",
+    "ProviderSchedule",
+    "TimeSlot",
+    "ScheduleException",
+    # Clinical Orders
+    "ClinicalOrder",
+    "LabOrder",
+    "ImagingOrder",
+    "MedicationOrder",
+    "ReferralOrder",
+    # Billing
+    "PatientInsurance",
+    "Charge",
+    "Claim",
+    "Payment",
+    "PatientStatement",
+    # Messaging
+    "MessageThread",
+    "Message",
+    "MessageAttachment",
+    "MessageRecipient",
+    "MessageTemplate",
 ]

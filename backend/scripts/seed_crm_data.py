@@ -31,6 +31,7 @@ from app.models.patient import PatientContext, PatientSnapshot
 from app.models.patient_ids import PatientId
 from app.models.appointment import Appointment, AppointmentReminder
 from app.models.intake import IntakeForm, InsuranceVerification, IntakeChecklist
+from app.models.scheduling import Provider, ProviderSchedule, TimeSlot, ScheduleException
 
 # Default tenant ID
 DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -74,6 +75,91 @@ INSURANCE_NAMES = [
 FORM_TYPES = [
     "demographics", "insurance", "consent", "medical_history",
     "hipaa", "financial_policy", "release_of_info", "emergency_contact"
+]
+
+# Provider data for scheduling
+PROVIDER_DATA = [
+    {
+        "name": "Dr. Emily Williams",
+        "credentials": "MD",
+        "specialty": "Family Medicine",
+        "department": "Primary Care",
+        "npi": "1234567890",
+        "locations": ["Main Campus - Building A", "East Wing Clinic"],
+        "primary_location": "Main Campus - Building A"
+    },
+    {
+        "name": "Dr. Robert Johnson",
+        "credentials": "MD, PhD",
+        "specialty": "Internal Medicine",
+        "department": "Primary Care",
+        "npi": "2345678901",
+        "locations": ["Main Campus - Building A"],
+        "primary_location": "Main Campus - Building A"
+    },
+    {
+        "name": "Dr. Sarah Miller",
+        "credentials": "DO",
+        "specialty": "Psychiatry",
+        "department": "Behavioral Health",
+        "npi": "3456789012",
+        "locations": ["West Side Office", "Telehealth"],
+        "primary_location": "West Side Office"
+    },
+    {
+        "name": "Dr. Michael Brown",
+        "credentials": "MD",
+        "specialty": "Cardiology",
+        "department": "Cardiology",
+        "npi": "4567890123",
+        "locations": ["Downtown Medical Center"],
+        "primary_location": "Downtown Medical Center"
+    },
+    {
+        "name": "Dr. Lisa Park",
+        "credentials": "MD",
+        "specialty": "Pediatrics",
+        "department": "Pediatrics",
+        "npi": "5678901234",
+        "locations": ["Main Campus - Building A", "East Wing Clinic"],
+        "primary_location": "Main Campus - Building A"
+    },
+    {
+        "name": "Dr. James Chen",
+        "credentials": "MD, MPH",
+        "specialty": "Family Medicine",
+        "department": "Primary Care",
+        "npi": "6789012345",
+        "locations": ["East Wing Clinic"],
+        "primary_location": "East Wing Clinic"
+    },
+    {
+        "name": "Dr. Maria Garcia",
+        "credentials": "LCSW",
+        "specialty": "Clinical Social Work",
+        "department": "Behavioral Health",
+        "npi": "7890123456",
+        "locations": ["West Side Office", "Telehealth"],
+        "primary_location": "West Side Office"
+    },
+    {
+        "name": "Dr. David Lee",
+        "credentials": "MD",
+        "specialty": "Orthopedics",
+        "department": "Orthopedics",
+        "npi": "8901234567",
+        "locations": ["Downtown Medical Center"],
+        "primary_location": "Downtown Medical Center"
+    },
+    {
+        "name": "Dr. Jennifer Adams",
+        "credentials": "NP",
+        "specialty": "Nurse Practitioner",
+        "department": "Primary Care",
+        "npi": "9012345678",
+        "locations": ["Main Campus - Building A", "Telehealth"],
+        "primary_location": "Main Campus - Building A"
+    },
 ]
 
 
@@ -536,6 +622,280 @@ def seed_intake_checklists(db, tenant_id: uuid.UUID, appointments: list):
     print(f"   Created {created_count} intake checklists")
 
 
+def seed_providers(db, tenant_id: uuid.UUID):
+    """Create provider records for scheduling."""
+    print("\n6. Seeding providers...")
+    
+    created_providers = []
+    
+    for pdata in PROVIDER_DATA:
+        # Check if provider already exists
+        existing = db.query(Provider).filter(
+            Provider.tenant_id == tenant_id,
+            Provider.provider_name == pdata["name"]
+        ).first()
+        
+        if existing:
+            created_providers.append(existing)
+            continue
+        
+        provider = Provider(
+            tenant_id=tenant_id,
+            provider_name=pdata["name"],
+            credentials=pdata["credentials"],
+            specialty=pdata["specialty"],
+            department=pdata["department"],
+            npi=pdata["npi"],
+            default_slot_duration=30,
+            accepts_new_patients=True,
+            primary_location=pdata["primary_location"],
+            locations=pdata["locations"],
+            is_active=True,
+            created_at=datetime.utcnow(),
+        )
+        
+        db.add(provider)
+        created_providers.append(provider)
+    
+    db.commit()
+    print(f"   Created/found {len(created_providers)} providers")
+    return created_providers
+
+
+def seed_provider_schedules(db, tenant_id: uuid.UUID, providers: list):
+    """Create weekly availability schedules for providers."""
+    print("\n7. Seeding provider schedules...")
+    
+    created_count = 0
+    
+    # Standard office hours schedule patterns
+    schedule_patterns = {
+        "full_time": [
+            # Monday through Friday, 8am-5pm
+            (0, "08:00", "17:00"),  # Monday
+            (1, "08:00", "17:00"),  # Tuesday
+            (2, "08:00", "17:00"),  # Wednesday
+            (3, "08:00", "17:00"),  # Thursday
+            (4, "08:00", "17:00"),  # Friday
+        ],
+        "part_time_am": [
+            (0, "08:00", "12:00"),
+            (2, "08:00", "12:00"),
+            (4, "08:00", "12:00"),
+        ],
+        "part_time_pm": [
+            (1, "13:00", "17:00"),
+            (3, "13:00", "17:00"),
+        ],
+        "extended": [
+            (0, "07:00", "19:00"),
+            (1, "07:00", "19:00"),
+            (2, "07:00", "19:00"),
+            (3, "07:00", "19:00"),
+            (4, "07:00", "15:00"),
+        ],
+    }
+    
+    for i, provider in enumerate(providers):
+        rng = get_deterministic_random(f"schedule-{provider.provider_id}")
+        
+        # Check if schedules already exist
+        existing = db.query(ProviderSchedule).filter(
+            ProviderSchedule.provider_id == provider.provider_id
+        ).first()
+        
+        if existing:
+            continue
+        
+        # Select a schedule pattern
+        pattern_name = rng.choice(list(schedule_patterns.keys()))
+        pattern = schedule_patterns[pattern_name]
+        
+        # Create schedule entries
+        for day_of_week, start_str, end_str in pattern:
+            from datetime import time as dt_time
+            start_time = dt_time(int(start_str.split(":")[0]), int(start_str.split(":")[1]))
+            end_time = dt_time(int(end_str.split(":")[0]), int(end_str.split(":")[1]))
+            
+            schedule = ProviderSchedule(
+                provider_id=provider.provider_id,
+                tenant_id=tenant_id,
+                day_of_week=day_of_week,
+                start_time=start_time,
+                end_time=end_time,
+                slot_duration_minutes=provider.default_slot_duration,
+                location=provider.primary_location,
+                room=rng.choice(ROOMS),
+                is_active=True,
+                created_at=datetime.utcnow(),
+            )
+            
+            db.add(schedule)
+            created_count += 1
+    
+    db.commit()
+    print(f"   Created {created_count} provider schedule entries")
+
+
+def seed_time_slots(db, tenant_id: uuid.UUID, providers: list):
+    """Generate time slots for the next 14 days based on provider schedules."""
+    print("\n8. Seeding time slots...")
+    
+    created_count = 0
+    today = date.today()
+    
+    for provider in providers:
+        # Get provider's schedule templates
+        schedules = db.query(ProviderSchedule).filter(
+            ProviderSchedule.provider_id == provider.provider_id,
+            ProviderSchedule.is_active == True
+        ).all()
+        
+        if not schedules:
+            continue
+        
+        rng = get_deterministic_random(f"slots-{provider.provider_id}")
+        
+        # Generate slots for the next 14 days
+        for day_offset in range(14):
+            slot_date = today + timedelta(days=day_offset)
+            day_of_week = slot_date.weekday()
+            
+            # Find matching schedule for this day
+            matching_schedule = None
+            for sched in schedules:
+                if sched.day_of_week == day_of_week:
+                    matching_schedule = sched
+                    break
+            
+            if not matching_schedule:
+                continue
+            
+            # Check if slots already exist for this provider/date
+            existing = db.query(TimeSlot).filter(
+                TimeSlot.provider_id == provider.provider_id,
+                TimeSlot.slot_date == slot_date
+            ).first()
+            
+            if existing:
+                continue
+            
+            # Generate slots based on schedule
+            slot_duration = matching_schedule.slot_duration_minutes
+            current_time = datetime.combine(slot_date, matching_schedule.start_time)
+            end_datetime = datetime.combine(slot_date, matching_schedule.end_time)
+            
+            while current_time + timedelta(minutes=slot_duration) <= end_datetime:
+                slot_end = current_time + timedelta(minutes=slot_duration)
+                
+                # Determine slot status
+                # Past slots are either booked or available (completed)
+                # Future slots are mostly available with some booked
+                if slot_date < today or (slot_date == today and current_time.time() < datetime.now().time()):
+                    status = rng.choice(["booked", "booked", "available", "blocked"])
+                else:
+                    status = rng.choice(["available", "available", "available", "available", "booked"])
+                
+                slot = TimeSlot(
+                    provider_id=provider.provider_id,
+                    tenant_id=tenant_id,
+                    slot_date=slot_date,
+                    start_time=current_time,
+                    end_time=slot_end,
+                    duration_minutes=slot_duration,
+                    status=status,
+                    location=matching_schedule.location,
+                    room=matching_schedule.room,
+                    block_reason="Lunch break" if status == "blocked" and current_time.hour == 12 else None,
+                    created_at=datetime.utcnow(),
+                )
+                
+                db.add(slot)
+                created_count += 1
+                current_time = slot_end
+    
+    db.commit()
+    print(f"   Created {created_count} time slots")
+
+
+def seed_schedule_exceptions(db, tenant_id: uuid.UUID, providers: list):
+    """Create schedule exceptions (holidays, time off)."""
+    print("\n9. Seeding schedule exceptions...")
+    
+    created_count = 0
+    today = date.today()
+    
+    # Add some common holidays
+    holidays = [
+        ("New Year's Day", date(today.year, 1, 1)),
+        ("MLK Day", date(today.year, 1, 20)),
+        ("Presidents Day", date(today.year, 2, 17)),
+        ("Memorial Day", date(today.year, 5, 26)),
+        ("Independence Day", date(today.year, 7, 4)),
+        ("Labor Day", date(today.year, 9, 1)),
+        ("Thanksgiving", date(today.year, 11, 27)),
+        ("Christmas", date(today.year, 12, 25)),
+    ]
+    
+    # Create clinic-wide holidays (no provider_id means all providers)
+    for name, holiday_date in holidays:
+        existing = db.query(ScheduleException).filter(
+            ScheduleException.tenant_id == tenant_id,
+            ScheduleException.provider_id == None,
+            ScheduleException.start_date == holiday_date
+        ).first()
+        
+        if existing:
+            continue
+        
+        exception = ScheduleException(
+            provider_id=None,  # Applies to all
+            tenant_id=tenant_id,
+            exception_type="holiday",
+            start_date=holiday_date,
+            end_date=holiday_date,
+            title=name,
+            description=f"Clinic closed for {name}",
+            is_active=True,
+            created_at=datetime.utcnow(),
+        )
+        
+        db.add(exception)
+        created_count += 1
+    
+    # Add some provider-specific time off
+    rng = get_deterministic_random("exceptions")
+    for provider in providers[:3]:  # Just first 3 providers
+        pto_start = today + timedelta(days=rng.randint(7, 30))
+        pto_days = rng.randint(1, 5)
+        
+        existing = db.query(ScheduleException).filter(
+            ScheduleException.provider_id == provider.provider_id,
+            ScheduleException.start_date == pto_start
+        ).first()
+        
+        if existing:
+            continue
+        
+        exception = ScheduleException(
+            provider_id=provider.provider_id,
+            tenant_id=tenant_id,
+            exception_type="time_off",
+            start_date=pto_start,
+            end_date=pto_start + timedelta(days=pto_days - 1),
+            title="PTO",
+            description="Scheduled time off",
+            is_active=True,
+            created_at=datetime.utcnow(),
+        )
+        
+        db.add(exception)
+        created_count += 1
+    
+    db.commit()
+    print(f"   Created {created_count} schedule exceptions")
+
+
 def main():
     print("=" * 60)
     print("Mobius OS - CRM/Scheduler Data Seeding")
@@ -577,17 +937,32 @@ def main():
     # Step 5: Create intake checklists
     seed_intake_checklists(db, tenant_id, appointments)
     
+    # Step 6: Create providers
+    providers = seed_providers(db, tenant_id)
+    
+    # Step 7: Create provider schedules
+    seed_provider_schedules(db, tenant_id, providers)
+    
+    # Step 8: Create time slots
+    seed_time_slots(db, tenant_id, providers)
+    
+    # Step 9: Create schedule exceptions
+    seed_schedule_exceptions(db, tenant_id, providers)
+    
     print("\n" + "=" * 60)
     print("CRM data seeding complete!")
     print("=" * 60)
     
     print("\nTo view the Mock CRM page:")
     print("  http://localhost:5001/mock-crm")
+    print("\nTo view the Unified EMR page:")
+    print("  http://localhost:5001/mock-emr")
     print("\nAvailable styles:")
-    print("  http://localhost:5001/mock-crm?style=modern")
-    print("  http://localhost:5001/mock-crm?style=classic")
-    print("  http://localhost:5001/mock-crm?style=healthcare_first")
-    print("  http://localhost:5001/mock-crm?style=efficiency")
+    print("  http://localhost:5001/mock-emr?style=epic")
+    print("  http://localhost:5001/mock-emr?style=cerner")
+    print("  http://localhost:5001/mock-emr?style=athena")
+    print("  http://localhost:5001/mock-emr?style=netsmart")
+    print("  http://localhost:5001/mock-emr?style=qualifacts")
 
 
 if __name__ == "__main__":

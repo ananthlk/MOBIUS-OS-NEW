@@ -15,13 +15,20 @@ Supported styles (via ?style= parameter):
 
 import uuid
 import random
+from datetime import datetime, date, timedelta
 from flask import Blueprint, request, jsonify, Response
 from sqlalchemy.orm import joinedload
+from sqlalchemy import and_, or_
 
 from app.db.postgres import get_db_session
 from app.models.patient import PatientContext, PatientSnapshot
 from app.models.patient_ids import PatientId
 from app.models.mock_emr import MockEmrRecord
+from app.models.appointment import Appointment, AppointmentReminder
+from app.models.scheduling import Provider, ProviderSchedule, TimeSlot, ScheduleException
+from app.models.orders import ClinicalOrder, LabOrder, ImagingOrder, MedicationOrder, ReferralOrder
+from app.models.billing import PatientInsurance, Charge, Claim, Payment, PatientStatement
+from app.models.messages import MessageThread, Message
 
 bp = Blueprint("mock_emr", __name__, url_prefix="/mock-emr")
 
@@ -98,28 +105,178 @@ def _get_all_patients(db, tenant_id: uuid.UUID) -> list:
     return patients
 
 
+def _get_scheduling_data(db, tenant_id: uuid.UUID) -> dict:
+    """Get scheduling data for the EMR."""
+    today = date.today()
+    
+    # Get providers
+    providers = db.query(Provider).filter(
+        Provider.tenant_id == tenant_id,
+        Provider.is_active == True
+    ).all()
+    
+    # Get today's appointments
+    appointments = db.query(Appointment).filter(
+        Appointment.tenant_id == tenant_id,
+        Appointment.scheduled_date == today
+    ).order_by(Appointment.scheduled_time).all()
+    
+    # Get available slots for today and next 7 days
+    slots = db.query(TimeSlot).filter(
+        TimeSlot.tenant_id == tenant_id,
+        TimeSlot.slot_date >= today,
+        TimeSlot.slot_date <= today + timedelta(days=7)
+    ).order_by(TimeSlot.slot_date, TimeSlot.start_time).all()
+    
+    # Build provider map
+    provider_map = {p.provider_id: p for p in providers}
+    
+    return {
+        "providers": [p.to_dict() for p in providers],
+        "provider_map": provider_map,
+        "today_appointments": appointments,
+        "slots": slots,
+        "today": today,
+    }
+
+
+def _get_orders_data(db, tenant_id: uuid.UUID) -> dict:
+    """Get orders data for the EMR."""
+    # Get recent orders (last 90 days)
+    cutoff_date = date.today() - timedelta(days=90)
+    
+    orders = db.query(ClinicalOrder).filter(
+        ClinicalOrder.tenant_id == tenant_id,
+        ClinicalOrder.ordered_at >= datetime.combine(cutoff_date, datetime.min.time())
+    ).order_by(ClinicalOrder.ordered_at.desc()).limit(100).all()
+    
+    # Organize by type
+    lab_orders = [o for o in orders if o.order_type == "lab"]
+    imaging_orders = [o for o in orders if o.order_type == "imaging"]
+    medication_orders = [o for o in orders if o.order_type == "medication"]
+    referral_orders = [o for o in orders if o.order_type == "referral"]
+    
+    # Get counts by status
+    pending_count = len([o for o in orders if o.status == "pending"])
+    in_progress_count = len([o for o in orders if o.status == "in_progress"])
+    completed_count = len([o for o in orders if o.status == "completed"])
+    
+    return {
+        "all_orders": orders,
+        "lab_orders": lab_orders,
+        "imaging_orders": imaging_orders,
+        "medication_orders": medication_orders,
+        "referral_orders": referral_orders,
+        "pending_count": pending_count,
+        "in_progress_count": in_progress_count,
+        "completed_count": completed_count,
+    }
+
+
+def _get_billing_data(db, tenant_id: uuid.UUID) -> dict:
+    """Get billing data for the EMR."""
+    # Get recent claims
+    claims = db.query(Claim).filter(
+        Claim.tenant_id == tenant_id
+    ).order_by(Claim.created_at.desc()).limit(50).all()
+    
+    # Get recent charges
+    charges = db.query(Charge).filter(
+        Charge.tenant_id == tenant_id
+    ).order_by(Charge.service_date.desc()).limit(100).all()
+    
+    # Get recent payments
+    payments = db.query(Payment).filter(
+        Payment.tenant_id == tenant_id
+    ).order_by(Payment.payment_date.desc()).limit(50).all()
+    
+    # Calculate totals
+    total_charges = sum(float(c.total_charge or 0) for c in charges)
+    total_payments = sum(float(p.amount or 0) for p in payments)
+    
+    # Claims by status
+    claims_pending = len([c for c in claims if c.status in ["pending", "submitted"]])
+    claims_paid = len([c for c in claims if c.status == "paid"])
+    claims_denied = len([c for c in claims if c.status == "denied"])
+    
+    return {
+        "claims": claims,
+        "charges": charges,
+        "payments": payments,
+        "total_charges": total_charges,
+        "total_payments": total_payments,
+        "claims_pending": claims_pending,
+        "claims_paid": claims_paid,
+        "claims_denied": claims_denied,
+    }
+
+
+def _get_messages_data(db, tenant_id: uuid.UUID) -> dict:
+    """Get messages data for the EMR."""
+    # Get message threads
+    threads = db.query(MessageThread).filter(
+        MessageThread.tenant_id == tenant_id
+    ).order_by(MessageThread.last_message_at.desc()).limit(50).all()
+    
+    # Get unread count
+    unread_threads = len([t for t in threads if t.unread_count > 0])
+    
+    # Get threads by status
+    open_threads = [t for t in threads if t.status == "open"]
+    closed_threads = [t for t in threads if t.status == "closed"]
+    
+    # Get threads by category
+    threads_by_category = {}
+    for t in threads:
+        cat = t.category or "general"
+        if cat not in threads_by_category:
+            threads_by_category[cat] = []
+        threads_by_category[cat].append(t)
+    
+    return {
+        "threads": threads,
+        "open_threads": open_threads,
+        "closed_threads": closed_threads,
+        "unread_count": unread_threads,
+        "threads_by_category": threads_by_category,
+    }
+
+
 @bp.route("/", methods=["GET"])
 def mock_emr_page():
-    """Render the mock EMR HTML page with selected style."""
+    """Render the unified EMR HTML page with selected style."""
     db = get_db_session()
     tenant_id = _get_tenant_id()
     style = _get_style()
     
+    # Get patient data
     patients = _get_all_patients(db, tenant_id)
     
-    # Select renderer based on style
+    # Get scheduling data
+    scheduling_data = _get_scheduling_data(db, tenant_id)
+    
+    # Get orders data
+    orders_data = _get_orders_data(db, tenant_id)
+    
+    # Get billing data
+    billing_data = _get_billing_data(db, tenant_id)
+    
+    # Get messages data
+    messages_data = _get_messages_data(db, tenant_id)
+    
+    # Select renderer based on style - now uses unified tabbed layout
     renderers = {
-        "epic": _render_epic_style,
-        "cerner": _render_cerner_style,
-        "allscripts": _render_allscripts_style,
-        "athena": _render_athena_style,
-        "legacy": _render_legacy_style,
-        "netsmart": _render_netsmart_style,
-        "qualifacts": _render_qualifacts_style,
+        "epic": _render_unified_epic_style,
+        "cerner": _render_unified_cerner_style,
+        "allscripts": _render_unified_allscripts_style,
+        "athena": _render_unified_athena_style,
+        "legacy": _render_unified_legacy_style,
+        "netsmart": _render_unified_netsmart_style,
+        "qualifacts": _render_unified_qualifacts_style,
     }
     
-    renderer = renderers.get(style, _render_epic_style)
-    html = renderer(patients, style)
+    renderer = renderers.get(style, _render_unified_epic_style)
+    html = renderer(patients, scheduling_data, orders_data, billing_data, messages_data, style)
     
     return Response(html, mimetype="text/html")
 
@@ -179,7 +336,1993 @@ def list_patients():
 
 
 # =============================================================================
-# EPIC-STYLE RENDERER (Blue theme, sidebar navigation)
+# SCHEDULING API ENDPOINTS
+# =============================================================================
+
+@bp.route("/api/schedule/providers", methods=["GET"])
+def list_providers():
+    """List all providers with their schedules."""
+    db = get_db_session()
+    tenant_id = _get_tenant_id()
+    
+    providers = db.query(Provider).filter(
+        Provider.tenant_id == tenant_id,
+        Provider.is_active == True
+    ).all()
+    
+    return jsonify({
+        "ok": True,
+        "count": len(providers),
+        "providers": [p.to_dict() for p in providers]
+    })
+
+
+@bp.route("/api/schedule/calendar", methods=["GET"])
+def get_calendar():
+    """Get calendar data for a date range."""
+    db = get_db_session()
+    tenant_id = _get_tenant_id()
+    
+    # Parse date parameters
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+    provider_id_str = request.args.get("provider_id")
+    view_type = request.args.get("view", "week")  # day, week, month
+    
+    # Default to today + 7 days
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            start_date = date.today()
+    else:
+        start_date = date.today()
+    
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            end_date = start_date + timedelta(days=7)
+    else:
+        # Set end date based on view type
+        if view_type == "day":
+            end_date = start_date
+        elif view_type == "month":
+            end_date = start_date + timedelta(days=30)
+        else:
+            end_date = start_date + timedelta(days=7)
+    
+    # Build query
+    query = db.query(TimeSlot).filter(
+        TimeSlot.tenant_id == tenant_id,
+        TimeSlot.slot_date >= start_date,
+        TimeSlot.slot_date <= end_date
+    )
+    
+    # Filter by provider if specified
+    if provider_id_str:
+        try:
+            provider_id = uuid.UUID(provider_id_str)
+            query = query.filter(TimeSlot.provider_id == provider_id)
+        except ValueError:
+            pass
+    
+    slots = query.order_by(TimeSlot.slot_date, TimeSlot.start_time).all()
+    
+    # Get provider info for enrichment
+    provider_ids = set(s.provider_id for s in slots)
+    providers = db.query(Provider).filter(Provider.provider_id.in_(provider_ids)).all()
+    provider_map = {p.provider_id: p for p in providers}
+    
+    # Get appointments for booked slots
+    appointment_ids = [s.appointment_id for s in slots if s.appointment_id]
+    appointments = db.query(Appointment).filter(Appointment.appointment_id.in_(appointment_ids)).all()
+    appointment_map = {a.appointment_id: a for a in appointments}
+    
+    # Build calendar data
+    calendar_data = []
+    for slot in slots:
+        provider = provider_map.get(slot.provider_id)
+        appointment = appointment_map.get(slot.appointment_id) if slot.appointment_id else None
+        
+        # Get patient info if booked
+        patient_name = None
+        patient_mrn = None
+        if appointment:
+            snapshot = db.query(PatientSnapshot).filter(
+                PatientSnapshot.patient_context_id == appointment.patient_context_id
+            ).order_by(PatientSnapshot.snapshot_version.desc()).first()
+            if snapshot:
+                patient_name = snapshot.display_name
+            
+            patient_id = db.query(PatientId).filter(
+                PatientId.patient_context_id == appointment.patient_context_id,
+                PatientId.id_type == "mrn"
+            ).first()
+            if patient_id:
+                patient_mrn = patient_id.id_value
+        
+        calendar_data.append({
+            "slot_id": str(slot.slot_id),
+            "provider_id": str(slot.provider_id),
+            "provider_name": provider.provider_name if provider else None,
+            "provider_credentials": provider.credentials if provider else None,
+            "slot_date": slot.slot_date.isoformat(),
+            "start_time": slot.start_time.strftime("%H:%M") if slot.start_time else None,
+            "end_time": slot.end_time.strftime("%H:%M") if slot.end_time else None,
+            "duration_minutes": slot.duration_minutes,
+            "status": slot.status,
+            "location": slot.location,
+            "room": slot.room,
+            "appointment_id": str(slot.appointment_id) if slot.appointment_id else None,
+            "appointment_type": appointment.appointment_type if appointment else None,
+            "appointment_status": appointment.status if appointment else None,
+            "patient_name": patient_name,
+            "patient_mrn": patient_mrn,
+            "visit_reason": appointment.visit_reason if appointment else None,
+        })
+    
+    return jsonify({
+        "ok": True,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "view_type": view_type,
+        "count": len(calendar_data),
+        "slots": calendar_data
+    })
+
+
+@bp.route("/api/schedule/slots", methods=["GET"])
+def get_available_slots():
+    """Get available time slots for booking."""
+    db = get_db_session()
+    tenant_id = _get_tenant_id()
+    
+    # Parse parameters
+    provider_id_str = request.args.get("provider_id")
+    date_str = request.args.get("date")
+    appointment_type = request.args.get("appointment_type")
+    
+    if not date_str:
+        target_date = date.today() + timedelta(days=1)
+    else:
+        try:
+            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            target_date = date.today() + timedelta(days=1)
+    
+    # Build query for available slots
+    query = db.query(TimeSlot).filter(
+        TimeSlot.tenant_id == tenant_id,
+        TimeSlot.slot_date == target_date,
+        TimeSlot.status == "available"
+    )
+    
+    if provider_id_str:
+        try:
+            provider_id = uuid.UUID(provider_id_str)
+            query = query.filter(TimeSlot.provider_id == provider_id)
+        except ValueError:
+            pass
+    
+    slots = query.order_by(TimeSlot.start_time).all()
+    
+    # Get provider info
+    provider_ids = set(s.provider_id for s in slots)
+    providers = db.query(Provider).filter(Provider.provider_id.in_(provider_ids)).all()
+    provider_map = {p.provider_id: p for p in providers}
+    
+    # Build response
+    available_slots = []
+    for slot in slots:
+        provider = provider_map.get(slot.provider_id)
+        available_slots.append({
+            "slot_id": str(slot.slot_id),
+            "provider_id": str(slot.provider_id),
+            "provider_name": provider.provider_name if provider else None,
+            "provider_credentials": provider.credentials if provider else None,
+            "specialty": provider.specialty if provider else None,
+            "slot_date": slot.slot_date.isoformat(),
+            "start_time": slot.start_time.strftime("%I:%M %p") if slot.start_time else None,
+            "end_time": slot.end_time.strftime("%I:%M %p") if slot.end_time else None,
+            "duration_minutes": slot.duration_minutes,
+            "location": slot.location,
+            "room": slot.room,
+        })
+    
+    return jsonify({
+        "ok": True,
+        "date": target_date.isoformat(),
+        "count": len(available_slots),
+        "slots": available_slots
+    })
+
+
+@bp.route("/api/schedule/book", methods=["POST"])
+def book_appointment():
+    """Book an appointment in an available slot."""
+    db = get_db_session()
+    tenant_id = _get_tenant_id()
+    
+    data = request.get_json() or {}
+    
+    slot_id_str = data.get("slot_id")
+    patient_context_id_str = data.get("patient_context_id")
+    appointment_type = data.get("appointment_type", "follow_up")
+    visit_reason = data.get("visit_reason", "")
+    
+    # Validate required fields
+    if not slot_id_str:
+        return jsonify({"ok": False, "error": "slot_id is required"}), 400
+    if not patient_context_id_str:
+        return jsonify({"ok": False, "error": "patient_context_id is required"}), 400
+    
+    try:
+        slot_id = uuid.UUID(slot_id_str)
+        patient_context_id = uuid.UUID(patient_context_id_str)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid UUID format"}), 400
+    
+    # Get the slot
+    slot = db.query(TimeSlot).filter(
+        TimeSlot.slot_id == slot_id,
+        TimeSlot.tenant_id == tenant_id
+    ).first()
+    
+    if not slot:
+        return jsonify({"ok": False, "error": "Slot not found"}), 404
+    
+    if slot.status != "available":
+        return jsonify({"ok": False, "error": "Slot is not available"}), 409
+    
+    # Get provider info
+    provider = db.query(Provider).filter(
+        Provider.provider_id == slot.provider_id
+    ).first()
+    
+    # Create appointment
+    appointment = Appointment(
+        tenant_id=tenant_id,
+        patient_context_id=patient_context_id,
+        scheduled_date=slot.slot_date,
+        scheduled_time=slot.start_time,
+        duration_minutes=slot.duration_minutes,
+        appointment_type=appointment_type,
+        status="scheduled",
+        provider_name=provider.provider_name if provider else None,
+        provider_id=provider.provider_id if provider else None,
+        location=slot.location,
+        room=slot.room,
+        visit_reason=visit_reason,
+        needs_confirmation=True,
+        created_at=datetime.utcnow(),
+    )
+    
+    db.add(appointment)
+    db.flush()  # Get appointment ID
+    
+    # Update slot status
+    slot.status = "booked"
+    slot.appointment_id = appointment.appointment_id
+    slot.updated_at = datetime.utcnow()
+    
+    db.commit()
+    
+    return jsonify({
+        "ok": True,
+        "appointment": appointment.to_dict(),
+        "slot": slot.to_dict()
+    })
+
+
+@bp.route("/api/schedule/reschedule", methods=["PUT"])
+def reschedule_appointment():
+    """Reschedule an existing appointment to a new slot."""
+    db = get_db_session()
+    tenant_id = _get_tenant_id()
+    
+    data = request.get_json() or {}
+    
+    appointment_id_str = data.get("appointment_id")
+    new_slot_id_str = data.get("new_slot_id")
+    
+    if not appointment_id_str or not new_slot_id_str:
+        return jsonify({"ok": False, "error": "appointment_id and new_slot_id are required"}), 400
+    
+    try:
+        appointment_id = uuid.UUID(appointment_id_str)
+        new_slot_id = uuid.UUID(new_slot_id_str)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid UUID format"}), 400
+    
+    # Get appointment
+    appointment = db.query(Appointment).filter(
+        Appointment.appointment_id == appointment_id,
+        Appointment.tenant_id == tenant_id
+    ).first()
+    
+    if not appointment:
+        return jsonify({"ok": False, "error": "Appointment not found"}), 404
+    
+    # Get old slot
+    old_slot = db.query(TimeSlot).filter(
+        TimeSlot.appointment_id == appointment_id
+    ).first()
+    
+    # Get new slot
+    new_slot = db.query(TimeSlot).filter(
+        TimeSlot.slot_id == new_slot_id,
+        TimeSlot.tenant_id == tenant_id
+    ).first()
+    
+    if not new_slot:
+        return jsonify({"ok": False, "error": "New slot not found"}), 404
+    
+    if new_slot.status != "available":
+        return jsonify({"ok": False, "error": "New slot is not available"}), 409
+    
+    # Get provider info
+    provider = db.query(Provider).filter(
+        Provider.provider_id == new_slot.provider_id
+    ).first()
+    
+    # Release old slot
+    if old_slot:
+        old_slot.status = "available"
+        old_slot.appointment_id = None
+        old_slot.updated_at = datetime.utcnow()
+    
+    # Update appointment
+    appointment.scheduled_date = new_slot.slot_date
+    appointment.scheduled_time = new_slot.start_time
+    appointment.duration_minutes = new_slot.duration_minutes
+    appointment.provider_name = provider.provider_name if provider else None
+    appointment.provider_id = provider.provider_id if provider else None
+    appointment.location = new_slot.location
+    appointment.room = new_slot.room
+    appointment.status = "rescheduled"
+    appointment.rescheduled_from_id = appointment.appointment_id
+    appointment.updated_at = datetime.utcnow()
+    
+    # Book new slot
+    new_slot.status = "booked"
+    new_slot.appointment_id = appointment.appointment_id
+    new_slot.updated_at = datetime.utcnow()
+    
+    db.commit()
+    
+    return jsonify({
+        "ok": True,
+        "appointment": appointment.to_dict(),
+        "new_slot": new_slot.to_dict()
+    })
+
+
+@bp.route("/api/schedule/cancel/<appointment_id>", methods=["DELETE"])
+def cancel_appointment(appointment_id):
+    """Cancel an appointment and free the slot."""
+    db = get_db_session()
+    tenant_id = _get_tenant_id()
+    
+    try:
+        appt_uuid = uuid.UUID(appointment_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid appointment ID"}), 400
+    
+    # Get appointment
+    appointment = db.query(Appointment).filter(
+        Appointment.appointment_id == appt_uuid,
+        Appointment.tenant_id == tenant_id
+    ).first()
+    
+    if not appointment:
+        return jsonify({"ok": False, "error": "Appointment not found"}), 404
+    
+    # Get cancellation reason from request body
+    data = request.get_json() or {}
+    cancellation_reason = data.get("reason", "Cancelled by user")
+    
+    # Release the slot
+    slot = db.query(TimeSlot).filter(
+        TimeSlot.appointment_id == appt_uuid
+    ).first()
+    
+    if slot:
+        slot.status = "available"
+        slot.appointment_id = None
+        slot.updated_at = datetime.utcnow()
+    
+    # Update appointment status
+    appointment.status = "cancelled"
+    appointment.cancelled_at = datetime.utcnow()
+    appointment.cancellation_reason = cancellation_reason
+    appointment.updated_at = datetime.utcnow()
+    
+    db.commit()
+    
+    return jsonify({
+        "ok": True,
+        "appointment": appointment.to_dict()
+    })
+
+
+@bp.route("/api/patient/<patient_context_id>/appointments", methods=["GET"])
+def get_patient_appointments(patient_context_id):
+    """Get all appointments for a patient."""
+    db = get_db_session()
+    tenant_id = _get_tenant_id()
+    
+    try:
+        patient_uuid = uuid.UUID(patient_context_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid patient context ID"}), 400
+    
+    # Get filter parameters
+    status_filter = request.args.get("status")  # scheduled, completed, cancelled, etc.
+    include_past = request.args.get("include_past", "true").lower() == "true"
+    
+    # Build query
+    query = db.query(Appointment).filter(
+        Appointment.patient_context_id == patient_uuid,
+        Appointment.tenant_id == tenant_id
+    )
+    
+    if status_filter:
+        query = query.filter(Appointment.status == status_filter)
+    
+    if not include_past:
+        query = query.filter(Appointment.scheduled_date >= date.today())
+    
+    appointments = query.order_by(Appointment.scheduled_date.desc(), Appointment.scheduled_time.desc()).all()
+    
+    return jsonify({
+        "ok": True,
+        "patient_context_id": patient_context_id,
+        "count": len(appointments),
+        "appointments": [a.to_dict() for a in appointments]
+    })
+
+
+@bp.route("/api/schedule/exceptions", methods=["GET"])
+def get_schedule_exceptions():
+    """Get schedule exceptions (holidays, time off)."""
+    db = get_db_session()
+    tenant_id = _get_tenant_id()
+    
+    provider_id_str = request.args.get("provider_id")
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+    
+    # Default date range
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            start_date = date.today()
+    else:
+        start_date = date.today()
+    
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            end_date = start_date + timedelta(days=30)
+    else:
+        end_date = start_date + timedelta(days=30)
+    
+    # Build query
+    query = db.query(ScheduleException).filter(
+        ScheduleException.tenant_id == tenant_id,
+        ScheduleException.is_active == True,
+        ScheduleException.start_date <= end_date,
+        ScheduleException.end_date >= start_date
+    )
+    
+    if provider_id_str:
+        try:
+            provider_id = uuid.UUID(provider_id_str)
+            # Include provider-specific and clinic-wide exceptions
+            query = query.filter(
+                or_(
+                    ScheduleException.provider_id == provider_id,
+                    ScheduleException.provider_id == None
+                )
+            )
+        except ValueError:
+            pass
+    
+    exceptions = query.order_by(ScheduleException.start_date).all()
+    
+    return jsonify({
+        "ok": True,
+        "count": len(exceptions),
+        "exceptions": [e.to_dict() for e in exceptions]
+    })
+
+
+# =============================================================================
+# UNIFIED TABBED EMR RENDERERS
+# =============================================================================
+
+def _build_scheduling_calendar_html(scheduling_data: dict, style: str) -> str:
+    """Build the scheduling calendar view HTML."""
+    today = scheduling_data["today"]
+    slots = scheduling_data["slots"]
+    provider_map = scheduling_data.get("provider_map", {})
+    
+    # Group slots by date
+    slots_by_date = {}
+    for slot in slots:
+        date_key = slot.slot_date.isoformat()
+        if date_key not in slots_by_date:
+            slots_by_date[date_key] = []
+        slots_by_date[date_key].append(slot)
+    
+    # Build week view (7 days)
+    week_days = []
+    for i in range(7):
+        day = today + timedelta(days=i)
+        day_key = day.isoformat()
+        day_slots = slots_by_date.get(day_key, [])
+        
+        # Count available vs booked
+        available = sum(1 for s in day_slots if s.status == "available")
+        booked = sum(1 for s in day_slots if s.status == "booked")
+        
+        week_days.append({
+            "date": day,
+            "day_name": day.strftime("%a"),
+            "day_num": day.strftime("%d"),
+            "is_today": day == today,
+            "available": available,
+            "booked": booked,
+            "slots": day_slots[:8],  # First 8 slots for preview
+        })
+    
+    # Build calendar HTML
+    calendar_html = '<div class="emr-calendar-week">'
+    for day_info in week_days:
+        today_class = "today" if day_info["is_today"] else ""
+        calendar_html += f'''
+        <div class="emr-calendar-day {today_class}" data-date="{day_info['date'].isoformat()}">
+            <div class="emr-day-header">
+                <span class="day-name">{day_info['day_name']}</span>
+                <span class="day-num">{day_info['day_num']}</span>
+            </div>
+            <div class="emr-day-summary">
+                <span class="available-count">{day_info['available']} avail</span>
+                <span class="booked-count">{day_info['booked']} booked</span>
+            </div>
+            <div class="emr-day-slots">
+        '''
+        
+        for slot in day_info["slots"][:5]:  # Show up to 5 slots
+            provider = provider_map.get(slot.provider_id)
+            provider_name = provider.provider_name if provider else "Unknown"
+            status_class = f"slot-{slot.status}"
+            time_str = slot.start_time.strftime("%I:%M %p") if slot.start_time else ""
+            
+            calendar_html += f'''
+                <div class="emr-slot {status_class}" 
+                     data-slot-id="{slot.slot_id}"
+                     data-provider-id="{slot.provider_id}"
+                     onclick="selectSlot('{slot.slot_id}')">
+                    <span class="slot-time">{time_str}</span>
+                    <span class="slot-provider">{provider_name[:15]}</span>
+                </div>
+            '''
+        
+        if len(day_info["slots"]) > 5:
+            calendar_html += f'<div class="more-slots">+{len(day_info["slots"]) - 5} more</div>'
+        
+        calendar_html += '</div></div>'
+    
+    calendar_html += '</div>'
+    return calendar_html
+
+
+def _build_providers_list_html(scheduling_data: dict, style: str) -> str:
+    """Build providers list for filter sidebar."""
+    providers = scheduling_data["providers"]
+    
+    html = '<div class="emr-providers-list">'
+    html += '<div class="providers-header">Providers</div>'
+    
+    for p in providers:
+        html += f'''
+        <div class="provider-item" data-provider-id="{p['provider_id']}" onclick="filterByProvider('{p['provider_id']}')">
+            <span class="provider-name">{p['provider_name']}</span>
+            <span class="provider-specialty">{p.get('specialty', '')}</span>
+        </div>
+        '''
+    
+    html += '</div>'
+    return html
+
+
+def _build_appointment_booking_modal_html(scheduling_data: dict, style: str) -> str:
+    """Build the appointment booking modal HTML."""
+    providers = scheduling_data["providers"]
+    
+    provider_options = ""
+    for p in providers:
+        provider_options += f'<option value="{p["provider_id"]}">{p["provider_name"]} - {p.get("specialty", "")}</option>'
+    
+    return f'''
+    <div id="booking-modal" class="emr-modal" style="display:none;">
+        <div class="emr-modal-content">
+            <div class="emr-modal-header">
+                <h3>Schedule Appointment</h3>
+                <button class="modal-close" onclick="closeBookingModal()">&times;</button>
+            </div>
+            <div class="emr-modal-body">
+                <form id="booking-form" onsubmit="submitBooking(event)">
+                    <div class="form-group">
+                        <label>Provider</label>
+                        <select id="booking-provider" required>
+                            <option value="">Select Provider...</option>
+                            {provider_options}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="booking-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Available Times</label>
+                        <div id="available-slots-list">
+                            <p class="hint">Select a provider and date to see available times</p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Appointment Type</label>
+                        <select id="booking-type" required>
+                            <option value="follow_up">Follow-up Visit</option>
+                            <option value="new_patient">New Patient</option>
+                            <option value="annual_exam">Annual Exam</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="telehealth">Telehealth</option>
+                            <option value="consultation">Consultation</option>
+                            <option value="lab_work">Lab Work</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Visit Reason</label>
+                        <textarea id="booking-reason" rows="3" placeholder="Reason for visit..."></textarea>
+                    </div>
+                    <input type="hidden" id="booking-slot-id">
+                    <input type="hidden" id="booking-patient-id">
+                </form>
+            </div>
+            <div class="emr-modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeBookingModal()">Cancel</button>
+                <button type="submit" form="booking-form" class="btn-primary">Book Appointment</button>
+            </div>
+        </div>
+    </div>
+    '''
+
+
+def _build_orders_tab_html(orders_data: dict) -> str:
+    """Build the Orders tab HTML content."""
+    all_orders = orders_data.get("all_orders", [])
+    pending_count = orders_data.get("pending_count", 0)
+    in_progress_count = orders_data.get("in_progress_count", 0)
+    completed_count = orders_data.get("completed_count", 0)
+    
+    # Build summary cards
+    html = '''
+    <div class="orders-container">
+        <div class="orders-header">
+            <h3>Clinical Orders</h3>
+            <div class="orders-actions">
+                <button class="order-btn" onclick="alert('New Order dialog would open')">+ New Order</button>
+            </div>
+        </div>
+        
+        <div class="orders-summary">
+            <div class="summary-card summary-pending">
+                <div class="summary-count">{pending}</div>
+                <div class="summary-label">Pending</div>
+            </div>
+            <div class="summary-card summary-progress">
+                <div class="summary-count">{in_progress}</div>
+                <div class="summary-label">In Progress</div>
+            </div>
+            <div class="summary-card summary-complete">
+                <div class="summary-count">{completed}</div>
+                <div class="summary-label">Completed</div>
+            </div>
+        </div>
+        
+        <div class="orders-filters">
+            <select class="order-filter" onchange="filterOrders(this.value)">
+                <option value="all">All Orders</option>
+                <option value="lab">Lab Orders</option>
+                <option value="imaging">Imaging</option>
+                <option value="medication">Medications</option>
+                <option value="referral">Referrals</option>
+            </select>
+            <select class="order-filter" onchange="filterOrderStatus(this.value)">
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+            </select>
+        </div>
+        
+        <div class="orders-list">
+    '''.format(pending=pending_count, in_progress=in_progress_count, completed=completed_count)
+    
+    # Build order rows
+    for order in all_orders[:30]:  # Limit to 30 for performance
+        order_type_icon = {
+            "lab": "🧪",
+            "imaging": "📷",
+            "medication": "💊",
+            "referral": "📋"
+        }.get(order.order_type, "📄")
+        
+        status_class = {
+            "pending": "status-pending",
+            "in_progress": "status-progress",
+            "completed": "status-complete",
+            "cancelled": "status-cancelled"
+        }.get(order.status, "status-pending")
+        
+        ordered_date = order.ordered_at.strftime("%m/%d/%Y") if order.ordered_at else ""
+        result_badge = ""
+        if order.result_status == "abnormal":
+            result_badge = '<span class="result-badge result-abnormal">Abnormal</span>'
+        elif order.result_status == "critical":
+            result_badge = '<span class="result-badge result-critical">Critical</span>'
+        elif order.result_status == "normal":
+            result_badge = '<span class="result-badge result-normal">Normal</span>'
+        
+        html += f'''
+            <div class="order-row" data-order-type="{order.order_type}" data-order-status="{order.status}">
+                <div class="order-icon">{order_type_icon}</div>
+                <div class="order-info">
+                    <div class="order-name">{order.order_name}</div>
+                    <div class="order-meta">
+                        <span class="order-type">{order.order_type.title()}</span>
+                        <span class="order-date">{ordered_date}</span>
+                        <span class="order-provider">{order.ordering_provider_name or 'Unassigned'}</span>
+                    </div>
+                </div>
+                <div class="order-status-area">
+                    {result_badge}
+                    <span class="order-status {status_class}">{order.status.replace('_', ' ').title()}</span>
+                </div>
+            </div>
+        '''
+    
+    if not all_orders:
+        html += '<div class="no-orders">No orders found</div>'
+    
+    html += '''
+        </div>
+    </div>
+    '''
+    
+    return html
+
+
+def _build_billing_tab_html(billing_data: dict) -> str:
+    """Build the Billing tab HTML content."""
+    claims = billing_data.get("claims", [])
+    charges = billing_data.get("charges", [])
+    payments = billing_data.get("payments", [])
+    total_charges = billing_data.get("total_charges", 0)
+    total_payments = billing_data.get("total_payments", 0)
+    claims_pending = billing_data.get("claims_pending", 0)
+    claims_paid = billing_data.get("claims_paid", 0)
+    claims_denied = billing_data.get("claims_denied", 0)
+    
+    html = f'''
+    <div class="billing-container">
+        <div class="billing-header">
+            <h3>Billing & Claims</h3>
+        </div>
+        
+        <div class="billing-summary">
+            <div class="billing-card">
+                <div class="billing-card-title">Total Charges</div>
+                <div class="billing-card-amount">${total_charges:,.2f}</div>
+            </div>
+            <div class="billing-card">
+                <div class="billing-card-title">Total Payments</div>
+                <div class="billing-card-amount">${total_payments:,.2f}</div>
+            </div>
+            <div class="billing-card">
+                <div class="billing-card-title">Outstanding</div>
+                <div class="billing-card-amount">${(total_charges - total_payments):,.2f}</div>
+            </div>
+        </div>
+        
+        <div class="billing-tabs">
+            <div class="billing-tab active" onclick="showBillingSection('claims')">Claims ({len(claims)})</div>
+            <div class="billing-tab" onclick="showBillingSection('charges')">Charges ({len(charges)})</div>
+            <div class="billing-tab" onclick="showBillingSection('payments')">Payments ({len(payments)})</div>
+        </div>
+        
+        <div id="billing-claims" class="billing-section active">
+            <div class="claims-summary">
+                <span class="claim-stat">Pending: {claims_pending}</span>
+                <span class="claim-stat">Paid: {claims_paid}</span>
+                <span class="claim-stat claim-denied">Denied: {claims_denied}</span>
+            </div>
+            <table class="billing-table">
+                <thead>
+                    <tr>
+                        <th>Claim #</th>
+                        <th>Payer</th>
+                        <th>DOS</th>
+                        <th>Charges</th>
+                        <th>Paid</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    '''
+    
+    for claim in claims[:20]:
+        dos = claim.service_date_from.strftime("%m/%d/%Y") if claim.service_date_from else "N/A"
+        status_class = {
+            "paid": "status-paid",
+            "pending": "status-pending",
+            "submitted": "status-pending",
+            "denied": "status-denied",
+        }.get(claim.status, "")
+        
+        html += f'''
+                    <tr>
+                        <td class="claim-number">{claim.claim_number or 'N/A'}</td>
+                        <td>{claim.payer_name or 'N/A'}</td>
+                        <td>{dos}</td>
+                        <td>${float(claim.total_charges or 0):,.2f}</td>
+                        <td>${float(claim.paid_amount or 0):,.2f}</td>
+                        <td><span class="claim-status {status_class}">{claim.status.title()}</span></td>
+                    </tr>
+        '''
+    
+    if not claims:
+        html += '<tr><td colspan="6" class="no-data">No claims found</td></tr>'
+    
+    html += '''
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="billing-charges" class="billing-section">
+            <table class="billing-table">
+                <thead>
+                    <tr>
+                        <th>DOS</th>
+                        <th>CPT</th>
+                        <th>Description</th>
+                        <th>Charge</th>
+                        <th>Paid</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+    '''
+    
+    for charge in charges[:20]:
+        dos = charge.service_date.strftime("%m/%d/%Y") if charge.service_date else "N/A"
+        balance = float(charge.total_charge or 0) - float(charge.paid_amount or 0)
+        
+        html += f'''
+                    <tr>
+                        <td>{dos}</td>
+                        <td class="cpt-code">{charge.cpt_code or 'N/A'}</td>
+                        <td>{charge.description[:40]}...</td>
+                        <td>${float(charge.total_charge or 0):,.2f}</td>
+                        <td>${float(charge.paid_amount or 0):,.2f}</td>
+                        <td class="{"balance-due" if balance > 0 else ""}">${balance:,.2f}</td>
+                    </tr>
+        '''
+    
+    if not charges:
+        html += '<tr><td colspan="6" class="no-data">No charges found</td></tr>'
+    
+    html += '''
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="billing-payments" class="billing-section">
+            <table class="billing-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Source</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+    '''
+    
+    for payment in payments[:20]:
+        pay_date = payment.payment_date.strftime("%m/%d/%Y") if payment.payment_date else "N/A"
+        source_label = "Insurance" if payment.payment_source == "insurance" else "Patient"
+        
+        html += f'''
+                    <tr>
+                        <td>{pay_date}</td>
+                        <td>{source_label}</td>
+                        <td>{payment.payment_method or 'N/A'}</td>
+                        <td>{payment.reference_number or payment.check_number or 'N/A'}</td>
+                        <td class="payment-amount">${float(payment.amount or 0):,.2f}</td>
+                    </tr>
+        '''
+    
+    if not payments:
+        html += '<tr><td colspan="5" class="no-data">No payments found</td></tr>'
+    
+    html += '''
+                </tbody>
+            </table>
+        </div>
+    </div>
+    '''
+    
+    return html
+
+
+def _build_messages_tab_html(messages_data: dict) -> str:
+    """Build the Messages tab HTML content."""
+    threads = messages_data.get("threads", [])
+    open_threads = messages_data.get("open_threads", [])
+    unread_count = messages_data.get("unread_count", 0)
+    
+    html = f'''
+    <div class="messages-container">
+        <div class="messages-header">
+            <h3>Messages</h3>
+            <div class="messages-actions">
+                <button class="message-btn" onclick="alert('Compose message dialog would open')">+ New Message</button>
+            </div>
+        </div>
+        
+        <div class="messages-summary">
+            <div class="msg-stat">
+                <span class="msg-stat-count">{unread_count}</span>
+                <span class="msg-stat-label">Unread</span>
+            </div>
+            <div class="msg-stat">
+                <span class="msg-stat-count">{len(open_threads)}</span>
+                <span class="msg-stat-label">Open</span>
+            </div>
+            <div class="msg-stat">
+                <span class="msg-stat-count">{len(threads)}</span>
+                <span class="msg-stat-label">Total</span>
+            </div>
+        </div>
+        
+        <div class="messages-filters">
+            <select class="msg-filter">
+                <option value="all">All Messages</option>
+                <option value="unread">Unread</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+            </select>
+            <select class="msg-filter">
+                <option value="all">All Categories</option>
+                <option value="clinical">Clinical</option>
+                <option value="prescription">Prescription</option>
+                <option value="appointment">Appointment</option>
+                <option value="billing">Billing</option>
+            </select>
+        </div>
+        
+        <div class="messages-list">
+    '''
+    
+    for thread in threads[:20]:
+        unread_class = "msg-unread" if thread.unread_count > 0 else ""
+        category_icon = {
+            "clinical": "🏥",
+            "prescription": "💊",
+            "appointment": "📅",
+            "billing": "💳",
+            "general": "💬",
+            "lab_results": "🧪",
+        }.get(thread.category, "💬")
+        
+        priority_badge = ""
+        if thread.priority == "high" or thread.priority == "urgent":
+            priority_badge = '<span class="priority-badge">High Priority</span>'
+        
+        last_msg_time = ""
+        if thread.last_message_at:
+            last_msg_time = thread.last_message_at.strftime("%m/%d %I:%M %p")
+        
+        status_badge = f'<span class="thread-status status-{thread.status}">{thread.status.title()}</span>'
+        
+        html += f'''
+            <div class="message-thread {unread_class}">
+                <div class="thread-icon">{category_icon}</div>
+                <div class="thread-content">
+                    <div class="thread-header">
+                        <span class="thread-subject">{thread.subject}</span>
+                        {priority_badge}
+                    </div>
+                    <div class="thread-preview">{thread.last_message_preview or 'No messages yet'}</div>
+                    <div class="thread-meta">
+                        <span class="thread-category">{thread.category.title()}</span>
+                        <span class="thread-pool">{thread.assigned_pool or 'Unassigned'}</span>
+                        <span class="thread-time">{last_msg_time}</span>
+                    </div>
+                </div>
+                <div class="thread-status-area">
+                    {status_badge}
+                    {f'<span class="unread-badge">{thread.unread_count}</span>' if thread.unread_count > 0 else ''}
+                </div>
+            </div>
+        '''
+    
+    if not threads:
+        html += '<div class="no-messages">No messages found</div>'
+    
+    html += '''
+        </div>
+    </div>
+    '''
+    
+    return html
+
+
+def _get_unified_common_styles() -> str:
+    """Return common CSS styles for unified EMR layout."""
+    return '''
+        /* Unified EMR Tab Styles */
+        .emr-tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            background: #f8fafc;
+            padding: 0 16px;
+        }
+        .emr-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .emr-tab:hover { color: #1e40af; background: #f1f5f9; }
+        .emr-tab.active { 
+            color: #1e40af; 
+            border-bottom-color: #1e40af;
+            background: white;
+        }
+        .emr-tab-content { display: none; padding: 16px; }
+        .emr-tab-content.active { display: block; }
+        
+        /* Patient Banner */
+        .patient-banner {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .patient-banner-photo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #4a6fa5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .patient-banner-info { flex: 1; }
+        .patient-banner-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+        .patient-banner-details { font-size: 13px; opacity: 0.9; display: flex; gap: 16px; flex-wrap: wrap; }
+        .patient-banner-alerts { display: flex; gap: 8px; }
+        .banner-alert { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .banner-alert-critical { background: #dc2626; }
+        .banner-alert-warning { background: #f59e0b; }
+        
+        /* Calendar Styles */
+        .emr-calendar-week {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin: 16px 0;
+        }
+        .emr-calendar-day {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 200px;
+        }
+        .emr-calendar-day.today {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .emr-day-header {
+            text-align: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 8px;
+        }
+        .emr-day-header .day-name { display: block; font-size: 11px; color: #64748b; text-transform: uppercase; }
+        .emr-day-header .day-num { display: block; font-size: 18px; font-weight: 600; color: #1e293b; }
+        .emr-day-summary { 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 10px; 
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+        .available-count { color: #059669; }
+        .booked-count { color: #dc2626; }
+        .emr-day-slots { display: flex; flex-direction: column; gap: 4px; }
+        .emr-slot {
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .emr-slot.slot-available { background: #d1fae5; color: #065f46; }
+        .emr-slot.slot-available:hover { background: #a7f3d0; }
+        .emr-slot.slot-booked { background: #fee2e2; color: #991b1b; }
+        .emr-slot.slot-blocked { background: #f3f4f6; color: #6b7280; }
+        .slot-time { font-weight: 500; }
+        .slot-provider { font-size: 10px; opacity: 0.8; }
+        .more-slots { text-align: center; font-size: 10px; color: #64748b; padding: 4px; }
+        
+        /* Providers List */
+        .emr-providers-list {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        .providers-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .provider-item {
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 4px;
+        }
+        .provider-item:hover { background: #f1f5f9; }
+        .provider-item.active { background: #dbeafe; }
+        .provider-name { display: block; font-weight: 500; font-size: 13px; color: #1e293b; }
+        .provider-specialty { display: block; font-size: 11px; color: #64748b; }
+        
+        /* Modal Styles */
+        .emr-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .emr-modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 500px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .emr-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .emr-modal-header h3 { margin: 0; font-size: 18px; color: #1e293b; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+        }
+        .modal-close:hover { color: #1e293b; }
+        .emr-modal-body { padding: 20px; }
+        .emr-modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px; }
+        .form-group select, .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .form-group select:focus, .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+        .btn-primary {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary {
+            padding: 10px 20px;
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .btn-secondary:hover { background: #f3f4f6; }
+        .hint { color: #9ca3af; font-size: 13px; font-style: italic; }
+        
+        /* Scheduling Actions */
+        .scheduling-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .schedule-btn {
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .schedule-btn:hover { background: #2563eb; }
+        .schedule-btn-outline {
+            padding: 8px 16px;
+            background: white;
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .schedule-btn-outline:hover { background: #eff6ff; }
+        
+        /* Appointments List */
+        .appointments-list { margin-top: 16px; }
+        .appointment-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .appointment-item:hover { border-color: #3b82f6; }
+        .appt-time { font-weight: 600; color: #1e40af; min-width: 80px; }
+        .appt-info { flex: 1; }
+        .appt-patient { font-weight: 500; color: #1e293b; }
+        .appt-details { font-size: 12px; color: #64748b; }
+        .appt-status {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .appt-status-scheduled { background: #dbeafe; color: #1e40af; }
+        .appt-status-confirmed { background: #d1fae5; color: #065f46; }
+        .appt-status-checked-in { background: #f3e8ff; color: #7c3aed; }
+        .appt-status-completed { background: #f3f4f6; color: #4b5563; }
+        .appt-status-no-show { background: #fee2e2; color: #991b1b; }
+        
+        /* =============== ORDERS TAB STYLES =============== */
+        .orders-container { padding: 16px; }
+        .orders-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .orders-header h3 { margin: 0; color: #1e293b; font-size: 18px; }
+        .order-btn { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .order-btn:hover { background: #2563eb; }
+        
+        .orders-summary { display: flex; gap: 16px; margin-bottom: 20px; }
+        .summary-card { flex: 1; padding: 16px; border-radius: 8px; text-align: center; }
+        .summary-pending { background: #fef3c7; border: 1px solid #fcd34d; }
+        .summary-progress { background: #dbeafe; border: 1px solid #93c5fd; }
+        .summary-complete { background: #d1fae5; border: 1px solid #6ee7b7; }
+        .summary-count { font-size: 28px; font-weight: 700; color: #1e293b; }
+        .summary-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 500; }
+        
+        .orders-filters { display: flex; gap: 12px; margin-bottom: 16px; }
+        .order-filter { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; min-width: 150px; }
+        
+        .orders-list { background: white; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .order-row { display: flex; align-items: center; padding: 16px; border-bottom: 1px solid #e2e8f0; gap: 12px; }
+        .order-row:last-child { border-bottom: none; }
+        .order-row:hover { background: #f8fafc; }
+        .order-icon { font-size: 24px; width: 40px; text-align: center; }
+        .order-info { flex: 1; }
+        .order-name { font-weight: 500; color: #1e293b; margin-bottom: 4px; }
+        .order-meta { font-size: 12px; color: #64748b; display: flex; gap: 12px; }
+        .order-type { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; }
+        .order-status-area { display: flex; align-items: center; gap: 8px; }
+        .order-status { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-progress { background: #dbeafe; color: #1e40af; }
+        .status-complete { background: #d1fae5; color: #065f46; }
+        .status-cancelled { background: #fee2e2; color: #991b1b; }
+        .result-badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+        .result-normal { background: #d1fae5; color: #065f46; }
+        .result-abnormal { background: #fef3c7; color: #92400e; }
+        .result-critical { background: #fee2e2; color: #991b1b; }
+        .no-orders { padding: 40px; text-align: center; color: #64748b; }
+        
+        /* =============== BILLING TAB STYLES =============== */
+        .billing-container { padding: 16px; }
+        .billing-header { margin-bottom: 20px; }
+        .billing-header h3 { margin: 0; color: #1e293b; font-size: 18px; }
+        
+        .billing-summary { display: flex; gap: 16px; margin-bottom: 24px; }
+        .billing-card { flex: 1; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; }
+        .billing-card-title { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 500; margin-bottom: 8px; }
+        .billing-card-amount { font-size: 24px; font-weight: 700; color: #1e293b; }
+        
+        .billing-tabs { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; }
+        .billing-tab { padding: 12px 20px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; font-size: 14px; font-weight: 500; color: #64748b; }
+        .billing-tab:hover { color: #1e40af; }
+        .billing-tab.active { color: #1e40af; border-bottom-color: #1e40af; }
+        
+        .billing-section { display: none; }
+        .billing-section.active { display: block; }
+        
+        .claims-summary { display: flex; gap: 16px; margin-bottom: 16px; font-size: 13px; }
+        .claim-stat { padding: 4px 12px; background: #f1f5f9; border-radius: 4px; }
+        .claim-denied { background: #fee2e2; color: #991b1b; }
+        
+        .billing-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        .billing-table th { background: #f8fafc; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
+        .billing-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+        .billing-table tr:last-child td { border-bottom: none; }
+        .billing-table tr:hover { background: #f8fafc; }
+        .claim-number { font-family: monospace; color: #1e40af; }
+        .cpt-code { font-family: monospace; font-weight: 500; }
+        .claim-status { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .status-paid { background: #d1fae5; color: #065f46; }
+        .status-denied { background: #fee2e2; color: #991b1b; }
+        .balance-due { color: #dc2626; font-weight: 600; }
+        .payment-amount { color: #059669; font-weight: 600; }
+        .no-data { text-align: center; color: #64748b; font-style: italic; padding: 20px !important; }
+        
+        /* =============== MESSAGES TAB STYLES =============== */
+        .messages-container { padding: 16px; }
+        .messages-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .messages-header h3 { margin: 0; color: #1e293b; font-size: 18px; }
+        .message-btn { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .message-btn:hover { background: #2563eb; }
+        
+        .messages-summary { display: flex; gap: 24px; margin-bottom: 20px; }
+        .msg-stat { text-align: center; }
+        .msg-stat-count { display: block; font-size: 24px; font-weight: 700; color: #1e293b; }
+        .msg-stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; }
+        
+        .messages-filters { display: flex; gap: 12px; margin-bottom: 16px; }
+        .msg-filter { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; min-width: 150px; }
+        
+        .messages-list { background: white; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .message-thread { display: flex; align-items: flex-start; padding: 16px; border-bottom: 1px solid #e2e8f0; gap: 12px; cursor: pointer; }
+        .message-thread:last-child { border-bottom: none; }
+        .message-thread:hover { background: #f8fafc; }
+        .message-thread.msg-unread { background: #eff6ff; }
+        .thread-icon { font-size: 24px; width: 40px; text-align: center; }
+        .thread-content { flex: 1; }
+        .thread-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .thread-subject { font-weight: 500; color: #1e293b; }
+        .priority-badge { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+        .thread-preview { font-size: 13px; color: #64748b; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+        .thread-meta { display: flex; gap: 12px; font-size: 11px; color: #9ca3af; }
+        .thread-status-area { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .thread-status { padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+        .thread-status.status-open { background: #dbeafe; color: #1e40af; }
+        .thread-status.status-closed { background: #f3f4f6; color: #4b5563; }
+        .unread-badge { background: #dc2626; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .no-messages { padding: 40px; text-align: center; color: #64748b; }
+    '''
+
+
+def _get_unified_common_script() -> str:
+    """Return common JavaScript for unified EMR."""
+    return '''
+    <script>
+        let selectedPatient = null;
+        let selectedSlot = null;
+        let currentTab = 'chart';
+        
+        // Tab switching
+        function switchTab(tabName) {
+            currentTab = tabName;
+            document.querySelectorAll('.emr-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.emr-tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`.emr-tab[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            // Load scheduling data if switching to scheduling tab
+            if (tabName === 'scheduling') {
+                loadSchedulingData();
+            }
+        }
+        
+        // Patient selection (updates banner and loads patient data)
+        function selectPatient(element, patientKey) {
+            // Remove active from all patient items
+            document.querySelectorAll('[onclick^="selectPatient"]').forEach(el => {
+                el.classList.remove('active', 'selected');
+            });
+            element.classList.add('active', 'selected');
+            
+            // Get patient info from data attributes
+            const mrn = element.dataset.patientMrn || element.dataset.cernerMrn || 
+                       element.dataset.allscriptsId || element.dataset.athenaRecordNumber || 
+                       element.dataset.netsmartMrn || element.dataset.qualifactsMrn ||
+                       element.dataset.id || '';
+            const name = element.dataset.patientName || element.dataset.cernerPatient || 
+                        element.dataset.allscriptsName || element.dataset.athenaFullName || 
+                        element.dataset.netsmartClient || element.dataset.qualifactsClient ||
+                        element.dataset.name || '';
+            
+            selectedPatient = { key: patientKey, mrn: mrn, name: name };
+            
+            // Update patient banner
+            updatePatientBanner(patientKey);
+            
+            // Show/hide detail panels
+            document.querySelectorAll('.detail-panel').forEach(p => p.style.display = 'none');
+            const panel = document.getElementById('detail-' + patientKey);
+            if (panel) panel.style.display = 'block';
+            
+            // Update hidden context element
+            let contextEl = document.getElementById('mobius-patient-context');
+            if (!contextEl) {
+                contextEl = document.createElement('div');
+                contextEl.id = 'mobius-patient-context';
+                contextEl.style.display = 'none';
+                document.body.appendChild(contextEl);
+            }
+            contextEl.setAttribute('data-patient-mrn', mrn);
+            contextEl.setAttribute('data-patient-name', name);
+            contextEl.setAttribute('data-patient-key', patientKey);
+            
+            console.log('[Unified EMR] Selected patient:', selectedPatient);
+        }
+        
+        function updatePatientBanner(patientKey) {
+            const banner = document.getElementById('patient-banner');
+            if (!banner) return;
+            
+            const detailPanel = document.getElementById('detail-' + patientKey);
+            if (detailPanel) {
+                // Get patient info from the detail panel's data or content
+                const nameEl = detailPanel.querySelector('.patient-name, h2, .epic-patient-name, .athena-name');
+                const name = nameEl ? nameEl.textContent : 'Unknown Patient';
+                
+                // Update banner content
+                const bannerName = banner.querySelector('.patient-banner-name');
+                if (bannerName) bannerName.textContent = name;
+                
+                const bannerMrn = banner.querySelector('.patient-banner-mrn');
+                if (bannerMrn && selectedPatient) bannerMrn.textContent = 'MRN: ' + selectedPatient.mrn;
+            }
+            
+            banner.style.display = 'flex';
+        }
+        
+        // Scheduling functions
+        function loadSchedulingData() {
+            // Load calendar data via API
+            fetch('/mock-emr/api/schedule/calendar?view=week')
+                .then(r => r.json())
+                .then(data => {
+                    console.log('[EMR] Loaded scheduling data:', data);
+                })
+                .catch(err => console.error('Failed to load scheduling:', err));
+        }
+        
+        function selectSlot(slotId) {
+            selectedSlot = slotId;
+            document.querySelectorAll('.emr-slot').forEach(s => s.classList.remove('selected'));
+            const slotEl = document.querySelector(`[data-slot-id="${slotId}"]`);
+            if (slotEl) {
+                slotEl.classList.add('selected');
+                if (slotEl.classList.contains('slot-available')) {
+                    openBookingModal(slotId);
+                }
+            }
+        }
+        
+        function filterByProvider(providerId) {
+            document.querySelectorAll('.provider-item').forEach(p => p.classList.remove('active'));
+            document.querySelector(`[data-provider-id="${providerId}"]`).classList.add('active');
+            
+            // Filter calendar slots
+            document.querySelectorAll('.emr-slot').forEach(slot => {
+                if (slot.dataset.providerId === providerId) {
+                    slot.style.display = 'flex';
+                } else {
+                    slot.style.display = 'none';
+                }
+            });
+        }
+        
+        function clearProviderFilter() {
+            document.querySelectorAll('.provider-item').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.emr-slot').forEach(slot => slot.style.display = 'flex');
+        }
+        
+        // Booking modal functions
+        function openBookingModal(slotId = null) {
+            if (!selectedPatient) {
+                alert('Please select a patient first');
+                return;
+            }
+            
+            document.getElementById('booking-modal').style.display = 'flex';
+            document.getElementById('booking-patient-id').value = selectedPatient.key;
+            
+            if (slotId) {
+                document.getElementById('booking-slot-id').value = slotId;
+            }
+        }
+        
+        function closeBookingModal() {
+            document.getElementById('booking-modal').style.display = 'none';
+        }
+        
+        function loadAvailableSlots() {
+            const providerId = document.getElementById('booking-provider').value;
+            const date = document.getElementById('booking-date').value;
+            
+            if (!providerId || !date) return;
+            
+            fetch(`/mock-emr/api/schedule/slots?provider_id=${providerId}&date=${date}`)
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('available-slots-list');
+                    if (data.slots && data.slots.length > 0) {
+                        container.innerHTML = data.slots.map(slot => `
+                            <label class="slot-option">
+                                <input type="radio" name="slot" value="${slot.slot_id}" 
+                                       onchange="document.getElementById('booking-slot-id').value='${slot.slot_id}'">
+                                ${slot.start_time} - ${slot.end_time} (${slot.location || 'TBD'})
+                            </label>
+                        `).join('');
+                    } else {
+                        container.innerHTML = '<p class="hint">No available slots for this date</p>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to load slots:', err);
+                });
+        }
+        
+        function submitBooking(event) {
+            event.preventDefault();
+            
+            const slotId = document.getElementById('booking-slot-id').value;
+            const patientId = document.getElementById('booking-patient-id').value;
+            const appointmentType = document.getElementById('booking-type').value;
+            const visitReason = document.getElementById('booking-reason').value;
+            
+            if (!slotId) {
+                alert('Please select a time slot');
+                return;
+            }
+            
+            fetch('/mock-emr/api/schedule/book', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    slot_id: slotId,
+                    patient_context_id: patientId,
+                    appointment_type: appointmentType,
+                    visit_reason: visitReason
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    alert('Appointment booked successfully!');
+                    closeBookingModal();
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to book appointment'));
+                }
+            })
+            .catch(err => {
+                console.error('Booking failed:', err);
+                alert('Failed to book appointment');
+            });
+        }
+        
+        // Event listeners for booking form
+        document.addEventListener('DOMContentLoaded', function() {
+            const providerSelect = document.getElementById('booking-provider');
+            const dateInput = document.getElementById('booking-date');
+            
+            if (providerSelect) providerSelect.addEventListener('change', loadAvailableSlots);
+            if (dateInput) dateInput.addEventListener('change', loadAvailableSlots);
+            
+            // Auto-select first patient
+            const firstPatient = document.querySelector('[onclick^="selectPatient"]');
+            if (firstPatient) {
+                const match = firstPatient.getAttribute('onclick').match(/'([^']+)'/);
+                if (match) {
+                    selectPatient(firstPatient, match[1]);
+                }
+            }
+        });
+        
+        // Billing tab section switching
+        function showBillingSection(section) {
+            document.querySelectorAll('.billing-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.billing-section').forEach(s => s.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('billing-' + section).classList.add('active');
+        }
+        
+        // Orders filtering
+        function filterOrders(type) {
+            document.querySelectorAll('.order-row').forEach(row => {
+                if (type === 'all' || row.dataset.orderType === type) {
+                    row.style.display = 'flex';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        function filterOrderStatus(status) {
+            document.querySelectorAll('.order-row').forEach(row => {
+                if (status === 'all' || row.dataset.orderStatus === status) {
+                    row.style.display = 'flex';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    </script>
+    '''
+
+
+def _render_unified_epic_style(patients: list, scheduling_data: dict, orders_data: dict, billing_data: dict, messages_data: dict, style: str) -> str:
+    """Render unified Epic-like EMR with tabbed layout."""
+    
+    # Build patient list items
+    patient_items = []
+    for p in patients:
+        alert_class = "epic-alert" if p["critical_alert"] else ""
+        patient_items.append(f'''
+        <div class="epic-patient-item {alert_class}" 
+             data-patient-mrn="{p['mrn'] or ''}"
+             data-patient-name="{p['display_name'] or ''}"
+             data-patient-context-id="{p['patient_context_id']}"
+             onclick="selectPatient(this, '{p['patient_key']}')">
+            <div class="epic-patient-name">{p['display_name'] or 'Unknown'}</div>
+            <div class="epic-patient-mrn">{p['mrn'] or 'N/A'}</div>
+        </div>
+        ''')
+    
+    # Build chart tab content (clinical data)
+    chart_panels = _build_detail_panels(patients, "epic")
+    
+    # Build scheduling tab content
+    calendar_html = _build_scheduling_calendar_html(scheduling_data, style)
+    providers_html = _build_providers_list_html(scheduling_data, style)
+    booking_modal = _build_appointment_booking_modal_html(scheduling_data, style)
+    
+    # Build appointments list for today
+    appointments = scheduling_data.get("today_appointments", [])
+    appointments_html = '<div class="appointments-list">'
+    appointments_html += '<h3>Today\'s Appointments</h3>'
+    
+    if appointments:
+        for appt in appointments[:10]:
+            time_str = appt.scheduled_time.strftime("%I:%M %p") if appt.scheduled_time else ""
+            status_class = f"appt-status-{appt.status.replace('_', '-')}"
+            appointments_html += f'''
+            <div class="appointment-item" data-appointment-id="{appt.appointment_id}">
+                <span class="appt-time">{time_str}</span>
+                <div class="appt-info">
+                    <div class="appt-patient">{appt.provider_name or 'Unassigned'}</div>
+                    <div class="appt-details">{appt.appointment_type.replace('_', ' ').title()} | {appt.location or 'TBD'}</div>
+                </div>
+                <span class="appt-status {status_class}">{appt.status.replace('_', ' ')}</span>
+            </div>
+            '''
+    else:
+        appointments_html += '<p class="hint">No appointments scheduled for today</p>'
+    
+    appointments_html += '</div>'
+    
+    # Build Orders tab content
+    orders_html = _build_orders_tab_html(orders_data)
+    
+    # Build Billing tab content
+    billing_html = _build_billing_tab_html(billing_data)
+    
+    # Build Messages tab content
+    messages_html = _build_messages_tab_html(messages_data)
+    
+    common_styles = _get_unified_common_styles()
+    common_script = _get_unified_common_script()
+    
+    return f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EpicCare - Unified EMR</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e8f4fc; }}
+        
+        .epic-header {{
+            background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+            color: white;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }}
+        .epic-logo {{ font-size: 24px; font-weight: bold; letter-spacing: 1px; }}
+        .epic-header-info {{ font-size: 12px; opacity: 0.8; }}
+        
+        .epic-container {{ display: flex; height: calc(100vh - 52px); }}
+        
+        .epic-sidebar {{
+            width: 280px;
+            background: white;
+            border-right: 1px solid #ccd9e8;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }}
+        .epic-sidebar-header {{
+            padding: 16px;
+            background: #f0f7ff;
+            border-bottom: 1px solid #ccd9e8;
+            font-weight: 600;
+            color: #1e3a5f;
+        }}
+        .epic-patient-item {{
+            padding: 12px 16px;
+            border-bottom: 1px solid #e8f0f8;
+            cursor: pointer;
+            transition: background 0.2s;
+        }}
+        .epic-patient-item:hover {{ background: #f0f7ff; }}
+        .epic-patient-item.active {{ background: #d0e8ff; border-left: 4px solid #2c5282; }}
+        .epic-patient-item.epic-alert {{ border-left: 4px solid #dc3545; }}
+        .epic-patient-name {{ font-weight: 500; color: #1e3a5f; }}
+        .epic-patient-mrn {{ font-size: 12px; color: #6b7c93; font-family: monospace; }}
+        
+        .epic-main {{ flex: 1; display: flex; flex-direction: column; overflow: hidden; }}
+        
+        /* Patient Banner */
+        #patient-banner {{
+            display: none;
+        }}
+        
+        /* Tabs */
+        .emr-tabs {{
+            background: #f0f7ff;
+            border-bottom: 2px solid #ccd9e8;
+        }}
+        .emr-tab {{ color: #1e3a5f; }}
+        .emr-tab.active {{ border-bottom-color: #2c5282; color: #2c5282; }}
+        
+        .epic-content {{ flex: 1; overflow-y: auto; padding: 0; background: white; }}
+        
+        /* Epic-specific detail styles */
+        .epic-detail {{ background: white; border-radius: 8px; margin: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }}
+        .epic-detail-header {{ padding: 20px; background: #f0f7ff; border-radius: 8px 8px 0 0; border-bottom: 1px solid #ccd9e8; }}
+        .epic-detail-header h2 {{ color: #1e3a5f; margin-bottom: 8px; }}
+        .epic-section {{ padding: 20px; border-bottom: 1px solid #e8f0f8; }}
+        .epic-section h3 {{ color: #2c5282; font-size: 14px; text-transform: uppercase; margin-bottom: 12px; }}
+        .epic-badge {{ display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; margin-right: 6px; }}
+        .epic-badge-danger {{ background: #fce4e4; color: #c53030; }}
+        .epic-badge-warning {{ background: #fef3c7; color: #b45309; }}
+        .epic-badge-success {{ background: #d1fae5; color: #065f46; }}
+        .epic-vitals {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }}
+        .epic-vital {{ background: #f8fafc; padding: 12px; border-radius: 6px; text-align: center; }}
+        .epic-vital-label {{ font-size: 11px; color: #6b7c93; text-transform: uppercase; }}
+        .epic-vital-value {{ font-size: 18px; font-weight: 600; color: #1e3a5f; }}
+        
+        /* Scheduling tab layout */
+        .scheduling-layout {{
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 16px;
+            padding: 16px;
+            height: 100%;
+        }}
+        .scheduling-sidebar {{ overflow-y: auto; }}
+        .scheduling-main {{ overflow-y: auto; }}
+        
+        {common_styles}
+        
+        .epic-style-badge {{ position: fixed; bottom: 16px; right: 16px; background: #2c5282; color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; z-index: 100; }}
+    </style>
+</head>
+<body>
+    <header class="epic-header">
+        <div class="epic-logo">EpicCare</div>
+        <div class="epic-header-info">Unified EMR | Style: {style} | Patients: {len(patients)}</div>
+    </header>
+    
+    <div class="epic-container">
+        <aside class="epic-sidebar">
+            <div class="epic-sidebar-header">Patient List</div>
+            {"".join(patient_items)}
+        </aside>
+        
+        <main class="epic-main">
+            <!-- Patient Banner (shown when patient selected) -->
+            <div id="patient-banner" class="patient-banner">
+                <div class="patient-banner-photo">?</div>
+                <div class="patient-banner-info">
+                    <div class="patient-banner-name">Select a Patient</div>
+                    <div class="patient-banner-details">
+                        <span class="patient-banner-mrn">MRN: --</span>
+                        <span>DOB: --</span>
+                    </div>
+                </div>
+                <div class="patient-banner-alerts"></div>
+            </div>
+            
+            <!-- Tab Navigation -->
+            <div class="emr-tabs">
+                <div class="emr-tab active" data-tab="chart" onclick="switchTab('chart')">Chart</div>
+                <div class="emr-tab" data-tab="scheduling" onclick="switchTab('scheduling')">Scheduling</div>
+                <div class="emr-tab" data-tab="orders" onclick="switchTab('orders')">Orders</div>
+                <div class="emr-tab" data-tab="billing" onclick="switchTab('billing')">Billing</div>
+                <div class="emr-tab" data-tab="messages" onclick="switchTab('messages')">Messages</div>
+            </div>
+            
+            <div class="epic-content">
+                <!-- Chart Tab -->
+                <div id="tab-chart" class="emr-tab-content active">
+                    {chart_panels}
+                </div>
+                
+                <!-- Scheduling Tab -->
+                <div id="tab-scheduling" class="emr-tab-content">
+                    <div class="scheduling-layout">
+                        <div class="scheduling-sidebar">
+                            <div class="scheduling-actions">
+                                <button class="schedule-btn" onclick="openBookingModal()">+ New Appointment</button>
+                            </div>
+                            {providers_html}
+                            <button class="schedule-btn-outline" onclick="clearProviderFilter()">Clear Filter</button>
+                        </div>
+                        <div class="scheduling-main">
+                            <h3 style="margin-bottom: 16px; color: #1e3a5f;">Weekly Schedule</h3>
+                            {calendar_html}
+                            {appointments_html}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Orders Tab -->
+                <div id="tab-orders" class="emr-tab-content">
+                    {orders_html}
+                </div>
+                
+                <!-- Billing Tab -->
+                <div id="tab-billing" class="emr-tab-content">
+                    {billing_html}
+                </div>
+                
+                <!-- Messages Tab -->
+                <div id="tab-messages" class="emr-tab-content">
+                    {messages_html}
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    {booking_modal}
+    
+    <div class="epic-style-badge">EMR Style: Epic (Unified)</div>
+    
+    {common_script}
+</body>
+</html>'''
+
+
+# Create simplified unified renderers for other styles that delegate to the Epic renderer with style-specific adjustments
+def _render_unified_cerner_style(patients: list, scheduling_data: dict, orders_data: dict, billing_data: dict, messages_data: dict, style: str) -> str:
+    """Render unified Cerner-like EMR - uses Epic base with Cerner colors."""
+    # For brevity, delegate to Epic with Cerner-specific styling
+    return _render_unified_epic_style(patients, scheduling_data, orders_data, billing_data, messages_data, style).replace(
+        '#1e3a5f', '#d35400').replace('#2c5282', '#e67e22').replace('EpicCare', 'Cerner PowerChart'
+    ).replace('EMR Style: Epic', 'EMR Style: Cerner')
+
+
+def _render_unified_allscripts_style(patients: list, scheduling_data: dict, orders_data: dict, billing_data: dict, messages_data: dict, style: str) -> str:
+    """Render unified Allscripts-like EMR."""
+    return _render_unified_epic_style(patients, scheduling_data, orders_data, billing_data, messages_data, style).replace(
+        '#1e3a5f', '#2e7d32').replace('#2c5282', '#4caf50').replace('EpicCare', 'Allscripts Professional'
+    ).replace('EMR Style: Epic', 'EMR Style: Allscripts')
+
+
+def _render_unified_athena_style(patients: list, scheduling_data: dict, orders_data: dict, billing_data: dict, messages_data: dict, style: str) -> str:
+    """Render unified Athena-like EMR."""
+    return _render_unified_epic_style(patients, scheduling_data, orders_data, billing_data, messages_data, style).replace(
+        '#1e3a5f', '#6b21a8').replace('#2c5282', '#9333ea').replace('EpicCare', 'athenaOne'
+    ).replace('EMR Style: Epic', 'EMR Style: Athena')
+
+
+def _render_unified_legacy_style(patients: list, scheduling_data: dict, orders_data: dict, billing_data: dict, messages_data: dict, style: str) -> str:
+    """Render unified Legacy-style EMR."""
+    return _render_unified_epic_style(patients, scheduling_data, orders_data, billing_data, messages_data, style).replace(
+        '#1e3a5f', '#333333').replace('#2c5282', '#666666').replace('EpicCare', 'Medical Records System v2.1'
+    ).replace('EMR Style: Epic', 'EMR Style: Legacy')
+
+
+def _render_unified_netsmart_style(patients: list, scheduling_data: dict, orders_data: dict, billing_data: dict, messages_data: dict, style: str) -> str:
+    """Render unified Netsmart-like EMR."""
+    return _render_unified_epic_style(patients, scheduling_data, orders_data, billing_data, messages_data, style).replace(
+        '#1e3a5f', '#0d4f5c').replace('#2c5282', '#147a8a').replace('EpicCare', 'myAvatar NX'
+    ).replace('EMR Style: Epic', 'EMR Style: Netsmart')
+
+
+def _render_unified_qualifacts_style(patients: list, scheduling_data: dict, orders_data: dict, billing_data: dict, messages_data: dict, style: str) -> str:
+    """Render unified Qualifacts-like EMR."""
+    return _render_unified_epic_style(patients, scheduling_data, orders_data, billing_data, messages_data, style).replace(
+        '#1e3a5f', '#4f46e5').replace('#2c5282', '#6366f1').replace('EpicCare', 'CareLogic'
+    ).replace('EMR Style: Epic', 'EMR Style: Qualifacts')
+
+
+# =============================================================================
+# LEGACY EPIC-STYLE RENDERER (kept for backward compatibility)
 # =============================================================================
 
 def _render_epic_style(patients: list, style: str) -> str:
