@@ -1,0 +1,522 @@
+{
+  "schema_version": "1.2",
+  "generated_at": "2026-01-19",
+  "mode": "analysis_only",
+  "prd": {
+    "path": "PRDs/mobius_mini_sidecar_phase_1_prd.md",
+    "name": "Mobius Mini + Sidecar — Phase 1 PRD"
+  },
+  "terminology": {
+    "agent": "Makes decisions (computes/chooses outputs like proceed/mode/tasking/policy/assignments).",
+    "module": "Implements plumbing/execution (UI, APIs, storage, realtime projection, logging, security enforcement, tests)."
+  },
+  "surfaces": {
+    "mini": { "base_path": "/api/v1/mini" },
+    "sidecar": { "base_path": "/api/v1/sidecar" },
+    "note": "Surface endpoints are separate, but must converge on the same underlying patient state (PRD invariant)."
+  },
+  "surface_task_groups": {
+    "mini": ["T01", "T07"],
+    "sidecar": ["T02"],
+    "shared": ["T03", "T04", "T05", "T06", "T08", "T09", "T10", "T11", "T12", "T13", "T14", "T15", "T16", "T17", "T18", "T19", "T20", "T21", "T22", "T23"]
+  },
+  "modules": {
+    "available": [
+      {
+        "name": "PatientDataAgent",
+        "kind": "module",
+        "responsibility": "Creates patient data (patient snapshot + directory/search seed data)."
+      },
+      {
+        "name": "UIStripAgent",
+        "kind": "module",
+        "responsibility": "Implements UI strip surfaces (Mini + Sidecar) and their data bindings.",
+        "recommended_decomposition": ["MiniSurfaceModule", "SidecarSurfaceModule"]
+      },
+      {
+        "name": "MiniSurfaceModule",
+        "kind": "module",
+        "status": "recommended_split",
+        "parent_module": "UIStripAgent",
+        "responsibility": "Mini-only payload shaping + endpoint/UI handling (fast/minimal)."
+      },
+      {
+        "name": "SidecarSurfaceModule",
+        "kind": "module",
+        "status": "recommended_split",
+        "parent_module": "UIStripAgent",
+        "responsibility": "Sidecar-only payload shaping + endpoint/UI handling (richer: history/inbox/metadata)."
+      }
+    ],
+    "missing_catalog": [
+      {
+        "name": "SharedPatientStateCore",
+        "responsibility": "Shared read/write services used by both surfaces (patient state, submissions, event log, projection triggers)."
+      },
+      {
+        "name": "BackendAPIAndPersistenceModule",
+        "responsibility": "API endpoints + PostgreSQL tables + write paths + validation."
+      },
+      {
+        "name": "RealtimeProjectionModule",
+        "responsibility": "Firestore projections, fanout, subscriptions, reconnect/idempotency plumbing."
+      },
+      {
+        "name": "EventLogAuditModule",
+        "responsibility": "Append-only event log storage + correlation IDs + PHI-safe payload schemas."
+      },
+      {
+        "name": "SecurityComplianceModule",
+        "responsibility": "Tokenization/hashing + PHI-safe logging enforcement."
+      },
+      {
+        "name": "TestAutomationModule",
+        "responsibility": "Unit/integration test harness and scenarios for PRD behaviors."
+      }
+    ]
+  },
+  "decision_agents": {
+    "available": [],
+    "missing_catalog": [
+      {
+        "name": "RecordDetectionAgent",
+        "responsibility": "Decides/derives patient_key from page/app context (or validates provided key)."
+      },
+      {
+        "name": "ProceedDecisionAgent",
+        "responsibility": "Decides proceed indicator (grey/green/yellow/blue) from context + policy."
+      },
+      {
+        "name": "ExecutionModeDecisionAgent",
+        "responsibility": "Decides execution mode (agentic/copilot/user-driven)."
+      },
+      {
+        "name": "TaskingDecisionAgent",
+        "responsibility": "Decides tasking summary and needs-ack style flags."
+      },
+      {
+        "name": "OutcomeComputationAgent",
+        "responsibility": "Computes derived outcomes from event presence/absence."
+      },
+      {
+        "name": "PolicyDecisionAgent",
+        "responsibility": "Decides show/hide, UI variants, timeout thresholds, notification/assignment rules by tenant/role/site."
+      },
+      {
+        "name": "AssignmentDecisionAgent",
+        "responsibility": "Decides when/whom to assign/notify for offline continuation."
+      }
+    ]
+  },
+  "repo_touchpoints_current": [
+    "backend/app/modes/mini.py",
+    "backend/app/agents/base_agent/conversation_agent.py",
+    "extension/src/content.ts",
+    "extension/src/services/api.ts",
+    "extension/src/types/index.ts"
+  ],
+  "tasks": [
+    {
+      "id": "T01",
+      "workstream": "ui_surfaces",
+      "title": "Mini UI",
+      "prd_refs": ["4.1", "10"],
+      "description": "Implement Mini surface: patient snapshot, proceed indicator, execution mode, tasking summary, quick input with Send acknowledgement entry. Mini is read-only projection plus acknowledgement entry.",
+      "surface": "mini",
+      "owner_module": "MiniSurfaceModule",
+      "modules_involved": ["MiniSurfaceModule"],
+      "decision_agents_involved": [
+        "RecordDetectionAgent",
+        "ProceedDecisionAgent",
+        "ExecutionModeDecisionAgent",
+        "TaskingDecisionAgent",
+        "PolicyDecisionAgent"
+      ],
+      "missing_modules": ["SharedPatientStateCore", "BackendAPIAndPersistenceModule", "RealtimeProjectionModule"],
+      "missing_decision_agents": [
+        "RecordDetectionAgent",
+        "ProceedDecisionAgent",
+        "ExecutionModeDecisionAgent",
+        "TaskingDecisionAgent",
+        "PolicyDecisionAgent"
+      ],
+      "dependencies": [],
+      "likely_repo_touchpoints": ["extension/src/content.ts", "extension/src/services/api.ts", "backend/app/modes/mini.py"]
+    },
+    {
+      "id": "T02",
+      "workstream": "ui_surfaces",
+      "title": "Sidecar UI",
+      "prd_refs": ["4.2"],
+      "description": "Implement Sidecar expanded surface: expanded context, chat/note composition, action buttons, tasks visibility, history/metadata.",
+      "surface": "sidecar",
+      "owner_module": "SidecarSurfaceModule",
+      "modules_involved": ["SidecarSurfaceModule"],
+      "decision_agents_involved": ["TaskingDecisionAgent", "OutcomeComputationAgent", "PolicyDecisionAgent"],
+      "missing_modules": ["SharedPatientStateCore", "BackendAPIAndPersistenceModule", "EventLogAuditModule", "RealtimeProjectionModule"],
+      "missing_decision_agents": ["TaskingDecisionAgent", "OutcomeComputationAgent", "PolicyDecisionAgent"],
+      "dependencies": ["T03", "T09"],
+      "likely_repo_touchpoints": ["extension/src/content.ts"]
+    },
+    {
+      "id": "T03",
+      "workstream": "ui_state",
+      "title": "Shared state between Mini and Sidecar",
+      "prd_refs": ["4", "11"],
+      "description": "Ensure Mini and Sidecar reference the same underlying patient state (one Patient Context at a time) and remain consistent through expand/collapse and refresh.",
+      "surface": "shared",
+      "owner_module": "SharedPatientStateCore",
+      "modules_involved": ["SharedPatientStateCore", "MiniSurfaceModule", "SidecarSurfaceModule"],
+      "decision_agents_involved": [],
+      "missing_modules": ["SharedPatientStateCore", "RealtimeProjectionModule", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T09", "T11"],
+      "likely_repo_touchpoints": ["extension/src/content.ts", "extension/src/utils/session.ts", "extension/src/utils/uiDefaults.ts"]
+    },
+    {
+      "id": "T04",
+      "workstream": "ui_eventing",
+      "title": "Send == acknowledgement (client semantics)",
+      "prd_refs": ["1.4", "3.3", "6.3"],
+      "description": "Treat Send as the only state-committing user action; non-send interactions must not mutate state. Trigger acknowledgement submission on Send.",
+      "surface": "shared",
+      "owner_module": "SharedPatientStateCore",
+      "modules_involved": ["MiniSurfaceModule", "SidecarSurfaceModule", "SharedPatientStateCore"],
+      "decision_agents_involved": ["OutcomeComputationAgent"],
+      "missing_modules": ["SharedPatientStateCore", "BackendAPIAndPersistenceModule", "EventLogAuditModule"],
+      "missing_decision_agents": ["OutcomeComputationAgent"],
+      "dependencies": ["T09", "T14"],
+      "likely_repo_touchpoints": ["extension/src/content.ts", "extension/src/services/api.ts"]
+    },
+    {
+      "id": "T05",
+      "workstream": "ui_state",
+      "title": "Draft/override UX rules",
+      "prd_refs": ["10.2"],
+      "description": "Model local drafts: override draft with dirty flag + validation; note required when overrides present; Send enabled/disabled accordingly.",
+      "surface": "shared",
+      "owner_module": "UIStripAgent",
+      "modules_involved": ["MiniSurfaceModule", "SidecarSurfaceModule"],
+      "decision_agents_involved": [],
+      "missing_modules": ["SharedPatientStateCore", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T09"],
+      "likely_repo_touchpoints": ["extension/src/content.ts", "extension/src/types/index.ts"]
+    },
+    {
+      "id": "T06",
+      "workstream": "patient_data",
+      "title": "Patient snapshot fields + masking guidance",
+      "prd_refs": ["10.2", "13.2.10"],
+      "description": "Define patient snapshot fields needed for UI (display name, external ID label, masked identifier, DOB optional) and guidance on masking/tokenization.",
+      "owner_module": "PatientDataAgent",
+      "modules_involved": ["PatientDataAgent"],
+      "decision_agents_involved": ["PolicyDecisionAgent"],
+      "missing_modules": ["SecurityComplianceModule", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": ["PolicyDecisionAgent"],
+      "dependencies": ["T10"],
+      "likely_repo_touchpoints": ["backend/app/modes/mini.py", "extension/src/content.ts"]
+    },
+    {
+      "id": "T07",
+      "workstream": "patient_data",
+      "title": "Patient directory/search seed data",
+      "prd_refs": ["3.2", "10.2"],
+      "description": "Provide seed patient directory/search data to support Mini correction modal and early UI development.",
+      "surface": "mini",
+      "owner_module": "PatientDataAgent",
+      "modules_involved": ["PatientDataAgent", "MiniSurfaceModule"],
+      "decision_agents_involved": [],
+      "missing_modules": ["SharedPatientStateCore", "BackendAPIAndPersistenceModule", "SecurityComplianceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T06"],
+      "likely_repo_touchpoints": ["backend/app/modes/mini.py"]
+    },
+    {
+      "id": "T08",
+      "workstream": "record_binding",
+      "title": "Patient key acquisition (record detection/provision)",
+      "prd_refs": ["3.2", "10.2"],
+      "description": "Detect or receive a stable tokenized patient_key from the host app/page, with policy-safe handling.",
+      "owner_module": null,
+      "modules_involved": ["UIStripAgent"],
+      "decision_agents_involved": ["RecordDetectionAgent", "PolicyDecisionAgent"],
+      "missing_modules": ["SecurityComplianceModule"],
+      "missing_decision_agents": ["RecordDetectionAgent", "PolicyDecisionAgent"],
+      "dependencies": [],
+      "likely_repo_touchpoints": ["extension/src/content.ts"]
+    },
+    {
+      "id": "T09",
+      "workstream": "backend_contracts",
+      "title": "Define Mini/Sidecar API contract around PRD entities",
+      "prd_refs": ["10", "11", "12", "13"],
+      "description": "Define backend contract to fetch patient context + latest system response and to submit acknowledgements; align with PRD entity model.",
+      "surface": "shared",
+      "owner_module": null,
+      "modules_involved": ["SharedPatientStateCore", "BackendAPIAndPersistenceModule", "MiniSurfaceModule", "SidecarSurfaceModule"],
+      "decision_agents_involved": [
+        "ProceedDecisionAgent",
+        "ExecutionModeDecisionAgent",
+        "TaskingDecisionAgent",
+        "OutcomeComputationAgent"
+      ],
+      "missing_modules": ["SharedPatientStateCore", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": [
+        "ProceedDecisionAgent",
+        "ExecutionModeDecisionAgent",
+        "TaskingDecisionAgent",
+        "OutcomeComputationAgent"
+      ],
+      "dependencies": ["T10", "T11"],
+      "likely_repo_touchpoints": ["backend/app/modes/mini.py", "extension/src/services/api.ts"]
+    },
+    {
+      "id": "T10",
+      "workstream": "persistence_postgres",
+      "title": "PostgreSQL schema & constraints",
+      "prd_refs": ["13.2"],
+      "description": "Implement PRD tables and constraints: patient_context, patient_snapshot, system_response, mini_submission, assignment, event_log, plus tenant/user/role/policy tables.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": [],
+      "missing_modules": ["BackendAPIAndPersistenceModule", "SecurityComplianceModule"],
+      "missing_decision_agents": [],
+      "dependencies": [],
+      "likely_repo_touchpoints": ["backend/"]
+    },
+    {
+      "id": "T11",
+      "workstream": "realtime_firestore",
+      "title": "Firestore projections schema",
+      "prd_refs": ["12.2", "13.3"],
+      "description": "Implement Firestore docs: patient_state projection, user_inbox projection, optional invocation presence.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": [],
+      "missing_modules": ["RealtimeProjectionModule", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T10"],
+      "likely_repo_touchpoints": ["backend/"]
+    },
+    {
+      "id": "T12",
+      "workstream": "realtime_pipeline",
+      "title": "Consistency pipeline (Postgres → event → Firestore projection)",
+      "prd_refs": ["12.3"],
+      "description": "Write authoritative data to Postgres in a transaction, emit internal event, update Firestore projections asynchronously, and have clients subscribe to Firestore.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": [],
+      "missing_modules": ["RealtimeProjectionModule", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T10", "T11"],
+      "likely_repo_touchpoints": ["backend/"]
+    },
+    {
+      "id": "T13",
+      "workstream": "audit_eventing",
+      "title": "Emit System.Response events",
+      "prd_refs": ["6.1"],
+      "description": "Emit and persist System.Response when computed state is surfaced or updated.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": ["ProceedDecisionAgent", "ExecutionModeDecisionAgent", "TaskingDecisionAgent"],
+      "missing_modules": ["EventLogAuditModule", "BackendAPIAndPersistenceModule", "SecurityComplianceModule"],
+      "missing_decision_agents": ["ProceedDecisionAgent", "ExecutionModeDecisionAgent", "TaskingDecisionAgent"],
+      "dependencies": ["T10"],
+      "likely_repo_touchpoints": ["backend/"]
+    },
+    {
+      "id": "T14",
+      "workstream": "audit_eventing",
+      "title": "Emit User.Acknowledged on Send",
+      "prd_refs": ["6.3"],
+      "description": "Persist acknowledgement submission on Send; reference base system_response; include overrides + note text; enforce constraints.",
+      "owner_module": null,
+      "modules_involved": ["UIStripAgent"],
+      "decision_agents_involved": ["OutcomeComputationAgent"],
+      "missing_modules": ["EventLogAuditModule", "BackendAPIAndPersistenceModule", "SecurityComplianceModule"],
+      "missing_decision_agents": ["OutcomeComputationAgent"],
+      "dependencies": ["T09", "T10"],
+      "likely_repo_touchpoints": ["backend/"]
+    },
+    {
+      "id": "T15",
+      "workstream": "audit_eventing",
+      "title": "Optional User.Interaction sampling",
+      "prd_refs": ["6.2"],
+      "description": "Record navigational/non-committal interaction events without committing intent or state.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": [],
+      "missing_modules": ["EventLogAuditModule", "SecurityComplianceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T10"],
+      "likely_repo_touchpoints": ["backend/", "extension/src/content.ts"]
+    },
+    {
+      "id": "T16",
+      "workstream": "outcomes",
+      "title": "Outcome computation",
+      "prd_refs": ["1.5", "3.4", "6.4"],
+      "description": "Compute outcomes from event presence/absence: Acknowledged, Unacknowledged, Dismissed, Invalidated. Store neutral labels; UI may display 'Ignored'.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": ["OutcomeComputationAgent"],
+      "missing_modules": ["EventLogAuditModule", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": ["OutcomeComputationAgent"],
+      "dependencies": ["T10", "T13", "T14"],
+      "likely_repo_touchpoints": ["backend/"]
+    },
+    {
+      "id": "T17",
+      "workstream": "realtime",
+      "title": "Realtime UI updates (<1s)",
+      "prd_refs": ["7", "8"],
+      "description": "Provide fast subscription-based updates for patient state and inbox; target <1s latency for live clients.",
+      "owner_module": null,
+      "modules_involved": ["UIStripAgent"],
+      "decision_agents_involved": [],
+      "missing_modules": ["RealtimeProjectionModule", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T11", "T12"],
+      "likely_repo_touchpoints": ["backend/", "extension/src/content.ts"]
+    },
+    {
+      "id": "T18",
+      "workstream": "realtime",
+      "title": "Multi-tab and multi-user visibility",
+      "prd_refs": ["2.1", "7"],
+      "description": "Synchronize state across tabs and users via shared projections/presence; avoid conflicting updates; handle reconnects safely.",
+      "owner_module": null,
+      "modules_involved": ["UIStripAgent"],
+      "decision_agents_involved": [],
+      "missing_modules": ["RealtimeProjectionModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T11", "T12"],
+      "likely_repo_touchpoints": ["backend/", "extension/src/content.ts"]
+    },
+    {
+      "id": "T19",
+      "workstream": "offline",
+      "title": "Offline continuation: assignments/notifications + inbox",
+      "prd_refs": ["3.5", "7", "12.2"],
+      "description": "Generate assignments/notifications for unacknowledged responses; allow later pickup with reconstructed context; surface via user inbox projection.",
+      "owner_module": null,
+      "modules_involved": ["UIStripAgent"],
+      "decision_agents_involved": ["AssignmentDecisionAgent", "PolicyDecisionAgent", "OutcomeComputationAgent"],
+      "missing_modules": ["BackendAPIAndPersistenceModule", "RealtimeProjectionModule"],
+      "missing_decision_agents": ["AssignmentDecisionAgent", "PolicyDecisionAgent", "OutcomeComputationAgent"],
+      "dependencies": ["T10", "T11", "T16"],
+      "likely_repo_touchpoints": ["backend/", "extension/src/content.ts"]
+    },
+    {
+      "id": "T20",
+      "workstream": "policy",
+      "title": "Policy-driven configuration",
+      "prd_refs": ["9", "3.1"],
+      "description": "Implement tenant/role/site gating; mini show/hide rules; timeouts for unacknowledged responses; notification rules; UI variants by role/app.",
+      "owner_module": null,
+      "modules_involved": ["UIStripAgent"],
+      "decision_agents_involved": ["PolicyDecisionAgent"],
+      "missing_modules": ["BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": ["PolicyDecisionAgent"],
+      "dependencies": ["T10"],
+      "likely_repo_touchpoints": ["backend/", "extension/src/content.ts"]
+    },
+    {
+      "id": "T21",
+      "workstream": "nfr",
+      "title": "Idempotent event handling + reconnect safety",
+      "prd_refs": ["8", "12.3"],
+      "description": "Ensure idempotent writes/updates and reconnect safety across Postgres + Firestore projection updates; tolerate projection lag while keeping Postgres authoritative.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": [],
+      "missing_modules": ["RealtimeProjectionModule", "BackendAPIAndPersistenceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T10", "T12"],
+      "likely_repo_touchpoints": ["backend/"]
+    },
+    {
+      "id": "T22",
+      "workstream": "security",
+      "title": "HIPAA-safe logging and PHI controls",
+      "prd_refs": ["8", "13.2.14"],
+      "description": "Ensure events and logs contain no raw PHI; implement tokenization/hashing strategies (patient_key, external_patient_id_hash) and PHI-safe payload schemas.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": [],
+      "missing_modules": ["SecurityComplianceModule"],
+      "missing_decision_agents": [],
+      "dependencies": ["T10", "T13", "T14", "T15"],
+      "likely_repo_touchpoints": ["backend/"]
+    },
+    {
+      "id": "T23",
+      "workstream": "testing",
+      "title": "Test coverage for Mini/Sidecar, realtime, offline",
+      "prd_refs": ["2.1", "7", "8"],
+      "description": "Add unit/integration tests covering: system response surfacing, send acknowledgement, multi-tab/multi-user sync, offline pickup, PHI-safe logging constraints.",
+      "owner_module": null,
+      "modules_involved": [],
+      "decision_agents_involved": [
+        "RecordDetectionAgent",
+        "ProceedDecisionAgent",
+        "ExecutionModeDecisionAgent",
+        "TaskingDecisionAgent",
+        "OutcomeComputationAgent",
+        "PolicyDecisionAgent",
+        "AssignmentDecisionAgent"
+      ],
+      "missing_modules": ["TestAutomationModule"],
+      "missing_decision_agents": [
+        "RecordDetectionAgent",
+        "ProceedDecisionAgent",
+        "ExecutionModeDecisionAgent",
+        "TaskingDecisionAgent",
+        "OutcomeComputationAgent",
+        "PolicyDecisionAgent",
+        "AssignmentDecisionAgent"
+      ],
+      "dependencies": ["T09", "T10", "T11", "T12", "T16", "T19"],
+      "likely_repo_touchpoints": ["tests/", "backend/"]
+    }
+  ],
+  "summary": {
+    "can_be_done_with_current_modules_only": [
+      "UI scaffolding and local UX rules (T01–T05) (but real values require decision agents + backend modules)",
+      "Patient data fixtures/seed data (T06–T07)"
+    ],
+    "blocked_without_modules": [
+      "Backend persistence + API contracts (T09–T10)",
+      "Realtime projections/pipeline (T11–T12, T17–T18, T21)",
+      "Audit event storage (T13–T15)",
+      "Security/PHI-safe enforcement (T22)",
+      "Test harness for PRD scenarios (T23)"
+    ],
+    "blocked_without_decision_agents": [
+      "Record detection (T08)",
+      "Proceed/mode/tasking computation (T01, T09, T13)",
+      "Outcome computation (T04, T16, T19)",
+      "Tenant policy decisioning (T01, T06, T08, T19, T20)",
+      "Assignment decisioning (T19)"
+    ],
+    "recommended_next_modules": [
+      "BackendAPIAndPersistenceModule",
+      "RealtimeProjectionModule",
+      "EventLogAuditModule",
+      "SecurityComplianceModule"
+    ],
+    "recommended_next_decision_agents": [
+      "RecordDetectionAgent",
+      "ProceedDecisionAgent",
+      "ExecutionModeDecisionAgent",
+      "TaskingDecisionAgent",
+      "PolicyDecisionAgent",
+      "AssignmentDecisionAgent",
+      "OutcomeComputationAgent"
+    ]
+  }
+}

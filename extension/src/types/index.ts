@@ -7,7 +7,7 @@ export type MessageId = string;
 export type UserId = string;
 
 export type Status = 'idle' | 'processing';
-export type StatusIndicatorStatus = 'proceed' | 'pending' | 'error';
+export type StatusIndicatorStatus = 'proceed' | 'pending' | 'error' | 'green' | 'yellow' | 'red' | 'blue' | 'grey';
 export type TaskType = 'normal' | 'shared' | 'backend';
 export type LLMChoice = 'Gemini' | 'GPT-4' | 'Claude';
 export type AgentMode = 'Agentic' | 'Co-pilot' | 'Manual';

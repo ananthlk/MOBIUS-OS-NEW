@@ -200,19 +200,32 @@ body {
   flex-shrink: 0;
 }
 
-.status-proceed {
-  background: #4caf50;
-  box-shadow: 0 0 4px rgba(76, 175, 80, 0.6);
+.status-proceed,
+.status-green {
+  background: #16a34a;
+  box-shadow: 0 0 4px rgba(22, 163, 74, 0.6);
 }
 
-.status-pending {
-  background: #ff9800;
-  box-shadow: 0 0 4px rgba(255, 152, 0, 0.6);
+.status-pending,
+.status-yellow {
+  background: #f59e0b;
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
 }
 
-.status-error {
-  background: #f44336;
-  box-shadow: 0 0 4px rgba(244, 67, 54, 0.6);
+.status-error,
+.status-red {
+  background: #dc2626;
+  box-shadow: 0 0 4px rgba(220, 38, 38, 0.6);
+}
+
+.status-blue {
+  background: #2563eb;
+  box-shadow: 0 0 4px rgba(37, 99, 235, 0.6);
+}
+
+.status-grey {
+  background: #94a3b8;
+  box-shadow: 0 0 4px rgba(148, 163, 184, 0.6);
 }
 
 .mode-badge {

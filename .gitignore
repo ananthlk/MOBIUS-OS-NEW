@@ -28,3 +28,8 @@ extension/dist/
 .idea/
 *.swp
 *.swo
+
+# Environment / secrets
+.env
+*.env.local
+gcp-credentials.json

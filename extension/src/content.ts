@@ -5,7 +5,7 @@
 
 import './styles/sidebar.css';
 import { getOrCreateSessionId } from './utils/session';
-import { fetchMiniStatus, searchMiniPatients, sendChatMessage, submitMiniNote } from './services/api';
+import { fetchMiniStatus, searchMiniPatients, sendChatMessage, submitMiniNote, submitAttentionStatus, AttentionStatus } from './services/api';
 import { getUiDefaultsForMode } from './utils/uiDefaults';
 import { getLayoutForMode } from './utils/modeLayout';
 import { renderSection } from './utils/uiLayout';
@@ -49,8 +49,24 @@ let agentMode: AgentMode = 'Agentic';
 let tasks: Task[] = [];
 let sidebarContainer: HTMLElement | null = null;
 
-type MiniColor = 'green' | 'yellow' | 'grey' | 'blue';
-type MiniLine = { color: MiniColor; text: string };
+type MiniColor = 'green' | 'yellow' | 'grey' | 'blue' | 'red';
+type ExecutionMode = 'agentic' | 'copilot' | 'user_driven';
+type MiniLine = { 
+  color: MiniColor; 
+  text: string;
+  mode?: ExecutionMode;
+  mode_text?: string;
+};
+
+// Mode icon mapping for tasking display
+const getModeIcon = (mode?: ExecutionMode): string => {
+  switch (mode) {
+    case 'agentic': return '🤖';
+    case 'copilot': return '👤✓';
+    case 'user_driven': return '👤';
+    default: return '';
+  }
+};
 
 const MINI_IDS = {
   root: 'mobius-os-mini',
@@ -73,6 +89,14 @@ let miniLastPos: MiniPos | null = null;
 let miniProceed: MiniLine = { color: 'grey', text: 'Proceed: Not assessed' };
 let miniTasking: MiniLine = { color: 'grey', text: 'Tasking: Not applicable' };
 let patientOverride: PatientOverride | null = null;
+
+// Needs Attention state (new UI)
+let needsAttention: {
+  color: MiniColor;
+  problemStatement: string | null;
+  userStatus: AttentionStatus;
+} = { color: 'grey', problemStatement: null, userStatus: null };
+let taskCount = 0;
 
 function setVisible(el: HTMLElement, visible: boolean) {
   el.style.display = visible ? '' : 'none';
@@ -155,6 +179,8 @@ function colorToCssClass(color: MiniColor): string {
       return 'dot-yellow';
     case 'blue':
       return 'dot-blue';
+    case 'red':
+      return 'dot-red';
     case 'grey':
     default:
       return 'dot-grey';
@@ -483,29 +509,39 @@ function createMini(): HTMLElement {
   `;
   root.appendChild(patientRow);
 
-  // Proceed
+  // Needs Attention (replaces Proceed)
+  const attentionRow = document.createElement('div');
+  attentionRow.className = 'mobius-mini-row mobius-mini-attention-row';
+  attentionRow.innerHTML = `
+    <div class="mobius-mini-row-label">Needs Attention</div>
+    <button class="mobius-mini-status mobius-mini-attention-btn" type="button" aria-label="Attention status">
+      <span class="mobius-mini-dot"></span>
+      <span class="mobius-mini-status-text mobius-mini-problem-text"></span>
+      <span class="mobius-mini-dropdown-icon">▼</span>
+    </button>
+  `;
+  root.appendChild(attentionRow);
+
+  // Task badge row (simplified - just shows count and opens sidecar)
+  const taskBadgeRow = document.createElement('div');
+  taskBadgeRow.className = 'mobius-mini-row mobius-mini-task-badge-row';
+  taskBadgeRow.style.display = 'none'; // Hidden when no tasks
+  taskBadgeRow.innerHTML = `
+    <div class="mobius-mini-row-label">Tasks</div>
+    <button class="mobius-mini-task-badge" type="button" aria-label="Open tasks in Sidecar">
+      <span class="mobius-mini-task-count">0</span>
+      <span>pending → Open Sidecar</span>
+    </button>
+  `;
+  root.appendChild(taskBadgeRow);
+
+  // Legacy rows for backwards compatibility (hidden)
   const proceedRow = document.createElement('div');
   proceedRow.className = 'mobius-mini-row';
-  proceedRow.innerHTML = `
-    <div class="mobius-mini-row-label">Proceed</div>
-    <button class="mobius-mini-status" type="button" aria-label="Proceed status">
-      <span class="mobius-mini-dot"></span>
-      <span class="mobius-mini-status-text"></span>
-    </button>
-  `;
-  root.appendChild(proceedRow);
-
-  // Tasking
+  proceedRow.style.display = 'none';
   const taskingRow = document.createElement('div');
   taskingRow.className = 'mobius-mini-row';
-  taskingRow.innerHTML = `
-    <div class="mobius-mini-row-label">Tasking</div>
-    <button class="mobius-mini-status" type="button" aria-label="Tasking mode">
-      <span class="mobius-mini-dot"></span>
-      <span class="mobius-mini-status-text"></span>
-    </button>
-  `;
-  root.appendChild(taskingRow);
+  taskingRow.style.display = 'none';
 
   // Note + send icon
   const noteRow = document.createElement('div');
@@ -533,27 +569,238 @@ function createMini(): HTMLElement {
   };
   renderPatient();
 
-  const savePatient = async (p: PatientOverride) => {
-    patientOverride = p;
-    await storageSet({ [STORAGE_KEYS.patientOverride]: p });
-    renderPatient();
-  };
-
-  patientRow.querySelector<HTMLButtonElement>('.mobius-mini-icon-btn')?.addEventListener('click', () => {
-    openPatientModal((p) => void savePatient(p));
-  });
-
   // Wire up statuses
-  const applyStatus = (rowEl: HTMLElement, line: MiniLine) => {
+  const applyStatus = (rowEl: HTMLElement, line: MiniLine, showMode = false) => {
     const dot = rowEl.querySelector<HTMLElement>('.mobius-mini-dot');
     const text = rowEl.querySelector<HTMLElement>('.mobius-mini-status-text');
     if (dot) {
       dot.className = `mobius-mini-dot ${colorToCssClass(line.color)}`;
     }
-    if (text) text.textContent = line.text;
+    if (text) {
+      if (showMode && line.mode) {
+        const icon = getModeIcon(line.mode);
+        const modeText = line.mode_text || '';
+        text.textContent = `${icon} ${modeText}`;
+      } else {
+        text.textContent = line.text;
+      }
+    }
   };
+
+  // Apply attention status (new UI)
+  const applyAttention = () => {
+    const dot = attentionRow.querySelector<HTMLElement>('.mobius-mini-dot');
+    const text = attentionRow.querySelector<HTMLElement>('.mobius-mini-problem-text');
+    if (dot) {
+      // Override color if user has set a status
+      let color = needsAttention.color;
+      if (needsAttention.userStatus === 'resolved') color = 'green';
+      else if (needsAttention.userStatus === 'confirmed_unresolved') color = 'yellow';
+      else if (needsAttention.userStatus === 'unable_to_confirm') color = 'grey';
+      dot.className = `mobius-mini-dot ${colorToCssClass(color)}`;
+    }
+    if (text) {
+      // Show problem statement or status
+      if (needsAttention.userStatus === 'resolved') {
+        text.textContent = 'Resolved';
+      } else if (needsAttention.problemStatement) {
+        text.textContent = needsAttention.problemStatement;
+      } else {
+        text.textContent = 'No issues detected';
+      }
+    }
+  };
+
+  // Apply task count
+  const applyTaskCount = () => {
+    const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
+    if (countEl) countEl.textContent = String(taskCount);
+    taskBadgeRow.style.display = taskCount > 0 ? '' : 'none';
+  };
+
+  applyAttention();
+  applyTaskCount();
+  
+  // Legacy (hidden)
   applyStatus(proceedRow, miniProceed);
-  applyStatus(taskingRow, miniTasking);
+  applyStatus(taskingRow, miniTasking, true);
+
+  // Attention workflow dropdown options
+  const ATTENTION_OPTIONS: Array<{ status: AttentionStatus; label: string; icon: string; description: string }> = [
+    { status: 'resolved', label: 'Resolved', icon: '✓', description: 'Problem fixed, no further action' },
+    { status: 'confirmed_unresolved', label: 'Confirmed, unresolved', icon: '⚠', description: 'Issue verified, tasks remain' },
+    { status: 'unable_to_confirm', label: 'Unable to confirm', icon: '?', description: 'Needs investigation' },
+  ];
+
+  const createAttentionDropdown = (
+    currentStatus: AttentionStatus,
+    onSelect: (status: AttentionStatus) => void,
+    anchorRect: DOMRect
+  ): HTMLElement => {
+    const dropdown = document.createElement('div');
+    dropdown.className = 'mobius-mini-status-dropdown mobius-mini-attention-dropdown';
+    // Position above the button using fixed positioning (escapes overflow:hidden)
+    const dropdownHeight = 120; // approximate height for 3 options
+    dropdown.style.cssText = `
+      position: fixed;
+      top: ${anchorRect.top - dropdownHeight - 4}px;
+      left: ${anchorRect.left}px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      z-index: 2147483647;
+      min-width: 200px;
+      padding: 4px 0;
+    `;
+
+    ATTENTION_OPTIONS.forEach((opt) => {
+      const isSelected = opt.status === currentStatus;
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1px;
+        width: 100%;
+        padding: 6px 8px;
+        border: none;
+        background: ${isSelected ? '#f1f5f9' : 'transparent'};
+        cursor: pointer;
+        text-align: left;
+      `;
+      item.innerHTML = `
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;font-weight:500;">
+          <span>${opt.icon}</span>
+          <span>${opt.label}</span>
+        </div>
+        <div style="font-size:8px;color:#64748b;padding-left:16px;">${opt.description}</div>
+      `;
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onSelect(opt.status);
+        dropdown.remove();
+      });
+      item.addEventListener('mouseenter', () => {
+        item.style.background = '#f1f5f9';
+      });
+      item.addEventListener('mouseleave', () => {
+        item.style.background = isSelected ? '#f1f5f9' : 'transparent';
+      });
+      dropdown.appendChild(item);
+    });
+
+    return dropdown;
+  };
+
+  // Click handler for Attention status
+  const attentionBtn = attentionRow.querySelector<HTMLButtonElement>('.mobius-mini-attention-btn');
+  attentionBtn?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    // Remove any existing dropdown
+    document.querySelectorAll('.mobius-mini-status-dropdown').forEach(d => d.remove());
+    
+    // Get button position to anchor dropdown
+    const btnRect = attentionBtn.getBoundingClientRect();
+    
+    const dropdown = createAttentionDropdown(needsAttention.userStatus, async (status) => {
+      // Update local state
+      needsAttention.userStatus = status;
+      applyAttention();
+      
+      // Submit to backend
+      const patientId = getPatientDisplay().id;
+      if (patientId) {
+        try {
+          const response = await submitAttentionStatus(sessionId, patientId, status);
+          showToast(status === 'resolved' ? 'Marked as resolved' : 'Status updated');
+          
+          // Open sidecar if indicated
+          if (response.open_sidecar) {
+            // Toggle sidecar open
+            const sidebar = document.getElementById('mobius-os-sidebar');
+            if (sidebar && !sidebar.classList.contains('open')) {
+              sidebar.classList.add('open');
+            }
+          }
+        } catch (err) {
+          console.error('[Mobius] Failed to update attention status:', err);
+          showToast('Failed to update status');
+        }
+      }
+    }, btnRect);
+    
+    // Append to body to escape overflow:hidden on Mini widget
+    document.body.appendChild(dropdown);
+  });
+
+  // Click handler for task badge (opens sidecar)
+  const taskBadge = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-task-badge');
+  taskBadge?.addEventListener('click', () => {
+    // Open sidecar
+    const sidebar = document.getElementById('mobius-os-sidebar');
+    if (sidebar) {
+      sidebar.classList.add('open');
+    }
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.mobius-mini-status-dropdown').forEach(d => d.remove());
+  });
+
+  // Legacy: Track overrides (kept for backwards compatibility)
+  let proceedOverride: MiniColor | null = null;
+  let taskingOverride: MiniColor | null = null;
+
+  const savePatient = async (p: PatientOverride) => {
+    patientOverride = p;
+    await storageSet({ [STORAGE_KEYS.patientOverride]: p });
+    renderPatient();
+    
+    // Fetch new status for the selected patient
+    if (p.id) {
+      try {
+        const status = await fetchMiniStatus(sessionId, p.id);
+        
+        // Update legacy proceed/tasking (hidden)
+        miniProceed = status.proceed;
+        if (status.tasking) {
+          miniTasking = status.tasking;
+        }
+        applyStatus(proceedRow, miniProceed);
+        applyStatus(taskingRow, miniTasking, true);
+        
+        // Update needs_attention (new UI)
+        if (status.needs_attention) {
+          needsAttention = {
+            color: status.needs_attention.color,
+            problemStatement: status.needs_attention.problem_statement,
+            userStatus: status.needs_attention.user_status,
+          };
+        } else {
+          // Fallback to proceed data
+          needsAttention = {
+            color: status.proceed.color,
+            problemStatement: status.proceed.text,
+            userStatus: null,
+          };
+        }
+        applyAttention();
+        
+        // Update task count
+        taskCount = status.task_count || 0;
+        applyTaskCount();
+      } catch (err) {
+        console.error('[Mobius] Failed to fetch status for patient:', err);
+      }
+    }
+  };
+
+  patientRow.querySelector<HTMLButtonElement>('.mobius-mini-icon-btn')?.addEventListener('click', () => {
+    openPatientModal((p) => void savePatient(p));
+  });
 
   // Note send
   const noteInput = root.querySelector<HTMLInputElement>('.mobius-mini-note-input');
@@ -650,13 +897,7 @@ function createMini(): HTMLElement {
 }
 
 async function expandToSidebar(): Promise<void> {
-  const allowed = await isDomainAllowed(getHostname());
-  if (!allowed) {
-    // If mini isn't visible, there's nowhere to show the toast; just no-op.
-    const mini = document.getElementById(MINI_IDS.root) as HTMLElement | null;
-    if (mini) showToast('Enable Mobius on this site first');
-    return;
-  }
+  console.log('[Mobius OS] Expanding to sidebar...');
   const mini = document.getElementById(MINI_IDS.root) as HTMLElement | null;
   if (mini) {
     const rect = mini.getBoundingClientRect();
@@ -695,32 +936,76 @@ async function renderMiniIfAllowed(): Promise<void> {
     mini.style.display = '';
   }
 
-  // Fetch status from backend (stubbed currently)
+  // Fetch status from backend
   try {
-    const status = await fetchMiniStatus(sessionId);
+    const patientKey = patientOverride?.id || undefined;
+    const status = await fetchMiniStatus(sessionId, patientKey);
     miniProceed = status.proceed;
-    miniTasking = status.tasking;
+    if (status.tasking) {
+      miniTasking = status.tasking;
+    }
+    
+    // Update needs_attention state
+    if (status.needs_attention) {
+      needsAttention = {
+        color: status.needs_attention.color,
+        problemStatement: status.needs_attention.problem_statement,
+        userStatus: status.needs_attention.user_status,
+      };
+    } else {
+      needsAttention = {
+        color: status.proceed.color,
+        problemStatement: status.proceed.text,
+        userStatus: null,
+      };
+    }
+    taskCount = status.task_count || 0;
+    
+    // Update patient info from response if available
+    if (status.patient?.found && status.patient.display_name) {
+      const nameEl = mini.querySelector<HTMLElement>('.mobius-mini-patient-name');
+      const idEl = mini.querySelector<HTMLElement>('.mobius-mini-patient-id');
+      if (nameEl) nameEl.textContent = status.patient.display_name;
+      if (idEl && status.patient.id_masked) idEl.textContent = `ID ${status.patient.id_masked}`;
+    }
   } catch {
     // keep defaults
   }
 
-  // Update UI
+  // Update Needs Attention UI (new)
+  const attentionRow = mini.querySelector<HTMLElement>('.mobius-mini-attention-row');
+  if (attentionRow) {
+    const dot = attentionRow.querySelector<HTMLElement>('.mobius-mini-dot');
+    const text = attentionRow.querySelector<HTMLElement>('.mobius-mini-problem-text');
+    if (dot) {
+      let color = needsAttention.color;
+      if (needsAttention.userStatus === 'resolved') color = 'green';
+      else if (needsAttention.userStatus === 'confirmed_unresolved') color = 'yellow';
+      else if (needsAttention.userStatus === 'unable_to_confirm') color = 'grey';
+      dot.className = `mobius-mini-dot ${colorToCssClass(color)}`;
+    }
+    if (text) {
+      if (needsAttention.userStatus === 'resolved') {
+        text.textContent = 'Resolved';
+      } else if (needsAttention.problemStatement) {
+        text.textContent = needsAttention.problemStatement;
+      } else {
+        text.textContent = 'No issues detected';
+      }
+    }
+  }
+
+  // Update task badge
+  const taskBadgeRow = mini.querySelector<HTMLElement>('.mobius-mini-task-badge-row');
+  if (taskBadgeRow) {
+    const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
+    if (countEl) countEl.textContent = String(taskCount);
+    taskBadgeRow.style.display = taskCount > 0 ? '' : 'none';
+  }
+
+  // Legacy UI update (hidden rows)
   const rows = mini.querySelectorAll<HTMLElement>('.mobius-mini-row');
-  // Proceed row is index 1 after patient (0 patient, 1 proceed, 2 tasking, 3 note)
-  const proceedRow = rows[1];
-  const taskingRow = rows[2];
-  if (proceedRow) {
-    const dot = proceedRow.querySelector<HTMLElement>('.mobius-mini-dot');
-    const text = proceedRow.querySelector<HTMLElement>('.mobius-mini-status-text');
-    if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(miniProceed.color)}`;
-    if (text) text.textContent = miniProceed.text;
-  }
-  if (taskingRow) {
-    const dot = taskingRow.querySelector<HTMLElement>('.mobius-mini-dot');
-    const text = taskingRow.querySelector<HTMLElement>('.mobius-mini-status-text');
-    if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(miniTasking.color)}`;
-    if (text) text.textContent = miniTasking.text;
-  }
+  // Legacy proceed/tasking rows are now hidden
 }
 
 // Initialize sidebar
