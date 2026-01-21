@@ -18,12 +18,22 @@ import logging
 # =============================================================================
 
 class ProceedIndicator(str, Enum):
-    """Proceed indicator colors (PRD §10.2)."""
-    GREY = "grey"      # Not assessed / no data
-    GREEN = "green"    # Proceed without issues
-    YELLOW = "yellow"  # Caution / review needed
-    BLUE = "blue"      # Information available
-    RED = "red"        # Stop / critical issue
+    """Proceed indicator colors (PRD §10.2).
+    
+    6 status colors:
+    - GREEN: Ready / Good to go (>= 85% probability)
+    - YELLOW: Caution / Review needed (60-84% probability)
+    - RED: Critical issue / Action required (< 60% probability)
+    - BLUE: System error (technical failure)
+    - GREY: Not processed (no data available)
+    - PURPLE: Policy override (admin forced status)
+    """
+    GREY = "grey"        # Not processed / no data
+    GREEN = "green"      # Ready / Good to go
+    YELLOW = "yellow"    # Caution / Review needed
+    BLUE = "blue"        # System error
+    RED = "red"          # Critical issue / Action required
+    PURPLE = "purple"    # Policy override
 
 
 class ExecutionMode(str, Enum):

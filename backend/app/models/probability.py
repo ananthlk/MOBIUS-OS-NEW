@@ -91,6 +91,10 @@ class TaskTemplate(Base):
     # Who can do this (multiple allowed)
     assignable_to = Column(JSONB, nullable=True)      # ["user", "system", "patient", "role"]
     assignable_roles = Column(JSONB, nullable=True)   # ["billing_specialist"] if "role" in assignable_to
+    assignable_activities = Column(JSONB, nullable=True)  # ["verify_eligibility", "submit_claims"] - links to Activity.activity_code
+    
+    # Factor type this task addresses
+    factor_type = Column(String(20), nullable=True)   # "eligibility", "coverage", "attendance", "errors"
     
     # System capability
     can_system_execute = Column(Boolean, default=False, nullable=False)

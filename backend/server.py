@@ -14,6 +14,8 @@ from app.modes.mock_emr import bp as mock_emr_bp
 from app.modes.mock_crm import bp as mock_crm_bp
 from app.modes.context import bp as context_bp
 from app.routes.auth import bp as auth_bp
+from app.api.resolution import bp as resolution_bp
+from app.db.postgres import close_db_session, rollback_session
 
 
 def create_app(init_database: bool = False):
@@ -32,14 +34,25 @@ def create_app(init_database: bool = False):
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
         return response
 
+    # Ensure clean session state at the start of each request
+    @app.before_request
+    def ensure_clean_session():
+        rollback_session()
+
+    # Clean up database session at the end of each request
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        close_db_session(exception)
+
     # Register blueprints (surface-specific routes)
-    app.register_blueprint(auth_bp)      # /api/v1/auth/*
-    app.register_blueprint(chat_bp)      # /api/v1/modes/chat/*
-    app.register_blueprint(mini_bp)      # /api/v1/mini/*
-    app.register_blueprint(sidecar_bp)   # /api/v1/sidecar/*
-    app.register_blueprint(context_bp)   # /api/v1/context/*
-    app.register_blueprint(mock_emr_bp)  # /mock-emr/*
-    app.register_blueprint(mock_crm_bp)  # /mock-crm/*
+    app.register_blueprint(auth_bp)        # /api/v1/auth/*
+    app.register_blueprint(resolution_bp)  # /api/v1/resolution/*
+    app.register_blueprint(chat_bp)        # /api/v1/modes/chat/*
+    app.register_blueprint(mini_bp)        # /api/v1/mini/*
+    app.register_blueprint(sidecar_bp)     # /api/v1/sidecar/*
+    app.register_blueprint(context_bp)     # /api/v1/context/*
+    app.register_blueprint(mock_emr_bp)    # /mock-emr/*
+    app.register_blueprint(mock_crm_bp)    # /mock-crm/*
 
     # Health check endpoint
     @app.route("/health")
@@ -63,6 +76,7 @@ if __name__ == "__main__":
     print(f"[Mobius] Debug mode: {config.DEBUG}")
     print(f"[Mobius] Routes:")
     print(f"  - /api/v1/auth/* (Authentication)")
+    print(f"  - /api/v1/resolution/* (Resolution Plans)")
     print(f"  - /api/v1/mini/* (Mini surface)")
     print(f"  - /api/v1/sidecar/* (Sidecar surface)")
     print(f"  - /api/v1/context/* (Patient context detection)")

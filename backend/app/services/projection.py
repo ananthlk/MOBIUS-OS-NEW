@@ -96,6 +96,7 @@ class ProjectionService:
         system_response: Optional[Dict[str, Any]] = None,
         last_submission: Optional[Dict[str, Any]] = None,
         flags: Optional[Dict[str, Any]] = None,
+        attention_status: Optional[str] = None,
     ) -> bool:
         """
         Update patient_state projection document (NON-BLOCKING).
@@ -104,7 +105,6 @@ class ProjectionService:
         Returns True if update was queued, False if Firestore is disabled.
         """
         if not self.enabled:
-            # Silent skip - don't log every time
             return False
 
         ref = self._get_patient_state_ref(tenant_id, patient_key)
@@ -124,9 +124,11 @@ class ProjectionService:
             data["last_submission"] = last_submission
         if flags is not None:
             data["flags"] = flags
+        if attention_status is not None:
+            data["attention_status"] = attention_status
 
         def _do_update():
-            ref.set(data, merge=True)
+            ref.set(data, merge=True, timeout=FIRESTORE_TIMEOUT)
             print(f"[ProjectionService] Updated patient_state: {tenant_id}/{patient_key}")
         
         # Fire and forget - don't block API response
@@ -163,6 +165,7 @@ class ProjectionService:
         submission_id: uuid.UUID,
         user_id: uuid.UUID,
         submitted_at: datetime,
+        attention_status: Optional[str] = None,
     ) -> bool:
         """Update patient_state projection after a new submission."""
         return self.update_patient_state(
@@ -174,6 +177,23 @@ class ProjectionService:
                 "submitted_at": submitted_at.isoformat(),
             },
             flags={"needs_ack": False},
+            attention_status=attention_status,
+        )
+
+    def update_attention_status(
+        self,
+        tenant_id: uuid.UUID,
+        patient_key: str,
+        attention_status: str,
+        updated_by: uuid.UUID,
+        updated_at: datetime,
+    ) -> bool:
+        """Update patient_state projection when attention_status changes."""
+        return self.update_patient_state(
+            tenant_id=tenant_id,
+            patient_key=patient_key,
+            attention_status=attention_status,
+            flags={"needs_ack": attention_status != "resolved"},
         )
 
     # -------------------------------------------------------------------------

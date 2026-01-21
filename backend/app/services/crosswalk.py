@@ -63,14 +63,15 @@ class CrosswalkService:
     """
     
     def __init__(self, db_session: Optional[DbSession] = None):
-        self._db = db_session
+        self._explicit_db = db_session  # Only set if explicitly passed
         self.logger = logging.getLogger("service.CrosswalkService")
     
     @property
     def db(self) -> DbSession:
-        if self._db is None:
-            self._db = get_db_session()
-        return self._db
+        # Always get a fresh session unless explicitly passed
+        if self._explicit_db is not None:
+            return self._explicit_db
+        return get_db_session()
     
     def resolve_patient(
         self,

@@ -29,6 +29,13 @@ from .scheduling import Provider, ProviderSchedule, TimeSlot, ScheduleException
 from .orders import ClinicalOrder, LabOrder, ImagingOrder, MedicationOrder, ReferralOrder
 from .billing import PatientInsurance, Charge, Claim, Payment, PatientStatement
 from .messages import MessageThread, Message, MessageAttachment, MessageRecipient, MessageTemplate
+from .resolution import (
+    ResolutionPlan,
+    PlanStep,
+    StepAnswer,
+    PlanNote,
+    PlanModification,
+)
 
 __all__ = [
     # Tenant/user
@@ -102,4 +109,10 @@ __all__ = [
     "MessageAttachment",
     "MessageRecipient",
     "MessageTemplate",
+    # Resolution Plans
+    "ResolutionPlan",
+    "PlanStep",
+    "StepAnswer",
+    "PlanNote",
+    "PlanModification",
 ]

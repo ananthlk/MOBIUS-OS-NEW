@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.db.postgres import get_db_session
 from app.models.patient import PatientContext, PatientSnapshot
+from app.models.patient_ids import PatientId
 from app.models.tenant import Tenant, AppUser, Role
 
 
@@ -28,14 +29,17 @@ class PatientDataAgent:
     """
     
     def __init__(self, db_session: Optional[DbSession] = None):
-        self._db = db_session
+        self._explicit_db = db_session  # Only set if explicitly passed
         self.logger = logging.getLogger("agent.PatientDataAgent")
     
     @property
     def db(self) -> DbSession:
-        if self._db is None:
-            self._db = get_db_session()
-        return self._db
+        # Always get a fresh session from the scoped session factory
+        # unless an explicit session was passed to the constructor.
+        # This ensures we don't hold onto stale/invalid sessions.
+        if self._explicit_db is not None:
+            return self._explicit_db
+        return get_db_session()
     
     # -------------------------------------------------------------------------
     # Read Operations
@@ -44,8 +48,12 @@ class PatientDataAgent:
     def get_patient_context(
         self, tenant_id: uuid.UUID, patient_key: str
     ) -> Optional[PatientContext]:
-        """Get patient context by tenant + patient_key."""
-        return (
+        """Get patient context by tenant + patient_key.
+        
+        Also resolves by MRN if patient_key looks like an MRN (e.g., MRN-12345678).
+        """
+        # First try direct patient_key lookup
+        context = (
             self.db.query(PatientContext)
             .filter(
                 PatientContext.tenant_id == tenant_id,
@@ -53,6 +61,35 @@ class PatientDataAgent:
             )
             .first()
         )
+        
+        if context:
+            return context
+        
+        # If not found and key looks like an MRN, try resolving via patient_ids
+        if patient_key.upper().startswith("MRN-") or patient_key.upper().startswith("MRN"):
+            patient_id_record = (
+                self.db.query(PatientId)
+                .filter(
+                    PatientId.id_type == "mrn",
+                    PatientId.id_value == patient_key,
+                )
+                .first()
+            )
+            
+            if patient_id_record:
+                context = (
+                    self.db.query(PatientContext)
+                    .filter(
+                        PatientContext.tenant_id == tenant_id,
+                        PatientContext.patient_context_id == patient_id_record.patient_context_id,
+                    )
+                    .first()
+                )
+                if context:
+                    self.logger.debug(f"Resolved MRN {patient_key} to patient_key {context.patient_key}")
+                    return context
+        
+        return None
     
     def get_latest_snapshot(
         self, patient_context_id: uuid.UUID
