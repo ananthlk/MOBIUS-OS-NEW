@@ -31,10 +31,20 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Keys that should persist across browser sessions (stored in local storage)
+const PERSISTENT_KEYS = [
+  'mobius.auth.refreshToken',
+  'mobius.auth.userProfile',
+];
+
 /**
  * Auth Storage Message Handler
  * Content scripts cannot access chrome.storage.session directly,
  * so we proxy storage operations through the background script.
+ * 
+ * Storage strategy:
+ * - Refresh token + user profile → chrome.storage.local (persists across sessions)
+ * - Access token + expiresAt → chrome.storage.session (cleared on browser close)
  */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || !message.type) return false;
@@ -42,8 +52,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // Handle auth storage operations
   if (message.type === 'mobius:auth:getStorage') {
     const keys = message.keys as string[];
-    chrome.storage.session.get(keys).then((result) => {
-      sendResponse({ ok: true, data: result });
+    
+    // Split keys by storage type
+    const sessionKeys = keys.filter(k => !PERSISTENT_KEYS.includes(k));
+    const localKeys = keys.filter(k => PERSISTENT_KEYS.includes(k));
+    
+    // Fetch from both storages and merge
+    Promise.all([
+      sessionKeys.length > 0 ? chrome.storage.session.get(sessionKeys) : Promise.resolve({}),
+      localKeys.length > 0 ? chrome.storage.local.get(localKeys) : Promise.resolve({}),
+    ]).then(([sessionData, localData]) => {
+      sendResponse({ ok: true, data: { ...sessionData, ...localData } });
     }).catch((error) => {
       console.error('[Mobius Background] Storage get error:', error);
       sendResponse({ ok: false, error: String(error) });
@@ -53,7 +72,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.type === 'mobius:auth:setStorage') {
     const items = message.items as Record<string, unknown>;
-    chrome.storage.session.set(items).then(() => {
+    
+    // Split items by storage type
+    const sessionItems: Record<string, unknown> = {};
+    const localItems: Record<string, unknown> = {};
+    
+    for (const [key, value] of Object.entries(items)) {
+      if (PERSISTENT_KEYS.includes(key)) {
+        localItems[key] = value;
+      } else {
+        sessionItems[key] = value;
+      }
+    }
+    
+    // Store in appropriate storage
+    Promise.all([
+      Object.keys(sessionItems).length > 0 ? chrome.storage.session.set(sessionItems) : Promise.resolve(),
+      Object.keys(localItems).length > 0 ? chrome.storage.local.set(localItems) : Promise.resolve(),
+    ]).then(() => {
       sendResponse({ ok: true });
     }).catch((error) => {
       console.error('[Mobius Background] Storage set error:', error);
@@ -64,16 +100,33 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.type === 'mobius:auth:clearStorage') {
     const keys = message.keys as string[] | undefined;
-    const clearPromise = keys 
-      ? chrome.storage.session.remove(keys)
-      : chrome.storage.session.clear();
     
-    clearPromise.then(() => {
-      sendResponse({ ok: true });
-    }).catch((error) => {
-      console.error('[Mobius Background] Storage clear error:', error);
-      sendResponse({ ok: false, error: String(error) });
-    });
+    if (keys) {
+      // Clear specific keys from appropriate storage
+      const sessionKeys = keys.filter(k => !PERSISTENT_KEYS.includes(k));
+      const localKeys = keys.filter(k => PERSISTENT_KEYS.includes(k));
+      
+      Promise.all([
+        sessionKeys.length > 0 ? chrome.storage.session.remove(sessionKeys) : Promise.resolve(),
+        localKeys.length > 0 ? chrome.storage.local.remove(localKeys) : Promise.resolve(),
+      ]).then(() => {
+        sendResponse({ ok: true });
+      }).catch((error) => {
+        console.error('[Mobius Background] Storage clear error:', error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    } else {
+      // Clear all auth data from both storages
+      Promise.all([
+        chrome.storage.session.clear(),
+        chrome.storage.local.remove(PERSISTENT_KEYS),
+      ]).then(() => {
+        sendResponse({ ok: true });
+      }).catch((error) => {
+        console.error('[Mobius Background] Storage clear error:', error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    }
     return true;
   }
 

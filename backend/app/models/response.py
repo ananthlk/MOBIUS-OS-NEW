@@ -78,10 +78,22 @@ class MiniSubmission(Base):
     system_response_id = Column(
         UUID(as_uuid=True),
         ForeignKey("system_response.system_response_id"),
-        nullable=False,
+        nullable=True,  # Optional for note-only submissions
     )
     user_id = Column(UUID(as_uuid=True), ForeignKey("app_user.user_id"), nullable=False)
     invocation_id = Column(UUID(as_uuid=True), nullable=True)  # optional FK to invocation
+    
+    # Resolution plan context (links note to the plan workflow)
+    resolution_plan_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("resolution_plan.plan_id"),
+        nullable=True,  # Null if no active plan exists
+    )
+    plan_step_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("plan_step.step_id"),
+        nullable=True,  # Null if note is about the plan generally, not a specific step
+    )
 
     submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

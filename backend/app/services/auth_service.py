@@ -19,6 +19,8 @@ import bcrypt
 
 from app.db.postgres import get_db_session
 from app.models.tenant import AppUser, AuthProviderLink, UserSession, Tenant
+from app.models.activity import Activity, UserActivity
+from app.models.probability import UserPreference
 
 
 # JWT Configuration
@@ -295,6 +297,28 @@ class AuthService:
             
             session.commit()
             
+            # Load user activities
+            activities = []
+            user_activities = session.query(UserActivity).filter(
+                UserActivity.user_id == user.user_id
+            ).all()
+            
+            for ua in user_activities:
+                activity = session.query(Activity).filter(
+                    Activity.activity_id == ua.activity_id
+                ).first()
+                if activity:
+                    activities.append({
+                        "activity_code": activity.activity_code,
+                        "label": activity.label,
+                        "is_primary": ua.is_primary,
+                    })
+            
+            # Load user preference
+            preference = session.query(UserPreference).filter(
+                UserPreference.user_id == user.user_id
+            ).first()
+            
             return {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
@@ -302,11 +326,19 @@ class AuthService:
                 "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
                 "user": {
                     "user_id": str(user.user_id),
+                    "tenant_id": str(user.tenant_id),
                     "email": user.email,
                     "display_name": user.display_name,
                     "first_name": user.first_name,
                     "preferred_name": user.preferred_name,
                     "is_onboarded": user.is_onboarded,
+                    "activities": activities,
+                    "preference": {
+                        "tone": preference.tone if preference else "professional",
+                        "greeting_enabled": preference.greeting_enabled if preference else True,
+                        "autonomy_routine_tasks": preference.autonomy_routine_tasks if preference else "confirm_first",
+                        "autonomy_sensitive_tasks": preference.autonomy_sensitive_tasks if preference else "confirm_first",
+                    } if preference else None,
                 }
             }, None
     

@@ -136,6 +136,9 @@ class AuthService {
 
   /**
    * Get stored access token
+   * 
+   * If no access token exists (e.g., browser was restarted), attempts to
+   * refresh using the persistent refresh token from local storage.
    */
   async getAccessToken(): Promise<string | null> {
     try {
@@ -147,7 +150,17 @@ class AuthService {
       const token = result[STORAGE_KEYS.accessToken] as string | undefined;
       const expiresAt = result[STORAGE_KEYS.expiresAt] as number | undefined;
       
+      // No access token - try to restore from refresh token
       if (!token) {
+        console.log('[AuthService] No access token, attempting restore from refresh token...');
+        const refreshToken = await this.getRefreshToken();
+        if (refreshToken) {
+          const refreshed = await this.refreshAccessToken();
+          if (refreshed) {
+            // Recursively get the new token
+            return this.getAccessToken();
+          }
+        }
         return null;
       }
       
@@ -315,14 +328,35 @@ class AuthService {
         expires_in: data.expires_in,
       });
       
-      // Store user profile
+      // Store user profile with transformed activities
+      let profile: UserProfile | undefined;
       if (data.user) {
-        await this.storeUserProfile(data.user as UserProfile);
+        const user = data.user;
+        const pref = user.preference || {};
+        profile = {
+          user_id: user.user_id,
+          tenant_id: user.tenant_id || '',
+          email: user.email,
+          display_name: user.display_name,
+          first_name: user.first_name,
+          preferred_name: user.preferred_name,
+          greeting_name: user.preferred_name || user.first_name || user.display_name,
+          timezone: user.timezone || 'America/New_York',
+          locale: user.locale || 'en-US',
+          is_onboarded: user.is_onboarded || false,
+          // Transform activities from [{activity_code: '...'}] to string[]
+          activities: (user.activities || []).map((a: { activity_code: string }) => a.activity_code),
+          tone: pref.tone || 'professional',
+          greeting_enabled: pref.greeting_enabled !== false,
+          autonomy_routine_tasks: pref.autonomy_routine_tasks || 'confirm_first',
+          autonomy_sensitive_tasks: pref.autonomy_sensitive_tasks || 'manual',
+        };
+        await this.storeUserProfile(profile);
       }
       
-      this.emit('login', data.user);
+      this.emit('login', profile);
       
-      return { success: true, user: data.user };
+      return { success: true, user: profile };
     } catch (error) {
       console.error('[AuthService] Login error:', error);
       return { success: false, error: 'Network error' };
@@ -365,14 +399,35 @@ class AuthService {
         expires_in: data.expires_in,
       });
       
-      // Store user profile
+      // Store user profile with transformed activities
+      let profile: UserProfile | undefined;
       if (data.user) {
-        await this.storeUserProfile(data.user as UserProfile);
+        const user = data.user;
+        const pref = user.preference || {};
+        profile = {
+          user_id: user.user_id,
+          tenant_id: user.tenant_id || '',
+          email: user.email,
+          display_name: user.display_name,
+          first_name: user.first_name,
+          preferred_name: user.preferred_name,
+          greeting_name: user.preferred_name || user.first_name || user.display_name,
+          timezone: user.timezone || 'America/New_York',
+          locale: user.locale || 'en-US',
+          is_onboarded: user.is_onboarded || false,
+          // Transform activities from [{activity_code: '...'}] to string[]
+          activities: (user.activities || []).map((a: { activity_code: string }) => a.activity_code),
+          tone: pref.tone || 'professional',
+          greeting_enabled: pref.greeting_enabled !== false,
+          autonomy_routine_tasks: pref.autonomy_routine_tasks || 'confirm_first',
+          autonomy_sensitive_tasks: pref.autonomy_sensitive_tasks || 'manual',
+        };
+        await this.storeUserProfile(profile);
       }
       
-      this.emit('login', data.user);
+      this.emit('login', profile);
       
-      return { success: true, user: data.user };
+      return { success: true, user: profile };
     } catch (error) {
       console.error('[AuthService] Registration error:', error);
       return { success: false, error: 'Network error' };

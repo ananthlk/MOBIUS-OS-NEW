@@ -1157,8 +1157,8 @@
 #mobius-os-mini .mobius-mini-row-label {
   width: 48px;
   flex: 0 0 auto;
-  font-size: 8px;
-  letter-spacing: 0.08em;
+  font-size: 9px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(91,102,122,0.95);
   font-weight: 600;
@@ -1289,6 +1289,11 @@
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
 }
 
+#mobius-os-mini .dot-purple {
+  background: #9333ea;
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.18);
+}
+
 #mobius-os-mini .mobius-mini-status-text {
   white-space: nowrap;
   overflow: hidden;
@@ -1299,15 +1304,31 @@
 
 /* Needs Attention row - refined spacing */
 #mobius-os-mini .mobius-mini-attention-row {
-  padding: 8px 10px;
+  padding: 10px;
   gap: 10px;
 }
 
 #mobius-os-mini .mobius-mini-attention-row .mobius-mini-row-label {
-  width: 42px;
-  font-size: 7px;
+  width: 48px;
+  font-size: 9px;
   line-height: 1.2;
   flex-shrink: 0;
+}
+
+#mobius-os-mini .mobius-mini-attention-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#mobius-os-mini .mobius-mini-question-text {
+  flex: 1;
+  font-size: 11px;
+  color: #1e293b;
+  line-height: 1.3;
+  min-width: 100px;
 }
 
 #mobius-os-mini .mobius-mini-attention-content {
@@ -1388,7 +1409,8 @@
 
 #mobius-os-mini .mobius-mini-task-badge-row .mobius-mini-row-label {
   width: 48px;
-  font-size: 8px;
+  font-size: 9px;
+  line-height: 1.2;
 }
 
 #mobius-os-mini .mobius-mini-task-badge {
@@ -1411,6 +1433,120 @@
 
 #mobius-os-mini .mobius-mini-task-count {
   font-weight: 700;
+}
+
+/* Answer dropdown styling */
+.mobius-mini-answer-dropdown {
+  background: white !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+  padding: 4px 0 !important;
+  min-width: 160px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.mobius-mini-answer-dropdown .mobius-mini-dropdown-item {
+  display: block !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  font-size: 10px !important;
+  text-align: left !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  color: #1e293b !important;
+  line-height: 1.3 !important;
+}
+
+.mobius-mini-answer-dropdown .mobius-mini-dropdown-item:hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+}
+
+#mobius-os-mini .mobius-mini-step-question {
+  font-size: 10px;
+  font-weight: 500;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+#mobius-os-mini .mobius-mini-step-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#mobius-os-mini .mobius-mini-quick-answer-btn {
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 500;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  background: white;
+  color: #2563eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#mobius-os-mini .mobius-mini-quick-answer-btn:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: #2563eb;
+}
+
+#mobius-os-mini .mobius-mini-quick-answer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#mobius-os-mini .mobius-mini-quick-answer-btn.suggested {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #16a34a;
+}
+
+#mobius-os-mini .mobius-mini-quick-answer-btn.suggested:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+#mobius-os-mini .mobius-mini-open-sidecar-btn {
+  padding: 4px 10px;
+  font-size: 9px;
+  font-weight: 500;
+  border: none;
+  background: #2563eb;
+  color: white;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#mobius-os-mini .mobius-mini-open-sidecar-btn:hover {
+  background: #1d4ed8;
+}
+
+/* Dark theme for status row */
+#mobius-os-mini.theme-dark .mobius-mini-question-text {
+  color: #e5e7eb;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-quick-answer-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #e5e7eb;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-quick-answer-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-quick-answer-btn.suggested {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+}
+
+#mobius-os-mini.theme-dark .mobius-mini-open-sidecar-btn {
+  background: #3b82f6;
 }
 
 /* User Greeting Row */

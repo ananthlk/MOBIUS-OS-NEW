@@ -26,7 +26,7 @@ import {
   UserDetails,
   PreferencesPanel
 } from './components';
-import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, DetectedPatient, ResolvedPatientContext, UserProfile, PersonalizationData, MiniStatusResponse as MiniStatusResponseType } from './types';
+import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, DetectedPatient, ResolvedPatientContext, UserProfile, PersonalizationData, MiniStatusResponse as MiniStatusResponseType, ResolutionPlan } from './types';
 import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService } from './services/auth';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
@@ -135,11 +135,212 @@ let needsAttention: {
 } = { color: 'grey', problemStatement: null, userStatus: null };
 let taskCount = 0;
 
+// Resolution Plan state (action-centric UI)
+let resolutionPlan: MiniStatusResponseType['resolution_plan'] | null = null;
+let actionsForUser = 0;
+
+/**
+ * Update the unified status row with priority question.
+ * The question text replaces the problem statement, and the dropdown shows answer options.
+ * 
+ * Color comes from backend (payment probability):
+ * - Green: >= 85% probability
+ * - Yellow: 60-84% probability
+ * - Red: < 60% probability
+ * - Grey: No data / insufficient info
+ * - Blue: System error
+ * - Purple: Policy override
+ */
+function updateStepPreviewGlobal(): void {
+  const mini = document.getElementById(MINI_IDS.root);
+  if (!mini) return;
+  
+  const questionEl = mini.querySelector<HTMLElement>('.mobius-mini-question-text');
+  const badgeText = mini.querySelector<HTMLElement>('.mobius-mini-badge-text');
+  const dot = mini.querySelector<HTMLElement>('.mobius-mini-attention-row .mobius-mini-dot');
+  
+  if (!questionEl) return;
+  
+  // Get color from backend (based on payment probability)
+  const backendColor = needsAttention.color || 'grey';
+  
+  // Check if we have a resolution plan
+  if (resolutionPlan) {
+    // Resolved plan - show "No issues detected"
+    if (resolutionPlan.status === 'resolved') {
+      questionEl.textContent = 'No issues detected';
+      questionEl.title = resolutionPlan.resolution_notes || 'All checks passed';
+      if (badgeText) badgeText.textContent = 'Resolved ✓';
+      // Use green for resolved, regardless of probability
+      if (dot) dot.className = 'mobius-mini-dot dot-green';
+      return;
+    }
+    
+    // Active plan with current step that matches user's role - show question
+    if (resolutionPlan.current_step) {
+      const step = resolutionPlan.current_step;
+      const maxLen = 50;
+      const text = step.question_text || 'Action required';
+      questionEl.textContent = text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
+      questionEl.title = step.question_text || '';
+      if (badgeText) badgeText.textContent = 'Set status ▾';
+      // Use backend color (from payment probability)
+      if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(backendColor as MiniColor)}`;
+      return;
+    }
+    
+    // Active plan but NO current step for this user's role
+    // Check if there are tasks for other roles
+    const otherRoleTasks = (resolutionPlan as { other_role_tasks?: number }).other_role_tasks || 0;
+    if (otherRoleTasks > 0) {
+      questionEl.textContent = 'Waiting on another team member';
+      questionEl.title = `${otherRoleTasks} task(s) assigned to other roles`;
+      if (badgeText) badgeText.textContent = 'Pending';
+      // Use backend color
+      if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(backendColor as MiniColor)}`;
+      return;
+    }
+    
+    // Active plan, all steps complete for everyone
+    questionEl.textContent = 'All steps completed';
+    if (badgeText) badgeText.textContent = 'Complete ✓';
+    if (dot) dot.className = 'mobius-mini-dot dot-green';
+    return;
+  }
+  
+  // No resolution plan - fallback to legacy behavior
+  questionEl.textContent = needsAttention.problemStatement || 'No issues detected';
+  if (badgeText) badgeText.textContent = 'Set status';
+  // Use backend color
+  if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(backendColor as MiniColor)}`;
+}
+
+/**
+ * Update the task count badge in Mini (global function).
+ */
+function updateTaskCountGlobal(): void {
+  const mini = document.getElementById(MINI_IDS.root);
+  if (!mini) return;
+  
+  const taskBadgeRow = mini.querySelector<HTMLElement>('.mobius-mini-task-badge-row');
+  if (!taskBadgeRow) return;
+  
+  const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
+  const labelEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-label');
+  const count = actionsForUser > 0 ? actionsForUser : taskCount;
+  
+  if (countEl) countEl.textContent = String(count);
+  if (labelEl) labelEl.textContent = count === 1 ? 'item remaining' : 'items remaining';
+  taskBadgeRow.style.display = count > 0 ? '' : 'none';
+}
+
 // User Awareness state
 let isAuthenticated = false;
 let currentUserProfile: UserProfile | null = null;
 let currentPersonalization: PersonalizationData | null = null;
 let greetingDismissed = false;
+
+// Polling for cross-tab sync
+let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+const STATUS_POLL_INTERVAL_MS = 10000; // Poll every 10 seconds
+
+/**
+ * Start polling for status updates (for cross-tab sync).
+ */
+function startStatusPolling(): void {
+  stopStatusPolling(); // Clear any existing interval
+  
+  statusPollInterval = setInterval(async () => {
+    const patientKey = getCurrentPatientKey();
+    if (!patientKey) return;
+    
+    try {
+      const status = await fetchMiniStatus(sessionId, patientKey);
+      
+      // Check if attention status changed
+      const newUserStatus = status.needs_attention?.user_status || null;
+      if (newUserStatus !== needsAttention.userStatus) {
+        console.log('[Mobius] Status changed via polling:', newUserStatus);
+        
+        // Update state
+        if (status.needs_attention) {
+          needsAttention = {
+            color: status.needs_attention.color,
+            problemStatement: status.needs_attention.problem_statement,
+            userStatus: status.needs_attention.user_status,
+          };
+        }
+        
+        // Update UI
+        const mini = document.getElementById(MINI_IDS.root);
+        if (mini) {
+          updateAttentionUI(mini);
+        }
+      }
+    } catch (err) {
+      // Silently ignore polling errors
+      console.debug('[Mobius] Polling error:', err);
+    }
+  }, STATUS_POLL_INTERVAL_MS);
+  
+  console.log('[Mobius] Status polling started');
+}
+
+/**
+ * Stop polling for status updates.
+ */
+function stopStatusPolling(): void {
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval);
+    statusPollInterval = null;
+    console.log('[Mobius] Status polling stopped');
+  }
+}
+
+/**
+ * Update the attention UI elements.
+ */
+function updateAttentionUI(mini: HTMLElement): void {
+  let effectiveColor = needsAttention.color;
+  if (needsAttention.userStatus === 'resolved') effectiveColor = 'green';
+  else if (needsAttention.userStatus === 'confirmed_unresolved') effectiveColor = 'yellow';
+  else if (needsAttention.userStatus === 'unable_to_confirm') effectiveColor = 'grey';
+  
+  const attentionRow = mini.querySelector<HTMLElement>('.mobius-mini-attention-row');
+  if (attentionRow) {
+    const dot = attentionRow.querySelector<HTMLElement>('.mobius-mini-dot');
+    const text = attentionRow.querySelector<HTMLElement>('.mobius-mini-problem-text');
+    const statusBtn = attentionRow.querySelector<HTMLElement>('.mobius-mini-status-btn');
+    
+    if (dot) {
+      dot.className = `mobius-mini-dot ${colorToCssClass(effectiveColor)}`;
+    }
+    if (text) {
+      if (needsAttention.userStatus === 'resolved') {
+        text.textContent = 'No issues detected';
+      } else if (needsAttention.problemStatement) {
+        text.textContent = needsAttention.problemStatement;
+      } else {
+        text.textContent = 'No issues detected';
+      }
+    }
+    if (statusBtn) {
+      if (needsAttention.userStatus === 'resolved') {
+        statusBtn.textContent = 'Resolved ▾';
+        statusBtn.className = 'mobius-mini-status-btn resolved';
+      } else {
+        statusBtn.textContent = 'Set status ▾';
+        statusBtn.className = 'mobius-mini-status-btn';
+      }
+    }
+  }
+  
+  // Update minimized info dot
+  const minimizedDot = mini.querySelector<HTMLElement>('.mobius-mini-minimized-info .mobius-mini-dot');
+  if (minimizedDot) {
+    minimizedDot.className = `mobius-mini-dot ${colorToCssClass(effectiveColor)}`;
+  }
+}
 
 function setVisible(el: HTMLElement, visible: boolean) {
   el.style.display = visible ? '' : 'none';
@@ -196,6 +397,9 @@ function removeMini(): void {
   
   // Stop patient context detection when Mini is removed
   stopPatientContextDetection();
+  
+  // Stop status polling
+  stopStatusPolling();
 }
 
 function removeSidebar(): void {
@@ -217,7 +421,70 @@ function showToast(message: string): void {
   window.setTimeout(() => toast.remove(), 1600);
 }
 
-function colorToCssClass(color: MiniColor): string {
+/**
+ * Smart positioning for dropdowns that adjusts based on viewport boundaries.
+ * Returns CSS position properties for a dropdown anchored to an element.
+ */
+function getSmartDropdownPosition(
+  anchorRect: DOMRect,
+  dropdownWidth: number,
+  dropdownHeight: number,
+  options: { preferAbove?: boolean; gap?: number } = {}
+): { top: number; left: number; transformOrigin: string } {
+  const { preferAbove = true, gap = 8 } = options;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  
+  let top: number;
+  let left: number;
+  let transformOrigin = 'top left';
+  
+  // Vertical positioning
+  const spaceAbove = anchorRect.top;
+  const spaceBelow = viewportHeight - anchorRect.bottom;
+  
+  if (preferAbove && spaceAbove >= dropdownHeight + gap) {
+    // Position above
+    top = anchorRect.top - dropdownHeight - gap;
+    transformOrigin = 'bottom';
+  } else if (spaceBelow >= dropdownHeight + gap) {
+    // Position below
+    top = anchorRect.bottom + gap;
+    transformOrigin = 'top';
+  } else if (spaceAbove > spaceBelow) {
+    // More space above, but not enough - position at top of viewport with some padding
+    top = Math.max(gap, anchorRect.top - dropdownHeight - gap);
+    transformOrigin = 'bottom';
+  } else {
+    // More space below - position below with overflow
+    top = anchorRect.bottom + gap;
+    transformOrigin = 'top';
+  }
+  
+  // Horizontal positioning
+  const spaceRight = viewportWidth - anchorRect.left;
+  const spaceLeft = anchorRect.right;
+  
+  if (spaceRight >= dropdownWidth) {
+    // Align to left edge of anchor
+    left = anchorRect.left;
+    transformOrigin += ' left';
+  } else if (spaceLeft >= dropdownWidth) {
+    // Align to right edge of anchor (dropdown extends left)
+    left = anchorRect.right - dropdownWidth;
+    transformOrigin += ' right';
+  } else {
+    // Center as best we can, keeping within viewport
+    left = Math.max(gap, Math.min(anchorRect.left, viewportWidth - dropdownWidth - gap));
+    transformOrigin += ' center';
+  }
+  
+  return { top, left, transformOrigin };
+}
+
+function colorToCssClass(color: MiniColor | string): string {
   switch (color) {
     case 'green':
       return 'dot-green';
@@ -227,6 +494,8 @@ function colorToCssClass(color: MiniColor): string {
       return 'dot-blue';
     case 'red':
       return 'dot-red';
+    case 'purple':
+      return 'dot-purple';
     case 'grey':
     default:
       return 'dot-grey';
@@ -325,10 +594,16 @@ async function handleAutoDetectedPatient(detected: DetectedPatient | null): Prom
     autoDetectedPatient = resolved;
     console.log('[Mobius] Patient resolved:', resolved);
     
-    // Update Mini widget if visible and no manual override
-    if (!patientOverride) {
-      await updateMiniWithResolvedPatient(resolved);
+    // Auto-detection takes precedence - clear any stale manual override
+    // This ensures the sidebar always shows the patient currently visible in the EMR
+    if (patientOverride) {
+      console.log('[Mobius] Clearing patient override in favor of auto-detected patient');
+      patientOverride = null;
+      await storageSet({ [STORAGE_KEYS.patientOverride]: null });
     }
+    
+    // Update Mini widget with the detected patient
+    await updateMiniWithResolvedPatient(resolved);
   } else {
     console.log('[Mobius] Patient not found in system:', detected);
     // Keep the detection info even if not found (might be useful)
@@ -374,6 +649,8 @@ async function updateMiniWithResolvedPatient(resolved: ResolvedPatientContext): 
         };
       }
       taskCount = status.task_count || 0;
+      resolutionPlan = (status.resolution_plan as MiniStatusResponseType['resolution_plan']) || null;
+      actionsForUser = status.actions_for_user || 0;
       
       // Re-render Mini attention UI
       const attentionRow = mini.querySelector<HTMLElement>('.mobius-mini-attention-row');
@@ -405,16 +682,15 @@ async function updateMiniWithResolvedPatient(resolved: ResolvedPatientContext): 
         minimizedDot.className = `mobius-mini-dot ${colorToCssClass(effectiveColor)}`;
       }
       
-      // Update task badge
-      const taskBadgeRow = mini.querySelector<HTMLElement>('.mobius-mini-task-badge-row');
-      if (taskBadgeRow) {
-        const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
-        if (countEl) countEl.textContent = String(taskCount);
-        taskBadgeRow.style.display = taskCount > 0 ? '' : 'none';
-      }
+      // Update task badge and step preview using global functions
+      updateTaskCountGlobal();
+      updateStepPreviewGlobal();
       
       // Show toast for auto-detection
       showToast(`Patient detected: ${resolved.display_name || 'Unknown'}`);
+      
+      // Start polling for cross-tab sync
+      startStatusPolling();
     } catch (err) {
       console.error('[Mobius] Error fetching status for auto-detected patient:', err);
     }
@@ -963,17 +1239,24 @@ function createMini(): HTMLElement {
     
     userDropdown = document.createElement('div');
     userDropdown.className = 'mobius-mini-user-dropdown';
+    
+    // Smart positioning for user dropdown
+    const dropdownWidth = Math.max(greetingRect.width, 200);
+    const dropdownHeight = 180; // approximate
+    const pos = getSmartDropdownPosition(greetingRect, dropdownWidth, dropdownHeight, { preferAbove: false, gap: 4 });
+    
     userDropdown.style.cssText = `
       position: fixed;
-      top: ${greetingRect.bottom + 4}px;
-      left: ${greetingRect.left}px;
-      width: ${greetingRect.width}px;
+      top: ${pos.top}px;
+      left: ${pos.left}px;
+      width: ${dropdownWidth}px;
       background: white;
       border-radius: 8px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
       z-index: 2147483647;
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transform-origin: ${pos.transformOrigin};
     `;
     
     const displayName = currentUserProfile?.display_name || currentUserProfile?.email || 'User';
@@ -1148,7 +1431,7 @@ function createMini(): HTMLElement {
   const patientRow = document.createElement('div');
   patientRow.className = 'mobius-mini-row';
   patientRow.innerHTML = `
-    <div class="mobius-mini-row-label">Patient</div>
+    <div class="mobius-mini-row-label">PATIENT</div>
     <div class="mobius-mini-row-body">
       <div class="mobius-mini-patient-name"></div>
       <div class="mobius-mini-patient-id"></div>
@@ -1162,15 +1445,15 @@ function createMini(): HTMLElement {
   `;
   root.appendChild(patientRow);
 
-  // Needs Attention (replaces Proceed)
+  // Unified Status Row - color dot + priority question + answer dropdown
   const attentionRow = document.createElement('div');
   attentionRow.className = 'mobius-mini-row mobius-mini-attention-row';
   attentionRow.innerHTML = `
-    <div class="mobius-mini-row-label">Needs<br>Attention</div>
+    <div class="mobius-mini-row-label">STATUS</div>
     <div class="mobius-mini-attention-content">
       <span class="mobius-mini-dot"></span>
-      <span class="mobius-mini-problem-text"></span>
-      <button class="mobius-mini-status-badge" type="button" aria-label="Status">
+      <span class="mobius-mini-question-text">No issues detected</span>
+      <button class="mobius-mini-status-badge" type="button" aria-label="Answer">
         <span class="mobius-mini-badge-text">Set status</span>
         <span class="mobius-mini-dropdown-icon">▼</span>
       </button>
@@ -1178,15 +1461,16 @@ function createMini(): HTMLElement {
   `;
   root.appendChild(attentionRow);
 
-  // Task badge row (simplified - just shows count and opens sidecar)
+  // Plan badge row - shows count and links to full checklist
   const taskBadgeRow = document.createElement('div');
   taskBadgeRow.className = 'mobius-mini-row mobius-mini-task-badge-row';
-  taskBadgeRow.style.display = 'none'; // Hidden when no tasks
+  taskBadgeRow.style.display = 'none'; // Hidden when no actions
   taskBadgeRow.innerHTML = `
-    <div class="mobius-mini-row-label">Tasks</div>
-    <button class="mobius-mini-task-badge" type="button" aria-label="Open tasks in Sidecar">
+    <div class="mobius-mini-row-label">PLAN</div>
+    <button class="mobius-mini-task-badge" type="button" aria-label="Open plan in Sidecar">
       <span class="mobius-mini-task-count">0</span>
-      <span>pending → Open Sidecar</span>
+      <span class="mobius-mini-task-label">items remaining</span>
+      <span style="margin-left: 4px;">→</span>
     </button>
   `;
   root.appendChild(taskBadgeRow);
@@ -1203,7 +1487,7 @@ function createMini(): HTMLElement {
   const noteRow = document.createElement('div');
   noteRow.className = 'mobius-mini-row';
   noteRow.innerHTML = `
-    <div class="mobius-mini-row-label">Note</div>
+    <div class="mobius-mini-row-label">NOTE</div>
     <div class="mobius-mini-note-wrap">
       <input class="mobius-mini-note-input" type="text" placeholder="Quick note…" />
       <button class="mobius-mini-send-btn" type="button" aria-label="Send note">
@@ -1293,11 +1577,20 @@ function createMini(): HTMLElement {
     }
   };
 
-  // Apply task count
+  // Apply task count (action-centric: uses actionsForUser)
   const applyTaskCount = () => {
     const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
-    if (countEl) countEl.textContent = String(taskCount);
-    taskBadgeRow.style.display = taskCount > 0 ? '' : 'none';
+    const labelEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-label');
+    // Prefer actionsForUser from resolution plan, fall back to taskCount
+    const count = actionsForUser > 0 ? actionsForUser : taskCount;
+    if (countEl) countEl.textContent = String(count);
+    if (labelEl) labelEl.textContent = count === 1 ? 'item remaining' : 'items remaining';
+    taskBadgeRow.style.display = count > 0 ? '' : 'none';
+  };
+
+  // Apply step preview - now uses global function
+  const applyStepPreview = () => {
+    updateStepPreviewGlobal();
   };
 
   // Update minimized state info (dot + patient name)
@@ -1321,6 +1614,7 @@ function createMini(): HTMLElement {
 
   applyAttention();
   applyTaskCount();
+  applyStepPreview();
   updateMinimizedInfo();
   
   // Legacy (hidden)
@@ -1445,19 +1739,24 @@ function createMini(): HTMLElement {
   ): HTMLElement => {
     const dropdown = document.createElement('div');
     dropdown.className = 'mobius-mini-status-dropdown mobius-mini-attention-dropdown';
-    // Position above the button using fixed positioning (escapes overflow:hidden)
+    const dropdownWidth = 220;
     const dropdownHeight = 150; // approximate height for 3 options + separator + new issue
+    
+    // Smart positioning based on viewport boundaries
+    const pos = getSmartDropdownPosition(anchorRect, dropdownWidth, dropdownHeight, { preferAbove: true, gap: 4 });
+    
     dropdown.style.cssText = `
       position: fixed;
-      top: ${anchorRect.top - dropdownHeight - 4}px;
-      left: ${anchorRect.left}px;
+      top: ${pos.top}px;
+      left: ${pos.left}px;
       background: white;
       border: 1px solid #e2e8f0;
       border-radius: 6px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.18);
       z-index: 2147483647;
-      min-width: 200px;
+      min-width: ${dropdownWidth}px;
       padding: 4px 0;
+      transform-origin: ${pos.transformOrigin};
     `;
 
     // Add status options
@@ -1545,7 +1844,97 @@ function createMini(): HTMLElement {
     return dropdown;
   };
 
-  // Click handler for Attention status badge
+  // Create answer dropdown for resolution plan steps
+  const createAnswerDropdown = (
+    step: NonNullable<typeof resolutionPlan>['current_step'],
+    anchorRect: DOMRect
+  ): HTMLElement => {
+    const dropdown = document.createElement('div');
+    dropdown.className = 'mobius-mini-status-dropdown mobius-mini-answer-dropdown';
+    const dropdownWidth = Math.max(anchorRect.width, 200);
+    const dropdownHeight = 160;
+    
+    // Smart positioning based on viewport boundaries
+    const pos = getSmartDropdownPosition(anchorRect, dropdownWidth, dropdownHeight, { preferAbove: true, gap: 8 });
+    
+    dropdown.style.cssText = `
+      position: fixed;
+      top: ${pos.top}px;
+      left: ${pos.left}px;
+      min-width: ${dropdownWidth}px;
+      z-index: 2147483647;
+      transform-origin: ${pos.transformOrigin};
+    `;
+    
+    const options = step?.answer_options || [];
+    const suggestion = step?.system_suggestion;
+    
+    options.forEach((opt: { code: string; label: string }) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'mobius-mini-dropdown-item';
+      
+      // Highlight suggested answer
+      if (suggestion?.answer === opt.code) {
+        item.innerHTML = `<span style="color: #16a34a;">✓</span> ${opt.label} <span style="font-size: 9px; color: #64748b;">(suggested)</span>`;
+      } else {
+        item.textContent = opt.label;
+      }
+      
+      item.addEventListener('click', async () => {
+        dropdown.remove();
+        
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/v1/resolution/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              step_id: step?.step_id,
+              answer_code: opt.code,
+            }),
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            showToast('Answer recorded');
+            
+            if (data.plan) {
+              resolutionPlan = data.plan;
+              actionsForUser = data.plan.actions_for_user || 0;
+              updateStepPreviewGlobal();
+              updateTaskCountGlobal();
+            }
+          } else {
+            showToast('Failed to submit');
+          }
+        } catch (err) {
+          console.error('[Mobius] Error submitting answer:', err);
+          showToast('Connection error');
+        }
+      });
+      
+      dropdown.appendChild(item);
+    });
+    
+    // Add separator and "More options" link
+    const separator = document.createElement('div');
+    separator.style.cssText = 'border-top: 1px solid rgba(0,0,0,0.1); margin: 6px 0;';
+    dropdown.appendChild(separator);
+    
+    const moreItem = document.createElement('button');
+    moreItem.type = 'button';
+    moreItem.className = 'mobius-mini-dropdown-item';
+    moreItem.innerHTML = '<span style="color: #64748b;">Open full checklist →</span>';
+    moreItem.addEventListener('click', async () => {
+      dropdown.remove();
+      await expandToSidebar();
+    });
+    dropdown.appendChild(moreItem);
+    
+    return dropdown;
+  };
+
+  // Click handler for status badge - shows answer options or status options
   const statusBadge = attentionRow.querySelector<HTMLButtonElement>('.mobius-mini-status-badge');
   statusBadge?.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -1555,6 +1944,29 @@ function createMini(): HTMLElement {
     // Get button position to anchor dropdown
     const btnRect = statusBadge.getBoundingClientRect();
     
+    // If resolution plan is resolved, just show a toast (nothing to do)
+    if (resolutionPlan?.status === 'resolved') {
+      showToast('All checks passed - no action needed');
+      return;
+    }
+    
+    // If we have a resolution plan with current step, show answer dropdown
+    if (resolutionPlan?.current_step) {
+      const dropdown = createAnswerDropdown(resolutionPlan.current_step, btnRect);
+      document.body.appendChild(dropdown);
+      return;
+    }
+    
+    // Active plan but no tasks for this user's role
+    if (resolutionPlan?.status === 'active') {
+      const otherRoleTasks = (resolutionPlan as { other_role_tasks?: number }).other_role_tasks || 0;
+      if (otherRoleTasks > 0) {
+        showToast(`${otherRoleTasks} task(s) waiting on other team members`);
+        return;
+      }
+    }
+    
+    // Otherwise show the status dropdown (fallback for when no resolution plan)
     const dropdown = createAttentionDropdown(
       needsAttention.userStatus,
       // onSelect callback for status changes
@@ -1572,7 +1984,6 @@ function createMini(): HTMLElement {
             
             // Open sidecar if indicated
             if (response.open_sidecar) {
-              // Expand to full sidebar
               await expandToSidebar();
             }
           } catch (err) {
@@ -1655,9 +2066,15 @@ function createMini(): HTMLElement {
         }
         applyAttention();
         
-        // Update task count
+        // Update task count and resolution plan
         taskCount = status.task_count || 0;
+        resolutionPlan = (status.resolution_plan as MiniStatusResponseType['resolution_plan']) || null;
+        actionsForUser = status.actions_for_user || 0;
         applyTaskCount();
+        applyStepPreview();
+        
+        // Start polling for cross-tab sync
+        startStatusPolling();
       } catch (err) {
         console.error('[Mobius] Failed to fetch status for patient:', err);
       }
@@ -1675,7 +2092,13 @@ function createMini(): HTMLElement {
     const note = (noteInput?.value || '').trim();
     if (!note) return;
     try {
-      await submitMiniNote(sessionId, note, getPatientDisplay());
+      // Include plan context so notes are linked to the resolution workflow
+      const planContext = resolutionPlan ? {
+        resolution_plan_id: resolutionPlan.plan_id,
+        plan_step_id: resolutionPlan.current_step?.step_id,
+      } : undefined;
+      
+      await submitMiniNote(sessionId, note, getPatientDisplay(), planContext);
       if (noteInput) noteInput.value = '';
       showToast('Note sent');
     } catch (e) {
@@ -2625,6 +3048,8 @@ async function renderMiniIfAllowed(): Promise<void> {
       };
     }
     taskCount = status.task_count || 0;
+    resolutionPlan = status.resolution_plan || null;
+    actionsForUser = status.actions_for_user || 0;
     
     // Update patient info from response if available
     if (status.patient?.found && status.patient.display_name) {

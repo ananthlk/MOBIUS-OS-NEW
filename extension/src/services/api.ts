@@ -114,6 +114,9 @@ export type MiniStatusResponse = {
   task_count?: number;
   // Mode (for sidecar)
   mode?: ExecutionMode;
+  // Resolution plan (action-centric UI)
+  resolution_plan?: unknown;
+  actions_for_user?: number;
 };
 
 export async function fetchMiniStatus(
@@ -237,18 +240,28 @@ export async function reportIssue(
 }
 
 /**
- * Submit a note from Mini (legacy, use submitMiniAck instead).
- * @deprecated Use submitMiniAck
+ * Submit a note from Mini with optional resolution plan context.
  */
 export async function submitMiniNote(
   sessionId: SessionId,
   note: string,
-  patient?: { name?: string; id?: string }
+  patient?: { name?: string; id?: string },
+  planContext?: { 
+    resolution_plan_id?: string; 
+    plan_step_id?: string;
+  }
 ): Promise<{ ok: true; session_id: SessionId; note: string }> {
-  const response = await fetch(`${API_BASE_URL}/mini/note`, {
+  // Use authenticatedFetch to include auth token
+  const response = await authenticatedFetch(`${API_BASE_URL}/mini/ack`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: sessionId, note, patient: patient || {} }),
+    body: JSON.stringify({ 
+      session_id: sessionId, 
+      note, 
+      patient_key: patient?.id || '',
+      // Include plan context so notes are linked to the workflow
+      resolution_plan_id: planContext?.resolution_plan_id,
+      plan_step_id: planContext?.plan_step_id,
+    }),
   });
 
   if (!response.ok) {

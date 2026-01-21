@@ -29,6 +29,8 @@ from app.services.personalization import get_personalization_service
 from app.db.postgres import get_db_session
 from app.models.probability import PaymentProbability, TaskInstance, TaskTemplate, UserPreference
 from app.models.patient import PatientContext
+from app.models.resolution import ResolutionPlan, PlanStep, PlanStatus, StepStatus
+from app.models.activity import UserActivity
 
 bp = Blueprint("mini", __name__, url_prefix="/api/v1/mini")
 
@@ -47,19 +49,24 @@ DEFAULT_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000002")
 def _get_current_user() -> Optional[UserProfile]:
     """Get current user profile from Authorization header."""
     auth_header = request.headers.get("Authorization", "")
+    print(f"[mini] DEBUG: Auth header present: {bool(auth_header)}, starts with Bearer: {auth_header.startswith('Bearer ')}")
     if not auth_header.startswith("Bearer "):
         return None
     
     token = auth_header[7:]  # Remove "Bearer " prefix
+    print(f"[mini] DEBUG: Token length: {len(token)}")
     auth_service = get_auth_service()
     user = auth_service.validate_access_token(token)
+    print(f"[mini] DEBUG: Token validation result: {user}")
     
     if not user:
         return None
     
     # Load full user profile
     user_context_service = get_user_context_service()
-    return user_context_service.get_user_profile(user.user_id)
+    profile = user_context_service.get_user_profile(user.user_id)
+    print(f"[mini] DEBUG: User profile loaded: {profile.user_id if profile else None}")
+    return profile
 
 
 def _get_tenant_id(data: dict) -> uuid.UUID:
@@ -74,13 +81,21 @@ def _get_tenant_id(data: dict) -> uuid.UUID:
 
 
 def _get_user_id(data: dict) -> uuid.UUID:
-    """Get user ID from request data or use default (no auth yet)."""
+    """Get user ID from request data, auth token, or default."""
+    # First check request data
     user_id = data.get("user_id")
     if user_id:
         try:
             return uuid.UUID(user_id)
         except ValueError:
             pass
+    
+    # Then try to get from auth token
+    user_profile = _get_current_user()
+    if user_profile:
+        return user_profile.user_id
+    
+    # Fallback to default (should have a valid user in DB)
     return DEFAULT_USER_ID
 
 
@@ -126,6 +141,148 @@ def _get_task_count(patient_context_id: uuid.UUID) -> int:
     except Exception as e:
         print(f"[mini] Error counting tasks: {e}")
         return 0
+
+
+def _get_resolution_plan(patient_context_id: uuid.UUID, user_activities: list = None) -> dict | None:
+    """Load resolution plan for Mini display (active OR resolved).
+    
+    Returns action-centric format with:
+    - gap_types: what needs attention
+    - current_step: the step to show in Mini (null if resolved)
+    - progress: completion status per factor
+    - actions_for_user: count of steps user can act on
+    - status: 'active' or 'resolved'
+    """
+    try:
+        db = get_db_session()
+        # Get any plan (active or resolved) - prefer active if multiple exist
+        plan = db.query(ResolutionPlan).filter(
+            ResolutionPlan.patient_context_id == patient_context_id,
+            ResolutionPlan.status.in_([PlanStatus.ACTIVE, PlanStatus.RESOLVED])
+        ).order_by(
+            # Active plans first, then by updated_at descending
+            ResolutionPlan.status.asc(),  # 'active' < 'resolved' alphabetically
+            ResolutionPlan.updated_at.desc()
+        ).first()
+        
+        if not plan:
+            return None
+        
+        # For resolved plans, return simplified response
+        if plan.status == PlanStatus.RESOLVED:
+            return {
+                "plan_id": str(plan.plan_id),
+                "gap_types": plan.gap_types,
+                "status": "resolved",
+                "factors": {},
+                "current_step": None,
+                "actions_for_user": 0,
+                "resolution_type": plan.resolution_type,
+                "resolution_notes": plan.resolution_notes,
+                "resolved_at": plan.resolved_at.isoformat() if plan.resolved_at else None,
+            }
+        
+        # Build progress and count actions for active plans
+        factors = {}
+        actions_for_user = 0
+        current_step_data = None
+        matching_step_data = None  # Step that matches user's activities
+        total_pending_steps = 0
+        
+        # Load steps explicitly from DB
+        steps = db.query(PlanStep).filter(PlanStep.plan_id == plan.plan_id).all()
+        print(f"[mini] DEBUG: Plan {plan.plan_id} has {len(steps)} steps")
+        
+        for step in steps:
+            factor = step.factor_type or "general"
+            if factor not in factors:
+                factors[factor] = {"done": 0, "total": 0, "status": "pending"}
+            factors[factor]["total"] += 1
+            
+            if step.status in [StepStatus.COMPLETED, StepStatus.SKIPPED]:
+                factors[factor]["done"] += 1
+            elif step.status == StepStatus.CURRENT:
+                factors[factor]["status"] = "needs_action"
+                total_pending_steps += 1
+                
+                # Format step data
+                step_data = {
+                    "step_id": str(step.step_id),
+                    "step_code": step.step_code,
+                    "question_text": step.question_text,
+                    "step_type": step.step_type,
+                    "input_type": step.input_type,
+                    "answer_options": step.answer_options,
+                    "system_suggestion": step.system_suggestion,
+                    "factor_type": step.factor_type,
+                    "assignable_activities": step.assignable_activities,
+                }
+                
+                # Check if this step matches user's activities
+                step_matches_user = False
+                print(f"[mini] DEBUG: Step {step.step_code} - user_activities={user_activities}, assignable={step.assignable_activities}")
+                if user_activities and step.assignable_activities:
+                    overlap = [a for a in step.assignable_activities if a in user_activities]
+                    print(f"[mini] DEBUG: Step {step.step_code} - overlap={overlap}")
+                    if overlap:
+                        step_matches_user = True
+                        actions_for_user += 1
+                        # Prefer showing steps that match user's role
+                        if not matching_step_data:
+                            matching_step_data = step_data
+                            print(f"[mini] DEBUG: Setting matching_step_data to {step.step_code}")
+                elif not user_activities:
+                    # No user activities = show ALL steps (unauthenticated or empty activities)
+                    step_matches_user = True
+                    actions_for_user += 1
+                    if not matching_step_data:
+                        matching_step_data = step_data  # FIX: Also set step for unauthenticated users
+                    print(f"[mini] DEBUG: No user auth, marking step as match, matching_step={step.step_code}")
+                
+                # Track first current step as fallback info
+                if not current_step_data:
+                    current_step_data = step_data
+            elif step.status == StepStatus.PENDING:
+                total_pending_steps += 1
+        
+        # ONLY show steps that match user's role
+        # If no matching steps, return None for current_step (user has no actionable tasks)
+        display_step = matching_step_data
+        
+        # Determine factor status
+        for factor_data in factors.values():
+            if factor_data["done"] == factor_data["total"]:
+                factor_data["status"] = "ready"
+        
+        return {
+            "plan_id": str(plan.plan_id),
+            "gap_types": plan.gap_types,
+            "status": "active",
+            "factors": factors,
+            "current_step": display_step,  # Only shows steps matching user's role (None if no match)
+            "actions_for_user": actions_for_user,
+            "total_pending": total_pending_steps,  # Total pending for all users
+            "other_role_tasks": total_pending_steps - actions_for_user if user_activities else 0,
+        }
+    except Exception as e:
+        print(f"[mini] Error loading resolution plan: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def _get_user_activities(user_id: uuid.UUID) -> list:
+    """Get activity codes for a user."""
+    if not user_id:
+        return []
+    try:
+        db = get_db_session()
+        activities = db.query(UserActivity).filter(
+            UserActivity.user_id == user_id
+        ).all()
+        return [ua.activity.activity_code for ua in activities if ua.activity]
+    except Exception:
+        return []
 
 
 def _get_task_instances(patient_context_id: uuid.UUID) -> list:
@@ -317,7 +474,7 @@ def status():
     if patient_context:
         attention_status = patient_context.attention_status
     
-    # Get task count for badge
+    # Get task count for badge (legacy)
     task_count = 0
     if patient_context:
         task_count = _get_task_count(patient_context.patient_context_id)
@@ -325,6 +482,14 @@ def status():
     # User Awareness Sprint: Load user profile and personalization
     user_profile = _get_current_user()
     personalization_service = get_personalization_service()
+    
+    # Resolution Plan: Load active plan for action-centric UI
+    resolution_plan = None
+    if patient_context:
+        user_activities = _get_user_activities(user_profile.user_id) if user_profile else []
+        print(f"[mini] DEBUG: user_profile={user_profile.user_id if user_profile else None}, user_activities={user_activities}")
+        resolution_plan = _get_resolution_plan(patient_context.patient_context_id, user_activities)
+        print(f"[mini] DEBUG: resolution_plan={resolution_plan}")
     
     # Build personalization payload if user is authenticated
     user_data = None
@@ -366,9 +531,12 @@ def status():
         },
         # Keep "proceed" for backwards compatibility
         "proceed": proceed_data,
-        # Task info for badge/sidecar link
+        # Task info for badge/sidecar link (legacy)
         "has_tasks": task_count > 0,
         "task_count": task_count,
+        # Resolution Plan: Action-centric UI data
+        "resolution_plan": resolution_plan,
+        "actions_for_user": resolution_plan.get("actions_for_user", 0) if resolution_plan else 0,
         # Mode info (for future sidecar)
         "mode": mini_payload.get("mode"),
         "computed_at": mini_payload["computed_at"],
@@ -398,6 +566,10 @@ def submit_ack():
     override_proceed = data.get("override_proceed")
     override_tasking = data.get("override_tasking")
     correlation_id = data.get("correlation_id") or session_id
+    
+    # Resolution plan context (links note to the plan workflow)
+    resolution_plan_id_str = data.get("resolution_plan_id")
+    plan_step_id_str = data.get("plan_step_id")
     
     # New: attention_status for "Needs Attention" workflow
     attention_status = data.get("attention_status")  # "resolved" | "confirmed_unresolved" | "unable_to_confirm"
@@ -455,16 +627,33 @@ def submit_ack():
             db.rollback()
 
     # Persist submission to PostgreSQL (if we have note_text)
-    if patient_context and system_response_id and note_text:
+    # Note: system_response_id is optional for simple note submissions
+    if patient_context and note_text:
         try:
+            # Parse plan context UUIDs
+            resolution_plan_id = None
+            plan_step_id = None
+            if resolution_plan_id_str:
+                try:
+                    resolution_plan_id = uuid.UUID(resolution_plan_id_str)
+                except ValueError:
+                    pass
+            if plan_step_id_str:
+                try:
+                    plan_step_id = uuid.UUID(plan_step_id_str)
+                except ValueError:
+                    pass
+            
             submission = _patient_state_service.create_submission(
                 tenant_id=tenant_id,
                 patient_context_id=patient_context.patient_context_id,
-                system_response_id=system_response_id,
                 user_id=user_id,
                 note_text=note_text,
+                system_response_id=system_response_id,  # Optional
                 override_proceed=override_proceed or attention_status,  # Map attention_status to override_proceed
                 override_tasking=override_tasking,
+                resolution_plan_id=resolution_plan_id,
+                plan_step_id=plan_step_id,
             )
             submission_id = submission.mini_submission_id
             
@@ -486,12 +675,13 @@ def submit_ack():
                 submission_id=submission_id,
                 user_id=user_id,
                 submitted_at=submitted_at,
+                attention_status=attention_status,
             )
         except Exception as e:
             print(f"[mini/ack] Error persisting submission: {e}")
             return jsonify({"error": f"Failed to save submission: {str(e)}"}), 500
     
-    # Even without note_text, if attention_status changed, log as acknowledgement
+    # Even without note_text, if attention_status changed, log and update Firestore
     elif patient_context and attention_status:
         try:
             _event_log_service.log_user_acknowledged(
@@ -502,6 +692,15 @@ def submit_ack():
                 system_response_id=system_response_id,
                 has_overrides=True,
                 correlation_id=correlation_id,
+            )
+            
+            # Update Firestore projection with attention_status
+            _projection_service.update_attention_status(
+                tenant_id=tenant_id,
+                patient_key=patient_key,
+                attention_status=attention_status,
+                updated_by=user_id,
+                updated_at=submitted_at,
             )
         except Exception as e:
             print(f"[mini/ack] Error logging acknowledgement: {e}")

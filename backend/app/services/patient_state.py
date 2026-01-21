@@ -27,13 +27,14 @@ class PatientStateService:
     """
 
     def __init__(self, db_session: Optional[DbSession] = None):
-        self._db = db_session
+        self._explicit_db = db_session  # Only set if explicitly passed
 
     @property
     def db(self) -> DbSession:
-        if self._db is None:
-            self._db = get_db_session()
-        return self._db
+        # Always get a fresh session unless explicitly passed
+        if self._explicit_db is not None:
+            return self._explicit_db
+        return get_db_session()
 
     # -------------------------------------------------------------------------
     # Read operations
@@ -194,17 +195,23 @@ class PatientStateService:
         self,
         tenant_id: uuid.UUID,
         patient_context_id: uuid.UUID,
-        system_response_id: uuid.UUID,
         user_id: uuid.UUID,
         note_text: str,
+        system_response_id: Optional[uuid.UUID] = None,
         override_proceed: Optional[str] = None,
         override_tasking: Optional[str] = None,
         invocation_id: Optional[uuid.UUID] = None,
+        resolution_plan_id: Optional[uuid.UUID] = None,
+        plan_step_id: Optional[uuid.UUID] = None,
     ) -> MiniSubmission:
         """
         Create a submission (acknowledgement via Send).
 
         Raises ValueError if note_text is empty.
+        
+        Args:
+            resolution_plan_id: Links note to the resolution plan (if one exists)
+            plan_step_id: Links note to specific step shown (optional)
         """
         if not note_text or not note_text.strip():
             raise ValueError("note_text is required for submissions")
@@ -218,6 +225,8 @@ class PatientStateService:
             override_proceed=override_proceed,
             override_tasking=override_tasking,
             invocation_id=invocation_id,
+            resolution_plan_id=resolution_plan_id,
+            plan_step_id=plan_step_id,
         )
         self.db.add(submission)
         self.db.commit()

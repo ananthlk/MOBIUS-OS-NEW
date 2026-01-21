@@ -360,6 +360,50 @@ export interface PersonalizationData {
 /**
  * Mini status response with user awareness fields
  */
+/**
+ * Resolution plan step for Mini display
+ */
+export interface ResolutionPlanStep {
+  step_id: string;
+  step_code: string;
+  question_text: string;
+  step_type: string;
+  input_type: string;
+  answer_options?: Array<{
+    code: string;
+    label: string;
+    next_step_code?: string;
+    description?: string;
+  }>;
+  system_suggestion?: {
+    answer?: string;
+    source?: string;
+    payer?: string;
+    confidence?: number;
+  };
+  factor_type?: string;
+}
+
+/**
+ * Resolution plan for Mini display
+ */
+export interface ResolutionPlan {
+  plan_id: string;
+  gap_types: string[];
+  status: string;  // 'active' or 'resolved'
+  factors: Record<string, {
+    done: number;
+    total: number;
+    status: string;
+  }>;
+  current_step?: ResolutionPlanStep;
+  actions_for_user: number;
+  // Resolved plan fields
+  resolution_type?: string;
+  resolution_notes?: string;
+  resolved_at?: string;
+}
+
 export interface MiniStatusResponse {
   ok: boolean;
   session_id: string;
@@ -399,6 +443,9 @@ export interface MiniStatusResponse {
     mode: string;
     mode_text: string;
   };
+  // Resolution Plan: Action-centric UI
+  resolution_plan?: ResolutionPlan;
+  actions_for_user: number;
   mode?: string;
   computed_at: string;
 }
