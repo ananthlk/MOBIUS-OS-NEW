@@ -110,62 +110,95 @@ def get_bottlenecks(
     patient_name: str = "Patient"
 ) -> List[Dict[str, Any]]:
     """
-    Get bottlenecks from resolution plan steps.
+    Get unresolved bottlenecks from resolution plan steps.
     
-    Bottlenecks are steps with status='current' or 'pending' that need attention.
-    Returns up to 3 bottlenecks.
+    Bottlenecks are steps that are NOT resolved/skipped - they need attention.
+    This includes: pending, current, and answered (but not yet resolved).
     Includes selected_answer if user has already answered.
     """
     if not plan:
         return []
     
-    # Get current/pending steps
+    # Get all unresolved steps (pending, current, answered)
+    # Resolved and skipped steps go to history
     steps = db.query(PlanStep).filter(
         PlanStep.plan_id == plan.plan_id,
-        PlanStep.status.in_([StepStatus.CURRENT, StepStatus.PENDING])
-    ).order_by(PlanStep.step_order).limit(3).all()
+        PlanStep.status.in_([StepStatus.PENDING, StepStatus.CURRENT, StepStatus.ANSWERED])
+    ).order_by(PlanStep.step_order).all()
     
     bottlenecks = []
     for step in steps:
-        # Map answer options
-        answer_options = []
-        if step.answer_options:
-            for opt in step.answer_options:
-                answer_options.append({
-                    "id": opt.get("code", ""),
-                    "label": opt.get("label", ""),
-                    "description": opt.get("description"),
-                })
-        
-        # Get the most recent answer for this step (if any)
-        # The answers relationship is ordered by created_at desc
-        selected_answer = None
-        if step.answers and len(step.answers) > 0:
-            latest_answer = step.answers[0]  # Most recent due to ordering
-            selected_answer = latest_answer.answer_code
-        
-        # Determine Mobius capability
-        mobius_can_handle = step.can_system_answer
-        mobius_mode = "agentic" if step.can_system_answer else None
-        mobius_action = None
-        if step.system_suggestion:
-            mobius_action = step.system_suggestion.get("source", "System can assist")
-        
-        bottleneck = {
-            "id": str(step.step_id),
-            "milestone_id": step.factor_type or "general",
-            "question_text": step.question_text,
-            "answer_options": answer_options,
-            "selected_answer": selected_answer,  # Include previous answer if exists
-            "description": step.description,
-            "mobius_can_handle": mobius_can_handle,
-            "mobius_mode": mobius_mode,
-            "mobius_action": mobius_action,
-            "sources": {},  # Would be populated by data hierarchy service
-        }
+        bottleneck = _step_to_bottleneck(step)
         bottlenecks.append(bottleneck)
     
     return bottlenecks
+
+
+def get_resolved_steps(
+    db: Session,
+    plan: Optional[ResolutionPlan]
+) -> List[Dict[str, Any]]:
+    """
+    Get resolved/completed steps for history display in More Info.
+    
+    These are steps marked as resolved by batch job or user confirmation.
+    """
+    if not plan:
+        return []
+    
+    # Get resolved and skipped steps
+    steps = db.query(PlanStep).filter(
+        PlanStep.plan_id == plan.plan_id,
+        PlanStep.status.in_([StepStatus.RESOLVED, StepStatus.SKIPPED])
+    ).order_by(PlanStep.step_order).all()
+    
+    resolved = []
+    for step in steps:
+        item = _step_to_bottleneck(step)
+        item["resolved_at"] = step.resolved_at.isoformat() if step.resolved_at else None
+        resolved.append(item)
+    
+    return resolved
+
+
+def _step_to_bottleneck(step: PlanStep) -> Dict[str, Any]:
+    """Convert a PlanStep to bottleneck dict format."""
+    # Map answer options
+    answer_options = []
+    if step.answer_options:
+        for opt in step.answer_options:
+            answer_options.append({
+                "id": opt.get("code", ""),
+                "label": opt.get("label", ""),
+                "description": opt.get("description"),
+            })
+    
+    # Get the most recent answer for this step (if any)
+    selected_answer = None
+    if step.answers and len(step.answers) > 0:
+        latest_answer = step.answers[0]  # Most recent due to ordering
+        selected_answer = latest_answer.answer_code
+    
+    # Determine Mobius capability
+    mobius_can_handle = step.can_system_answer
+    mobius_mode = "agentic" if step.can_system_answer else None
+    mobius_action = None
+    if step.system_suggestion:
+        mobius_action = step.system_suggestion.get("source", "System can assist")
+    
+    return {
+        "id": str(step.step_id),
+        "milestone_id": step.factor_type or "general",
+        "question_text": step.question_text,
+        "answer_options": answer_options,
+        "selected_answer": selected_answer,
+        "status": step.status,
+        "description": step.description,
+        "mobius_can_handle": mobius_can_handle,
+        "mobius_mode": mobius_mode,
+        "mobius_action": mobius_action,
+        "sources": {},
+    }
 
 
 # =============================================================================
@@ -410,6 +443,7 @@ def build_sidecar_state(
         ).first()
     
     bottlenecks = get_bottlenecks(db, plan, patient_name)
+    resolved_steps = get_resolved_steps(db, plan)
     
     # Get milestones
     milestones = []
@@ -438,6 +472,7 @@ def build_sidecar_state(
         "record": record,
         "care_readiness": care_readiness,
         "bottlenecks": bottlenecks,
+        "resolved_steps": resolved_steps,  # For "More info" section
         "milestones": milestones,
         "knowledge_context": knowledge_context,
         "alerts": alerts,

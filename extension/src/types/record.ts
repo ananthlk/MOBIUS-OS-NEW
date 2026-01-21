@@ -118,6 +118,7 @@ export interface Bottleneck {
   question_text: string;           // "Is insurance info on file?"
   answer_options: AnswerOption[];  // [{id: 'yes', label: 'Yes'}, ...]
   selected_answer?: string;        // Previously selected answer code (for persistence)
+  status?: string;                 // "pending" | "current" | "answered" | "resolved"
   
   // Context
   description?: string;            // Additional context
@@ -131,6 +132,13 @@ export interface Bottleneck {
   
   // Source tracking
   sources: BottleneckSources;
+}
+
+/**
+ * A resolved step shown in history/More Info
+ */
+export interface ResolvedStep extends Bottleneck {
+  resolved_at?: string;
 }
 
 // =============================================================================
@@ -335,8 +343,11 @@ export interface SidecarStateResponse {
   // Care readiness (for StatusBar)
   care_readiness: CareReadiness;
   
-  // Bottlenecks/questions (for BottleneckCard)
-  bottlenecks: Bottleneck[];       // Usually 1, max 3
+  // Bottlenecks/questions (for BottleneckCard) - unresolved steps
+  bottlenecks: Bottleneck[];       // pending, current, answered (not yet resolved)
+  
+  // Resolved steps (for More Info history)
+  resolved_steps: ResolvedStep[];  // resolved, skipped
   
   // Milestones (for ContextExpander)
   milestones: Milestone[];

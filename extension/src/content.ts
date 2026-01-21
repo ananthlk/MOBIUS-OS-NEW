@@ -2644,6 +2644,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       knowledgeContext: sidecarState.knowledge_context,
       privacyContext,
       resolutionPlan: miniState.resolutionPlan,
+      resolvedSteps: sidecarState.resolved_steps || [],
     });
     cardsContainer.appendChild(contextExpander);
   }
@@ -2717,6 +2718,7 @@ function createFallbackSidecarState(miniState: MiniState, recordContext: RecordC
       },
     },
     bottlenecks,
+    resolved_steps: [],  // No resolved steps in fallback
     milestones: [],
     knowledge_context: {
       payer: { name: '' },

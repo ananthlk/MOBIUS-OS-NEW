@@ -220,35 +220,17 @@ def submit_answer():
             )
             db.add(answer)
             
-            # Update step status
-            step.status = StepStatus.COMPLETED
-            step.completed_at = datetime.utcnow()
+            # Update step status to ANSWERED (not resolved - batch job determines resolution)
+            # Answering a question doesn't resolve the issue - e.g., "No insurance card" is an answer but not a resolution
+            step.status = StepStatus.ANSWERED
+            step.answered_at = datetime.utcnow()
             
-            # Find next step in plan and make it current
-            plan = db.query(ResolutionPlan).filter(
-                ResolutionPlan.plan_id == step.plan_id
-            ).first()
-            
-            if plan:
-                next_step = db.query(PlanStep).filter(
-                    PlanStep.plan_id == plan.plan_id,
-                    PlanStep.status == StepStatus.PENDING
-                ).order_by(PlanStep.step_order).first()
-                
-                if next_step:
-                    next_step.status = StepStatus.CURRENT
-                    plan.current_step_id = next_step.step_id
-                else:
-                    # No more steps - check if plan is complete
-                    pending_count = db.query(PlanStep).filter(
-                        PlanStep.plan_id == plan.plan_id,
-                        PlanStep.status.in_([StepStatus.PENDING, StepStatus.CURRENT])
-                    ).count()
-                    
-                    if pending_count == 0:
-                        plan.status = "resolved"
-                        plan.resolved_at = datetime.utcnow()
-                        plan.resolved_by = g.user_id
+            # Note: We do NOT auto-advance to next step or mark plan as complete
+            # The batch job will:
+            # 1. Evaluate if the answer resolves the issue
+            # 2. Mark step as RESOLVED if appropriate
+            # 3. Advance to next step if needed
+            # 4. Update plan status
             
             db.commit()
             

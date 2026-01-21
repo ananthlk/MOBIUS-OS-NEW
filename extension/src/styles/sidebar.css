@@ -2746,6 +2746,51 @@
   margin-bottom: 4px;
 }
 
+/* Resolved Steps Section */
+.sidecar-resolved-section {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-resolved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidecar-resolved-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 9px;
+  color: rgba(91, 102, 122, 0.8);
+}
+
+.sidecar-resolved-check {
+  color: #22c55e;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.sidecar-resolved-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidecar-resolved-answer {
+  font-size: 8px;
+  color: rgba(91, 102, 122, 0.6);
+  background: rgba(11, 18, 32, 0.04);
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
 /* Resolution Plan Section */
 .sidecar-plan-section {
   margin-bottom: 10px;

@@ -8,7 +8,7 @@
  * - Payer info from knowledge context
  */
 
-import type { Milestone, KnowledgeContext, PrivacyContext } from '../../types/record';
+import type { Milestone, KnowledgeContext, PrivacyContext, ResolvedStep } from '../../types/record';
 import type { ResolutionPlan } from '../../types';
 import { formatLabel, getPossessive } from '../../services/personalization';
 import { getRelativeTime } from '../../services/dataHierarchy';
@@ -18,6 +18,7 @@ export interface ContextExpanderProps {
   knowledgeContext: KnowledgeContext;
   privacyContext: PrivacyContext;
   resolutionPlan?: ResolutionPlan | null;
+  resolvedSteps?: ResolvedStep[];
   defaultExpanded?: boolean;
 }
 
@@ -25,7 +26,7 @@ export interface ContextExpanderProps {
  * Create the ContextExpander element
  */
 export function ContextExpander(props: ContextExpanderProps): HTMLElement {
-  const { milestones, knowledgeContext, privacyContext, resolutionPlan, defaultExpanded = false } = props;
+  const { milestones, knowledgeContext, privacyContext, resolutionPlan, resolvedSteps = [], defaultExpanded = false } = props;
   
   const container = document.createElement('div');
   container.className = 'sidecar-context-expander';
@@ -51,6 +52,12 @@ export function ContextExpander(props: ContextExpanderProps): HTMLElement {
     if (arrow) arrow.textContent = isExpanded ? '▸' : '▾';
   });
   
+  // Resolved Steps section (completed tasks history)
+  if (resolvedSteps && resolvedSteps.length > 0) {
+    const resolvedSection = createResolvedStepsSection(resolvedSteps);
+    content.appendChild(resolvedSection);
+  }
+  
   // Resolution Plan section (if available)
   if (resolutionPlan && resolutionPlan.status !== 'resolved') {
     const planSection = createResolutionPlanSection(resolutionPlan, privacyContext);
@@ -71,6 +78,45 @@ export function ContextExpander(props: ContextExpanderProps): HTMLElement {
   container.appendChild(content);
   
   return container;
+}
+
+/**
+ * Create the resolved steps section showing completed tasks
+ */
+function createResolvedStepsSection(resolvedSteps: ResolvedStep[]): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'sidecar-resolved-section';
+  
+  const title = document.createElement('div');
+  title.className = 'sidecar-section-title';
+  title.textContent = `Completed (${resolvedSteps.length})`;
+  section.appendChild(title);
+  
+  const list = document.createElement('div');
+  list.className = 'sidecar-resolved-list';
+  
+  for (const step of resolvedSteps) {
+    const item = document.createElement('div');
+    item.className = 'sidecar-resolved-item';
+    
+    // Find the selected answer label
+    let answerLabel = step.selected_answer || '';
+    if (step.answer_options && step.selected_answer) {
+      const option = step.answer_options.find(o => o.id === step.selected_answer);
+      if (option) answerLabel = option.label;
+    }
+    
+    item.innerHTML = `
+      <span class="sidecar-resolved-check">✓</span>
+      <span class="sidecar-resolved-text">${step.question_text}</span>
+      ${answerLabel ? `<span class="sidecar-resolved-answer">${answerLabel}</span>` : ''}
+    `;
+    
+    list.appendChild(item);
+  }
+  
+  section.appendChild(list);
+  return section;
 }
 
 /**

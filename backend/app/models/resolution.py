@@ -38,10 +38,13 @@ class PlanStatus:
 
 class StepStatus:
     """Plan step status values."""
-    PENDING = "pending"
-    CURRENT = "current"
-    COMPLETED = "completed"
-    SKIPPED = "skipped"
+    PENDING = "pending"       # Not yet addressed
+    CURRENT = "current"       # Currently being worked on
+    ANSWERED = "answered"     # User provided an answer, but not resolved
+    RESOLVED = "resolved"     # Batch job or user confirmed resolution
+    SKIPPED = "skipped"       # Intentionally skipped
+    # Legacy - keep for backward compatibility
+    COMPLETED = "resolved"    # Alias for resolved
 
 
 class StepType:
@@ -242,7 +245,9 @@ class PlanStep(Base):
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    completed_at = Column(DateTime, nullable=True)
+    answered_at = Column(DateTime, nullable=True)   # When user provided answer
+    resolved_at = Column(DateTime, nullable=True)   # When batch/user confirmed resolution
+    completed_at = Column(DateTime, nullable=True)  # Legacy - alias for resolved_at
     
     # Relationships
     plan = relationship("ResolutionPlan", back_populates="steps")
