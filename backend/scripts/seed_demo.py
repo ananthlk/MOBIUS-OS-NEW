@@ -644,14 +644,30 @@ def seed_resolution_plans(session, patients, users, tenant_id):
         # Add steps if active
         if status == "active" and gap_type:
             steps = get_steps_for_gap_type(gap_type)
+            scenario_name = scenario["scenario"]
+            
             for i, step_data in enumerate(steps):
+                # First step's question should match the problem_statement for Mini/Sidecar consistency
+                # This ensures what Mini shows matches what Sidecar shows as the first bottleneck
+                if i == 0:
+                    # Generate problem statement matching PaymentProbability logic
+                    action_map = {
+                        "eligibility": "Verify eligibility",
+                        "coverage": "Check coverage",
+                        "attendance": "Confirm attendance",
+                    }
+                    action = action_map.get(step_data["factor_type"], "Review")
+                    question_text = f"{action} - {scenario_name}"
+                else:
+                    question_text = step_data["question_text"]
+                
                 step = PlanStep(
                     plan_id=plan.plan_id,
                     step_order=i + 1,
                     step_code=step_data["step_code"],
                     step_type=step_data["step_type"],
                     input_type=step_data["input_type"],
-                    question_text=step_data["question_text"],
+                    question_text=question_text,
                     factor_type=step_data["factor_type"],
                     answer_options=step_data["answer_options"],
                     assignable_activities=step_data["assignable_activities"],
@@ -666,14 +682,28 @@ def seed_resolution_plans(session, patients, users, tenant_id):
         elif status == "resolved" and gap_type:
             # Add completed steps for resolved plans
             steps = get_steps_for_gap_type(gap_type)
+            scenario_name = scenario["scenario"]
+            
             for i, step_data in enumerate(steps):
+                # First step's question should match the problem_statement for consistency
+                if i == 0:
+                    action_map = {
+                        "eligibility": "Verify eligibility",
+                        "coverage": "Check coverage",
+                        "attendance": "Confirm attendance",
+                    }
+                    action = action_map.get(step_data["factor_type"], "Review")
+                    question_text = f"{action} - {scenario_name}"
+                else:
+                    question_text = step_data["question_text"]
+                
                 step = PlanStep(
                     plan_id=plan.plan_id,
                     step_order=i + 1,
                     step_code=step_data["step_code"],
                     step_type=step_data["step_type"],
                     input_type=step_data["input_type"],
-                    question_text=step_data["question_text"],
+                    question_text=question_text,
                     factor_type=step_data["factor_type"],
                     answer_options=step_data["answer_options"],
                     assignable_activities=step_data["assignable_activities"],
