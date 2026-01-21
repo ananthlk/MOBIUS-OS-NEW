@@ -117,6 +117,7 @@ export interface Bottleneck {
   // Question (consistent with Mini)
   question_text: string;           // "Is insurance info on file?"
   answer_options: AnswerOption[];  // [{id: 'yes', label: 'Yes'}, ...]
+  selected_answer?: string;        // Previously selected answer code (for persistence)
   
   // Context
   description?: string;            // Additional context

@@ -131,6 +131,10 @@ function createBottleneckItem(
     const btn = createAnswerButton(option, () => {
       onAnswer(bottleneck.id, option.id);
     });
+    // Pre-select if this was the previously selected answer
+    if (bottleneck.selected_answer && option.id === bottleneck.selected_answer) {
+      btn.classList.add('sidecar-answer-btn--selected');
+    }
     answersRow.appendChild(btn);
   }
   

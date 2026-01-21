@@ -114,6 +114,7 @@ def get_bottlenecks(
     
     Bottlenecks are steps with status='current' or 'pending' that need attention.
     Returns up to 3 bottlenecks.
+    Includes selected_answer if user has already answered.
     """
     if not plan:
         return []
@@ -136,6 +137,13 @@ def get_bottlenecks(
                     "description": opt.get("description"),
                 })
         
+        # Get the most recent answer for this step (if any)
+        # The answers relationship is ordered by created_at desc
+        selected_answer = None
+        if step.answers and len(step.answers) > 0:
+            latest_answer = step.answers[0]  # Most recent due to ordering
+            selected_answer = latest_answer.answer_code
+        
         # Determine Mobius capability
         mobius_can_handle = step.can_system_answer
         mobius_mode = "agentic" if step.can_system_answer else None
@@ -148,6 +156,7 @@ def get_bottlenecks(
             "milestone_id": step.factor_type or "general",
             "question_text": step.question_text,
             "answer_options": answer_options,
+            "selected_answer": selected_answer,  # Include previous answer if exists
             "description": step.description,
             "mobius_can_handle": mobius_can_handle,
             "mobius_mode": mobius_mode,
