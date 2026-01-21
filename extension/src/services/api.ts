@@ -18,7 +18,9 @@ import {
 } from '../types';
 import { getAuthService } from './auth';
 
-const API_BASE_URL = 'http://localhost:5001/api/v1';
+import { API_V1_URL } from '../config';
+
+const API_BASE_URL = API_V1_URL;
 
 // =============================================================================
 // Authenticated Fetch Helper

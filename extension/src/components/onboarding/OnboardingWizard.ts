@@ -9,7 +9,9 @@
 
 import { getAuthService } from '../../services/auth';
 
-const API_BASE = 'http://localhost:5001/api/v1';
+import { API_V1_URL } from '../../config';
+
+const API_BASE = API_V1_URL;
 
 export interface Activity {
   activity_code: string;

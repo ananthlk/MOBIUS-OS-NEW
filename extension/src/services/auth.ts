@@ -10,7 +10,9 @@
 
 import { AuthTokens, UserProfile, AuthState } from '../types';
 
-const API_BASE = 'http://localhost:5001/api/v1';
+import { API_V1_URL } from '../config';
+
+const API_BASE = API_V1_URL;
 
 const STORAGE_KEYS = {
   accessToken: 'mobius.auth.accessToken',

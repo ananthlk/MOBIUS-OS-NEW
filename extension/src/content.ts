@@ -4,6 +4,7 @@
  */
 
 import './styles/sidebar.css';
+import { API_BASE_URL } from './config';
 import { getOrCreateSessionId } from './utils/session';
 import { fetchMiniStatus, searchMiniPatients, sendChatMessage, submitMiniNote, submitAttentionStatus, reportIssue, AttentionStatus, resolvePatientContext, fetchDetectionConfig } from './services/api';
 import { getUiDefaultsForMode } from './utils/uiDefaults';
@@ -1827,7 +1828,7 @@ async function renderMiniIfAllowed(): Promise<void> {
   // Account Creation & Onboarding Flow (scoped to have access to lockedOverlay)
   // =========================================================================
   
-  const API_BASE_AUTH = 'http://localhost:5001';
+  const API_BASE_AUTH = API_BASE_URL;
   
   // Fetch available activities from backend
   const fetchActivities = async (): Promise<Array<{activity_code: string; label: string; description?: string}>> => {
