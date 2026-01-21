@@ -373,7 +373,14 @@ def build_sidecar_state(
     This is the main entry point for GET /api/v1/sidecar/state
     """
     patient_context_id = patient_context.patient_context_id if patient_context else None
-    patient_name = patient_context.display_name if patient_context else "Patient"
+    
+    # Get patient name from the latest snapshot
+    patient_name = "Patient"
+    if patient_context and patient_context.snapshots:
+        # Get the latest snapshot (highest version)
+        latest_snapshot = max(patient_context.snapshots, key=lambda s: s.snapshot_version)
+        patient_name = latest_snapshot.display_name or "Patient"
+    
     patient_key = None
     
     # Build record context
