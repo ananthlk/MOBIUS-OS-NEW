@@ -36,6 +36,13 @@ from .resolution import (
     PlanNote,
     PlanModification,
 )
+from .sidecar import (
+    UserAlert,
+    UserOwnedTask,
+    Milestone,
+    MilestoneHistory,
+    MilestoneSubstep,
+)
 
 __all__ = [
     # Tenant/user
@@ -115,4 +122,10 @@ __all__ = [
     "StepAnswer",
     "PlanNote",
     "PlanModification",
+    # Sidecar
+    "UserAlert",
+    "UserOwnedTask",
+    "Milestone",
+    "MilestoneHistory",
+    "MilestoneSubstep",
 ]

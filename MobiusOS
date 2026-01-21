@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Mobius OS - Wake Up Script
+# Usage: MobiusOS
+
+MOBIUS_DIR="/Users/ananth/Mobius OS"
+
+echo "🌀 Awakening Mobius OS..."
+
+# 1. Kill existing processes on port 5001 (Backend)
+echo "   [1/3] Clearing neural pathways (Port 5001)..."
+lsof -ti:5001 | xargs kill -9 2>/dev/null || true
+
+# 2. Ensure Database is running
+echo "   [2/3] Checking emotional memory (PostgreSQL)..."
+brew services start postgresql@14 >/dev/null 2>&1
+
+# 3. Start Flask Backend
+echo "   [3/3] Ignition: Flask Backend..."
+cd "$MOBIUS_DIR/backend"
+
+# Activate virtual environment if it exists
+if [ -d "venv" ]; then
+    source venv/bin/activate
+elif [ -d "../venv" ]; then
+    source ../venv/bin/activate
+elif [ -d "$MOBIUS_DIR/venv" ]; then
+    source "$MOBIUS_DIR/venv/bin/activate"
+fi
+
+export PYTHONPATH="$MOBIUS_DIR/backend"
+nohup python server.py > "$MOBIUS_DIR/backend.log" 2>&1 &
+BACKEND_PID=$!
+echo "         (PID: $BACKEND_PID)"
+
+# Wait a moment for server to start
+sleep 2
+
+echo "✨ Mobius is Online."
+echo ""
+echo "   -> Backend:   http://localhost:5001"
+echo "   -> Mock EMR:  http://localhost:5001/mock-emr"
+echo "   -> Mock CRM:  http://localhost:5001/mock-crm"
+echo "   -> Health:    http://localhost:5001/health"
+echo ""
+echo "   -> Logs:      tail -f \"$MOBIUS_DIR/backend.log\""
+
+# Open Mock EMR in browser
+open "http://localhost:5001/mock-emr"

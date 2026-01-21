@@ -1,9 +1,20 @@
 """
-Sidecar surface endpoints for Mobius OS.
+Sidecar surface endpoints for Mobius OS (Legacy).
 
 Provides expanded context, history, and inbox for the full sidebar view.
 Delegates to PatientDataAgent for data and DecisionOrchestrator for decisions.
 Persists System Responses and handles acknowledgements via services.
+
+NOTE: The new Sidecar UI uses endpoints from app/api/sidecar.py:
+- GET /api/v1/sidecar/state (new bottleneck-focused state)
+- GET /api/v1/user/alerts (cross-patient alerts)
+- POST /api/v1/sidecar/answer
+- POST /api/v1/sidecar/note
+- POST /api/v1/sidecar/assign
+- POST /api/v1/sidecar/assign-bulk
+- POST /api/v1/sidecar/own
+
+These legacy endpoints are kept for backwards compatibility.
 """
 
 import uuid

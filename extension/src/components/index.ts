@@ -42,3 +42,11 @@ export { WorkflowButtons } from './actions/WorkflowButtons';
 // Footer components
 export { UserDetails } from './footer/UserDetails';
 export { PreferencesPanel } from './footer/PreferencesPanel';
+
+// Sidecar components
+export { StatusBar, updateStatusBar } from './sidecar/StatusBar';
+export { BottleneckCard, AllClearCard } from './sidecar/BottleneckCard';
+export { ContextExpander } from './sidecar/ContextExpander';
+export { QuickChat, setQuickChatLoading, showQuickChatResponse, clearQuickChatResponse } from './sidecar/QuickChat';
+export { SidecarMenu, CollapseButton } from './sidecar/SidecarMenu';
+export { AlertIndicator, updateAlertIndicator, NotificationDot } from './sidecar/AlertIndicator';

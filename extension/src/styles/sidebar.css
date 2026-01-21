@@ -12,12 +12,15 @@
 #mobius-os-sidebar {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Google Sans', sans-serif;
   background: #ffffff;
-  color: #202124;
+  color: #0b1220;
+  font-size: 12px;
+  font-weight: 500;
 }
 
-/* Subtle, modern look */
+/* Subtle, modern look - matching Mini */
 #mobius-os-sidebar {
-  border-left: 1px solid rgba(60, 64, 67, 0.15);
+  border-left: 1px solid rgba(11, 18, 32, 0.12);
+  box-shadow: -4px 0 24px rgba(2, 6, 23, 0.08);
 }
 
 #mobius-os-sidebar button,
@@ -46,8 +49,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
-  padding-top: 10px;
+  gap: 8px;
+  padding-top: 8px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(60, 64, 67, 0.12);
   background: white;
@@ -351,11 +354,11 @@
 #mobius-os-sidebar .chat-area {
   flex: 1;
   overflow-y: auto;
-  padding: 14px;
-  background: white;
+  padding: 10px 12px;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   justify-content: flex-end;
   min-height: 0;
   flex-shrink: 1;
@@ -363,22 +366,22 @@
 
 #mobius-os-sidebar .message {
   max-width: 75%;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #0b1220;
 }
 
 #mobius-os-sidebar .system-message {
   /* Stretch to full width to avoid shrink-to-fit issues with inline-block bubble max-width. */
   align-self: stretch;
   width: 100%;
-  /* Gemini-like: keep the container lightweight; style the text as the bubble */
   background: transparent;
   border: none;
   padding: 0;
   max-width: 100%;
-  color: #202124;
+  color: #0b1220;
 }
 
 #mobius-os-sidebar .message-content {
@@ -390,14 +393,14 @@
 #mobius-os-sidebar .system-message .message-content {
   margin-top: 4px;
   display: inline-block;
-  background: rgba(60, 64, 67, 0.06);
-  border: 1px solid rgba(60, 64, 67, 0.10);
+  background: rgba(11, 18, 32, 0.03);
+  border: 1px solid rgba(11, 18, 32, 0.10);
   padding: 7px 10px;
-  border-radius: 12px;
+  border-radius: 10px;
   max-width: 92%;
 }
 
-/* Make tools unobtrusive (Gemini-style) */
+/* Make tools unobtrusive (Mini-style) */
 #mobius-os-sidebar .system-message .message-header {
   margin-bottom: 2px;
 }
@@ -405,10 +408,11 @@
 #mobius-os-sidebar .system-message .message-tools-btn {
   width: 22px;
   height: 22px;
-  border: none;
-  background: transparent;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  border-radius: 6px;
   opacity: 0.0;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.12s ease, background 0.15s ease;
 }
 
 #mobius-os-sidebar .system-message:hover .message-tools-btn {
@@ -417,12 +421,12 @@
 
 #mobius-os-sidebar .system-message .message-tools-btn:hover {
   opacity: 1;
-  background: rgba(60, 64, 67, 0.06);
+  background: rgba(11, 18, 32, 0.06);
 }
 
 #mobius-os-sidebar .user-message {
   align-self: flex-end;
-  background: #1a73e8;
+  background: #2563eb;
   color: white;
 }
 
@@ -432,7 +436,7 @@
   padding: 0;
   border: none;
   background: transparent;
-  color: #5f6368;
+  color: rgba(91, 102, 122, 0.7);
   font-size: 11px;
 }
 
@@ -463,16 +467,16 @@
 #mobius-os-sidebar .thinking-body {
   margin-top: 4px;
   padding-left: 10px;
-  border-left: 2px solid rgba(60, 64, 67, 0.12);
+  border-left: 2px solid rgba(11, 18, 32, 0.12);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 /* Chat Input */
 #mobius-os-sidebar .chat-input-area {
-  padding-top: 10px;
-  padding-bottom: 10px;
-  border-top: 1px solid rgba(60, 64, 67, 0.12);
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-top: 1px solid rgba(11, 18, 32, 0.08);
   background: white;
   display: flex;
   align-items: center;
@@ -486,9 +490,9 @@
   width: 100%;
   min-width: 0;
   padding: 8px 12px;
-  border: 1px solid rgba(60, 64, 67, 0.18);
-  border-radius: 12px;
-  font-size: 13px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 10px;
+  font-size: 11px;
   outline: none;
   background: #fff;
   resize: none;
@@ -496,10 +500,15 @@
   line-height: 1.4;
   -webkit-appearance: none;
   appearance: none;
+  color: #0b1220;
+}
+
+#mobius-os-sidebar .chat-input::placeholder {
+  color: rgba(91, 102, 122, 0.7);
 }
 
 #mobius-os-sidebar .chat-input:focus {
-  border-color: #1a73e8;
+  border-color: #2563eb;
 }
 
 /* Message-level tools (system messages) */
@@ -514,11 +523,11 @@
 }
 
 #mobius-os-sidebar .message-tools-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid rgba(60, 64, 67, 0.18);
-  background: white;
-  border-radius: 8px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -527,7 +536,7 @@
 }
 
 #mobius-os-sidebar .message-tools-btn:hover {
-  background: rgba(60, 64, 67, 0.06);
+  background: rgba(11, 18, 32, 0.06);
 }
 
 #mobius-os-sidebar .message-tools-dropdown {
@@ -535,10 +544,10 @@
   top: 100%;
   right: 0;
   margin-top: 6px;
-  background: white;
-  border: 1px solid rgba(60, 64, 67, 0.18);
-  border-radius: 10px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+  background: #fff;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.18);
   display: none;
   flex-direction: column;
   min-width: 140px;
@@ -555,10 +564,12 @@
   background: white;
   text-align: left;
   font-size: 12px;
+  font-weight: 600;
+  color: #0b1220;
 }
 
 #mobius-os-sidebar .message-tools-item:hover {
-  background: rgba(60, 64, 67, 0.06);
+  background: rgba(11, 18, 32, 0.04);
 }
 
 /* Chat tools (make compact, not stacked) */
@@ -569,11 +580,11 @@
 }
 
 #mobius-os-sidebar .chat-tool-btn {
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(60, 64, 67, 0.18);
-  background: white;
-  border-radius: 8px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  border-radius: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2092,5 +2103,1924 @@
   font-weight: 600;
   z-index: 2147483647;
   box-shadow: 0 14px 28px rgba(2,6,23,0.22);
+}
+
+/* =============================================================================
+   SIDECAR COMPONENTS
+   Minimalist, bottleneck-focused design
+   ============================================================================= */
+
+/* Status Bar - Modern minimal design */
+.sidecar-status-bar {
+  padding: 6px 12px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidecar-status-bar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidecar-status-bar-title {
+  font-size: 7px;
+  font-weight: 600;
+  color: rgba(91, 102, 122, 0.95);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sidecar-status-bar-context {
+  font-size: 8px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.8);
+  white-space: nowrap;
+}
+
+.sidecar-status-bar-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidecar-status-bar-track-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidecar-status-bar-track {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  /* Mono grey gradient - subtle, modern */
+  background: linear-gradient(90deg, 
+    rgba(11, 18, 32, 0.08) 0%, 
+    rgba(11, 18, 32, 0.12) 50%,
+    rgba(11, 18, 32, 0.06) 100%
+  );
+}
+
+/* Progress fill - darker grey to show completion */
+.sidecar-status-bar-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(11, 18, 32, 0.35);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Current position marker */
+.sidecar-status-bar-marker {
+  position: absolute;
+  top: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  background: #0b1220;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.2);
+  z-index: 2;
+}
+
+/* Percentage label */
+.sidecar-status-bar-percent {
+  font-size: 9px;
+  font-weight: 600;
+  color: #0b1220;
+  white-space: nowrap;
+}
+
+/* Bottleneck Card - Core UI */
+/* Mobius Greeting */
+.sidecar-greeting {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-greeting-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #0b1220;
+}
+
+.sidecar-greeting-subtext {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.6);
+}
+
+.sidecar-bottleneck-card {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidecar-bottleneck-card--clear {
+  padding: 6px 0;
+}
+
+.sidecar-bottleneck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+}
+
+.sidecar-bottleneck-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: #0b1220;
+}
+
+.sidecar-bottleneck-hint {
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.6);
+}
+
+.sidecar-bottleneck-item {
+  background: #ffffff;
+  border: 1px solid rgba(11, 18, 32, 0.08);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  box-shadow: none;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidecar-bottleneck-question-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.sidecar-bottleneck-question-row::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  min-width: 4px;
+  background: #3b82f6;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.sidecar-bottleneck-checkbox {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  margin-top: 1px;
+}
+
+.sidecar-bottleneck-question {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 500;
+  color: #0b1220;
+  line-height: 1.25;
+}
+
+.sidecar-source-badge {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.sidecar-conflict-badge {
+  font-size: 12px;
+}
+
+.sidecar-bottleneck-answers {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding: 4px 0;
+  align-items: center;
+  border-top: 1px solid rgba(11, 18, 32, 0.04);
+}
+
+#mobius-os-sidebar .sidecar-bottleneck-answers button.sidecar-answer-btn,
+.sidecar-answer-btn {
+  /* Reset all button defaults with high specificity */
+  all: unset !important;
+  box-sizing: border-box !important;
+  /* Apply our styles - pill buttons with grey background */
+  display: inline-block !important;
+  padding: 3px 8px !important;
+  margin: 0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 9px !important;
+  font-weight: 400 !important;
+  background: rgba(11, 18, 32, 0.06) !important;
+  background-color: rgba(11, 18, 32, 0.06) !important;
+  border: 1px solid rgba(11, 18, 32, 0.08) !important;
+  border-radius: 4px !important;
+  color: rgba(91, 102, 122, 0.85) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  text-decoration: none !important;
+  line-height: 1.3 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+#mobius-os-sidebar .sidecar-bottleneck-answers button.sidecar-answer-btn:hover,
+.sidecar-answer-btn:hover {
+  background: rgba(11, 18, 32, 0.1) !important;
+  background-color: rgba(11, 18, 32, 0.1) !important;
+  border-color: rgba(11, 18, 32, 0.15) !important;
+  color: #0b1220 !important;
+}
+
+#mobius-os-sidebar .sidecar-bottleneck-answers button.sidecar-answer-btn.sidecar-answer-btn--selected,
+#mobius-os-sidebar button.sidecar-answer-btn.sidecar-answer-btn--selected,
+.sidecar-bottleneck-answers .sidecar-answer-btn.sidecar-answer-btn--selected,
+.sidecar-answer-btn.sidecar-answer-btn--selected,
+.sidecar-answer-btn--selected {
+  background: rgba(37, 99, 235, 0.15) !important;
+  background-color: rgba(37, 99, 235, 0.15) !important;
+  border: 1px solid rgba(37, 99, 235, 0.35) !important;
+  border-color: rgba(37, 99, 235, 0.35) !important;
+  color: #2563eb !important;
+  font-weight: 500 !important;
+}
+
+/* Assignment Dropdown - compact, near question */
+.sidecar-assign-dropdown {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.sidecar-assign-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(37, 99, 235, 0.9);
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidecar-assign-btn:hover {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.sidecar-assign-btn--assigned {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: rgba(34, 197, 94, 0.9);
+}
+
+.sidecar-assign-label {
+  font-size: 9px;
+}
+
+.sidecar-assign-arrow {
+  font-size: 8px;
+  opacity: 0.6;
+}
+
+.sidecar-assign-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 140px;
+  background: #ffffff;
+  border: 1px solid rgba(11, 18, 32, 0.10);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(2, 6, 23, 0.10);
+  z-index: 100;
+  overflow: hidden;
+  padding: 4px 0;
+}
+
+.sidecar-assign-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 9px;
+  font-weight: 400;
+  color: #0b1220;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidecar-assign-option:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.sidecar-assign-option-text {
+  font-size: 10px;
+  font-weight: 400;
+  color: #0b1220;
+}
+
+.sidecar-assign-option-hint {
+  font-size: 8px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.6);
+}
+
+.sidecar-assign-divider {
+  height: 1px;
+  background: rgba(11, 18, 32, 0.08);
+  margin: 4px 0;
+}
+
+/* Legacy delegate row - hidden but kept for compatibility */
+.sidecar-bottleneck-delegate {
+  display: none;
+}
+
+.sidecar-bottleneck-separator {
+  font-size: 9px;
+  color: rgba(91, 102, 122, 0.7);
+  text-align: center;
+}
+
+.sidecar-mode-btn {
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  color: #0b1220;
+}
+
+.sidecar-mode-btn--mobius {
+  background: rgba(11, 18, 32, 0.03);
+}
+
+.sidecar-mode-btn--mobius:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-mode-btn--user {
+  background: rgba(11, 18, 32, 0.03);
+}
+
+.sidecar-mode-btn--user:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-mode-btn--selected {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.35);
+  color: #2563eb;
+}
+
+/* Mobius tip - encourages user adoption */
+.sidecar-bottleneck-mobius-tip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 3px 6px;
+  font-size: 8px;
+  font-weight: 400;
+  color: rgba(37, 99, 235, 0.75);
+  background: rgba(37, 99, 235, 0.04);
+  border-radius: 4px;
+}
+
+.sidecar-bottleneck-mobius-tip:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
+.sidecar-mobius-tip-icon {
+  font-size: 9px;
+}
+
+.sidecar-bottleneck-mobius-tip--assigned {
+  color: rgba(34, 197, 94, 0.85);
+  background: rgba(34, 197, 94, 0.06);
+  cursor: default;
+}
+
+.sidecar-bottleneck-mobius-tip--assigned:hover {
+  background: rgba(34, 197, 94, 0.06);
+  color: rgba(34, 197, 94, 0.85);
+}
+
+/* Inline note row - matches Mini note styling */
+.sidecar-bottleneck-note-row {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-bottleneck-note-wrap {
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sidecar-bottleneck-note-input {
+  width: 100%;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: #fff;
+  padding: 0 26px 0 6px;
+  font-size: 9px;
+  font-weight: 400;
+  color: #0b1220;
+  outline: none;
+}
+
+.sidecar-bottleneck-note-input::placeholder {
+  color: rgba(91, 102, 122, 0.75);
+  font-weight: 500;
+}
+
+.sidecar-bottleneck-note-input:focus {
+  border-color: rgba(37, 99, 235, 0.55);
+}
+
+.sidecar-bottleneck-note-send {
+  position: absolute;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.sidecar-bottleneck-note-send:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-bottleneck-note-send svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  fill: rgba(11, 18, 32, 0.85);
+}
+
+/* Inline button (Edit, small actions) */
+.sidecar-inline-btn {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 600;
+  color: #0b1220;
+}
+
+.sidecar-inline-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+/* Icon-only button (pencil edit, etc) - matches Mini */
+.sidecar-icon-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.sidecar-icon-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-icon-btn svg {
+  width: 12px;
+  height: 12px;
+  fill: rgba(11, 18, 32, 0.80);
+}
+
+.sidecar-bottleneck-bulk {
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.sidecar-bottleneck-bulk-btn {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(11, 18, 32, 0.03);
+  color: #0b1220;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidecar-bottleneck-bulk-btn:hover:not(:disabled) {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-bottleneck-bulk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sidecar-bottleneck-clear {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 10px;
+}
+
+.sidecar-bottleneck-clear-icon {
+  width: 24px;
+  height: 24px;
+  background: #22c55e;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.sidecar-bottleneck-clear-text {
+  font-size: 11px;
+  color: #166534;
+  font-weight: 500;
+}
+
+/* Context Expander */
+/* Context Expander - matches Mini row styling */
+.sidecar-context-expander {
+  border-top: 1px solid rgba(11, 18, 32, 0.08);
+  margin-top: 8px;
+}
+
+.sidecar-context-expander-toggle {
+  width: 100%;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.95);
+  transition: background 0.15s ease;
+}
+
+.sidecar-context-expander-toggle:hover {
+  background: rgba(11, 18, 32, 0.02);
+}
+
+.sidecar-context-expander-arrow {
+  font-size: 8px;
+  color: rgba(91, 102, 122, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.sidecar-context-expander-toggle[aria-expanded="true"] .sidecar-context-expander-arrow {
+  transform: none;
+}
+
+.sidecar-context-expander-label {
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.7);
+}
+
+.sidecar-context-expander-content {
+  padding: 0 0 8px;
+}
+
+.sidecar-section-title {
+  font-size: 7px;
+  font-weight: 500;
+  color: rgba(91, 102, 122, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+/* Resolution Plan Section */
+.sidecar-plan-section {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-plan-summary {
+  margin-bottom: 6px;
+}
+
+.sidecar-plan-factors {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidecar-plan-factor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+}
+
+.sidecar-plan-factor-label {
+  flex: 1;
+  color: rgba(91, 102, 122, 0.85);
+  font-weight: 400;
+}
+
+.sidecar-plan-factor-progress {
+  font-size: 8px;
+  color: rgba(91, 102, 122, 0.6);
+  font-weight: 400;
+}
+
+.sidecar-plan-factor-bar {
+  width: 40px;
+  height: 3px;
+  background: rgba(11, 18, 32, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sidecar-plan-factor-fill {
+  height: 100%;
+  background: rgba(11, 18, 32, 0.35);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.sidecar-plan-current {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 6px;
+  background: rgba(11, 18, 32, 0.03);
+  border-radius: 6px;
+  margin-top: 6px;
+}
+
+.sidecar-plan-current-label {
+  font-size: 8px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.6);
+  flex-shrink: 0;
+}
+
+.sidecar-plan-current-text {
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.85);
+  line-height: 1.3;
+}
+
+.sidecar-plan-actions {
+  font-size: 8px;
+  font-weight: 400;
+  color: rgba(37, 99, 235, 0.8);
+  margin-top: 4px;
+}
+
+/* Milestones - matches Mini compact styling */
+.sidecar-milestones-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidecar-milestone {
+  background: rgba(11, 18, 32, 0.02);
+  border: 1px solid rgba(11, 18, 32, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sidecar-milestone-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.sidecar-milestone-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.sidecar-milestone--complete .sidecar-milestone-icon {
+  color: #22c55e;
+}
+
+.sidecar-milestone--in_progress .sidecar-milestone-icon {
+  color: #f59e0b;
+}
+
+.sidecar-milestone--blocked .sidecar-milestone-icon {
+  color: #ef4444;
+}
+
+.sidecar-milestone--pending .sidecar-milestone-icon {
+  color: #9ca3af;
+}
+
+.sidecar-milestone-label {
+  flex: 1;
+  font-size: 13px;
+  color: #374151;
+}
+
+.sidecar-milestone-arrow {
+  font-size: 10px;
+  color: rgba(91, 102, 122, 0.7);
+}
+
+.sidecar-milestone-details {
+  padding: 8px 12px 12px 40px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Substeps */
+.sidecar-substeps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.sidecar-substep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.sidecar-substep-icon {
+  font-size: 8px;
+}
+
+.sidecar-substep--complete .sidecar-substep-icon {
+  color: #22c55e;
+}
+
+.sidecar-substep--current .sidecar-substep-icon {
+  color: #2563eb;
+}
+
+/* Timeline */
+.sidecar-timeline {
+  border-left: 2px solid #e5e7eb;
+  padding-left: 12px;
+}
+
+.sidecar-timeline-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.sidecar-timeline-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-bottom: 6px;
+  position: relative;
+}
+
+.sidecar-timeline-entry::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  width: 8px;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 50%;
+}
+
+.sidecar-timeline-actor {
+  font-weight: 500;
+  color: #374151;
+}
+
+.sidecar-timeline-actor--mobius {
+  color: #2563eb;
+}
+
+.sidecar-timeline-actor--user {
+  color: #059669;
+}
+
+.sidecar-timeline-action {
+  color: #6b7280;
+}
+
+.sidecar-timeline-time {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.sidecar-timeline-artifact {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 11px;
+}
+
+.sidecar-timeline-artifact:hover {
+  text-decoration: underline;
+}
+
+/* Payer Info */
+.sidecar-payer-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.sidecar-payer-info {
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.sidecar-payer-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.sidecar-payer-phone,
+.sidecar-payer-portal,
+.sidecar-payer-response-time {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.sidecar-payer-phone a,
+.sidecar-payer-portal a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.sidecar-payer-phone a:hover,
+.sidecar-payer-portal a:hover {
+  text-decoration: underline;
+}
+
+.sidecar-policy-excerpts {
+  margin-top: 12px;
+}
+
+.sidecar-excerpts-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.sidecar-policy-excerpt {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.sidecar-excerpt-topic {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.sidecar-excerpt-content {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.sidecar-excerpt-source {
+  font-size: 10px;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+/* Quick Chat */
+/* Quick Chat - matches Mini note input styling */
+.sidecar-quick-chat {
+  padding: 10px 10px;
+  border-top: 1px solid rgba(11, 18, 32, 0.08);
+  background: #ffffff;
+}
+
+.sidecar-quick-chat-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.sidecar-quick-chat-input {
+  flex: 1;
+  height: 28px;
+  padding: 0 32px 0 8px;
+  font-size: 9px;
+  font-weight: 400;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 6px;
+  outline: none;
+  color: #0b1220;
+  background: #fff;
+}
+
+.sidecar-quick-chat-input::placeholder {
+  color: rgba(91, 102, 122, 0.5);
+  font-weight: 400;
+}
+
+.sidecar-quick-chat-input:focus {
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.sidecar-quick-chat-input:disabled {
+  background: rgba(11, 18, 32, 0.02);
+}
+
+.sidecar-quick-chat-send {
+  position: absolute;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: grid;
+  place-items: center;
+}
+
+.sidecar-quick-chat-send:hover:not(:disabled) {
+  background: rgba(11, 18, 32, 0.04);
+}
+
+.sidecar-quick-chat-send:disabled {
+  cursor: not-allowed;
+}
+
+.sidecar-quick-chat-send svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  fill: rgba(91, 102, 122, 0.6);
+}
+
+.sidecar-quick-chat-send:hover:not(:disabled) svg {
+  fill: rgba(91, 102, 122, 0.9);
+}
+
+.sidecar-quick-chat-send:disabled svg {
+  fill: rgba(11, 18, 32, 0.2);
+}
+
+.sidecar-quick-chat-hint {
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.5);
+  margin-top: 6px;
+}
+
+.sidecar-quick-chat-response {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.sidecar-quick-chat-response-text {
+  font-size: 13px;
+  color: #1e3a5f;
+  line-height: 1.4;
+}
+
+.sidecar-quick-chat-response-source {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 6px;
+}
+
+.sidecar-quick-chat-response-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Sidecar Menu */
+/* Sidecar Menu - matches Mini menu styling */
+.sidecar-menu {
+  position: relative;
+}
+
+.sidecar-menu-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.sidecar-menu-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: rgba(11, 18, 32, 0.7);
+}
+
+.sidecar-menu-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+  z-index: 2147483647;
+  overflow: visible;
+  pointer-events: auto;
+  padding: 4px 0;
+}
+
+.sidecar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 400;
+  color: #0b1220;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.15s ease;
+  position: relative;
+}
+
+.sidecar-menu-item:hover {
+  background: rgba(11, 18, 32, 0.04);
+}
+
+.sidecar-menu-item.danger {
+  color: #b3261e;
+}
+
+.sidecar-menu-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidecar-menu-icon svg {
+  width: 14px;
+  height: 14px;
+  fill: rgba(11, 18, 32, 0.6);
+}
+
+.sidecar-menu-label {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.sidecar-menu-arrow {
+  font-size: 10px;
+  color: rgba(91, 102, 122, 0.6);
+  margin-left: auto;
+}
+
+.sidecar-menu-divider {
+  height: 1px;
+  background: rgba(11, 18, 32, 0.08);
+  margin: 4px 0;
+}
+
+/* Theme submenu - positioned to the left since sidecar is on right edge */
+.sidecar-menu-submenu {
+  position: absolute;
+  right: 100%;
+  left: auto;
+  top: 0;
+  margin-right: 4px;
+  min-width: 100px;
+  background: #fff;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(2, 6, 23, 0.1);
+  padding: 4px 0;
+  z-index: 2147483648;
+}
+
+.sidecar-menu-submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 400;
+  color: #0b1220;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.sidecar-menu-submenu-item:hover {
+  background: rgba(11, 18, 32, 0.04);
+}
+
+.sidecar-menu-theme-icon {
+  font-size: 8px;
+  color: rgba(91, 102, 122, 0.7);
+}
+
+.sidecar-menu-theme-label {
+  font-size: 10px;
+  font-weight: 400;
+}
+
+/* Toggle switch - matches Mini style */
+.sidecar-menu-toggle {
+  position: relative;
+  width: 32px;
+  height: 18px;
+}
+
+.sidecar-menu-toggle-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sidecar-menu-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 18, 32, 0.15);
+  border-radius: 9px;
+  transition: background 0.2s ease;
+}
+
+.sidecar-menu-toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.15);
+}
+
+.sidecar-menu-toggle-input:checked + .sidecar-menu-toggle-slider {
+  background: #2563eb;
+}
+
+.sidecar-menu-toggle-input:checked + .sidecar-menu-toggle-slider::before {
+  transform: translateX(14px);
+}
+
+/* Collapse button - matches Mini expand/minimize buttons */
+.sidecar-collapse-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.sidecar-collapse-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: rgba(11, 18, 32, 0.7);
+}
+
+.sidecar-collapse-btn:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+/* Alert Indicator */
+/* Alert Indicator - matches Mini button styling */
+.sidecar-alert-indicator {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(11, 18, 32, 0.12);
+  background: rgba(11, 18, 32, 0.03);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.sidecar-alert-indicator:hover {
+  background: rgba(11, 18, 32, 0.06);
+}
+
+.sidecar-alert-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidecar-alert-icon svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  fill: none;
+  stroke: rgba(11, 18, 32, 0.85);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sidecar-alert-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 14px;
+  height: 14px;
+  background: #2563eb;
+  color: white;
+  font-size: 9px;
+  font-weight: 600;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.sidecar-alert-badge--high {
+  background: #dc2626;
+}
+
+.sidecar-notification-dot {
+  width: 6px;
+  height: 6px;
+  background: #2563eb;
+  border-radius: 50%;
+}
+
+.sidecar-notification-dot--high {
+  background: #dc2626;
+}
+
+/* Privacy indicator - matches Mini style */
+.sidecar-privacy-indicator {
+  font-size: 11px;
+  color: rgba(91, 102, 122, 0.95);
+}
+
+/* ========================================
+   SIDECAR THEMES
+   ======================================== */
+
+/* Dark Theme */
+#mobius-os-sidebar.theme-dark {
+  background: #1a1f2e;
+  color: #e5e7eb;
+  border-left-color: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .top-row {
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-status-bar {
+  background: #1a1f2e;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-status-bar-context {
+  color: rgba(229, 231, 235, 0.8);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-status-bar-track {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.06) 0%, 
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-status-bar-progress {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-status-bar-marker {
+  background: #e5e7eb;
+  border-color: #1a1f2e;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-status-bar-percent {
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-item {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-question {
+  color: #e5e7eb;
+}
+
+/* Dark theme answer buttons moved to complete dark theme section below */
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-btn,
+#mobius-os-sidebar.theme-dark .sidecar-collapse-btn,
+#mobius-os-sidebar.theme-dark .sidecar-alert-indicator {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-btn svg,
+#mobius-os-sidebar.theme-dark .sidecar-collapse-btn svg,
+#mobius-os-sidebar.theme-dark .sidecar-alert-icon svg {
+  fill: rgba(229, 231, 235, 0.8);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-dropdown,
+#mobius-os-sidebar.theme-dark .sidecar-menu-submenu {
+  background: #252b3b;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-item {
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-icon svg {
+  fill: rgba(229, 231, 235, 0.6);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-quick-chat {
+  background: rgba(255, 255, 255, 0.02);
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-quick-chat-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-quick-chat-input::placeholder {
+  color: rgba(229, 231, 235, 0.5);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-quick-chat-send {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-quick-chat-send svg {
+  fill: rgba(229, 231, 235, 0.7);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-section-title {
+  color: rgba(229, 231, 235, 0.7);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-context-expander-toggle {
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-context-expander-toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Glass Theme */
+#mobius-os-sidebar.theme-glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left-color: rgba(255, 255, 255, 0.3);
+}
+
+#mobius-os-sidebar.theme-glass .top-row {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-status-bar {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-bottleneck-item {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 8px rgba(2, 6, 23, 0.06);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-menu-btn,
+#mobius-os-sidebar.theme-glass .sidecar-collapse-btn,
+#mobius-os-sidebar.theme-glass .sidecar-alert-indicator {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-menu-dropdown,
+#mobius-os-sidebar.theme-glass .sidecar-menu-submenu {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-quick-chat {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-quick-chat-input {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* ============================================
+   COMPLETE DARK THEME - All Sidecar Elements
+   ============================================ */
+
+/* Dark: Greeting */
+#mobius-os-sidebar.theme-dark .sidecar-greeting {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-greeting-text {
+  color: #f1f5f9;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-greeting-subtext {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+/* Dark: Patient Row */
+#mobius-os-sidebar.theme-dark .sidecar-patient-row {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-patient-row label {
+  color: rgba(148, 163, 184, 0.8);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-patient-row span {
+  color: #f1f5f9;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-icon-btn svg {
+  fill: rgba(229, 231, 235, 0.7);
+}
+
+/* Dark: Status Bar Title */
+#mobius-os-sidebar.theme-dark .sidecar-status-bar-title {
+  color: rgba(148, 163, 184, 0.8);
+}
+
+/* Dark: Bottleneck Header */
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-header {
+  color: rgba(229, 231, 235, 0.8);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-count {
+  color: #f1f5f9;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-hint {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+/* Dark: Answer Buttons */
+#mobius-os-sidebar.theme-dark .sidecar-answer-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(229, 231, 235, 0.85) !important;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-answer-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #f1f5f9 !important;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-answer-btn--selected,
+#mobius-os-sidebar.theme-dark .sidecar-answer-btn.sidecar-answer-btn--selected {
+  background: rgba(37, 99, 235, 0.25) !important;
+  background-color: rgba(37, 99, 235, 0.25) !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  color: #93c5fd !important;
+}
+
+/* Dark: Note Input */
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-note-row {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-note-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-note-input::placeholder {
+  color: rgba(148, 163, 184, 0.5);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-note-send svg {
+  fill: rgba(229, 231, 235, 0.6);
+}
+
+/* Dark: Mobius Tip */
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-mobius-tip {
+  background: rgba(37, 99, 235, 0.15);
+  color: #93c5fd;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-bottleneck-mobius-tip--assigned {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+}
+
+/* Dark: Assign Button */
+#mobius-os-sidebar.theme-dark .sidecar-assign-btn {
+  background: rgba(37, 99, 235, 0.2);
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #93c5fd;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-assign-btn:hover {
+  background: rgba(37, 99, 235, 0.3);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-assign-menu {
+  background: #252b3b;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-assign-option {
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-assign-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-assign-option-hint {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-assign-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Dark: Context Expander */
+#mobius-os-sidebar.theme-dark .sidecar-context-expander-arrow {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-context-expander-label {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-context-expander-content {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Dark: Cards Container */
+#mobius-os-sidebar.theme-dark .sidecar-cards-container {
+  background: transparent;
+}
+
+/* Dark: Brand Text */
+#mobius-os-sidebar.theme-dark .sidecar-brand-text {
+  color: #f1f5f9;
+}
+
+/* ============================================
+   BLUE THEME - All Sidecar Elements
+   ============================================ */
+
+#mobius-os-sidebar.theme-blue {
+  background: #eff6ff !important;
+  color: #1e3a5f !important;
+  border-color: rgba(37, 99, 235, 0.15) !important;
+}
+
+#mobius-os-sidebar.theme-blue .top-row {
+  background: rgba(37, 99, 235, 0.05);
+  border-bottom-color: rgba(37, 99, 235, 0.1);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-brand-text {
+  color: #1e40af;
+}
+
+/* Blue: Greeting */
+#mobius-os-sidebar.theme-blue .sidecar-greeting {
+  border-bottom-color: rgba(37, 99, 235, 0.1);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-greeting-text {
+  color: #1e3a5f;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-greeting-subtext {
+  color: #3b82f6;
+}
+
+/* Blue: Patient Row */
+#mobius-os-sidebar.theme-blue .sidecar-patient-row {
+  border-bottom-color: rgba(37, 99, 235, 0.1) !important;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-patient-row label {
+  color: #3b82f6;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-icon-btn {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-icon-btn svg {
+  fill: #3b82f6;
+}
+
+/* Blue: Status Bar */
+#mobius-os-sidebar.theme-blue .sidecar-status-bar {
+  background: rgba(37, 99, 235, 0.03);
+  border-bottom-color: rgba(37, 99, 235, 0.1);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-status-bar-title {
+  color: #3b82f6;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-status-bar-context {
+  color: #1e40af;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-status-bar-track {
+  background: linear-gradient(90deg, 
+    rgba(37, 99, 235, 0.08) 0%, 
+    rgba(37, 99, 235, 0.15) 50%, 
+    rgba(37, 99, 235, 0.2) 100%);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-status-bar-progress {
+  background: rgba(37, 99, 235, 0.5);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-status-bar-marker {
+  background: #2563eb;
+  border-color: #eff6ff;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-status-bar-percent {
+  color: #1e40af;
+}
+
+/* Blue: Bottleneck Card */
+#mobius-os-sidebar.theme-blue .sidecar-bottleneck-item {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(37, 99, 235, 0.15);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-bottleneck-question {
+  color: #1e3a5f;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-bottleneck-count {
+  color: #1e40af;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-bottleneck-hint {
+  color: #3b82f6;
+}
+
+/* Blue: Answer Buttons */
+#mobius-os-sidebar.theme-blue .sidecar-answer-btn {
+  background: rgba(37, 99, 235, 0.08) !important;
+  background-color: rgba(37, 99, 235, 0.08) !important;
+  border-color: rgba(37, 99, 235, 0.15) !important;
+  color: #3b82f6 !important;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-answer-btn:hover {
+  background: rgba(37, 99, 235, 0.12) !important;
+  background-color: rgba(37, 99, 235, 0.12) !important;
+  border-color: rgba(37, 99, 235, 0.25) !important;
+  color: #1e40af !important;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-answer-btn--selected,
+#mobius-os-sidebar.theme-blue .sidecar-answer-btn.sidecar-answer-btn--selected {
+  background: rgba(37, 99, 235, 0.2) !important;
+  background-color: rgba(37, 99, 235, 0.2) !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  color: #1d4ed8 !important;
+}
+
+/* Blue: Note Input */
+#mobius-os-sidebar.theme-blue .sidecar-bottleneck-note-row {
+  border-top-color: rgba(37, 99, 235, 0.1);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-bottleneck-note-input {
+  background: #ffffff;
+  border-color: #bfdbfe;
+}
+
+/* Blue: Mobius Tip */
+#mobius-os-sidebar.theme-blue .sidecar-bottleneck-mobius-tip {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1e40af;
+}
+
+/* Blue: Assign Button */
+#mobius-os-sidebar.theme-blue .sidecar-assign-btn {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-assign-btn:hover {
+  background: #1d4ed8;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-assign-menu {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+/* Blue: Context Expander */
+#mobius-os-sidebar.theme-blue .sidecar-context-expander-toggle:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-context-expander-arrow {
+  color: #3b82f6;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-context-expander-label {
+  color: #3b82f6;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-context-expander-content {
+  border-top-color: rgba(37, 99, 235, 0.1);
+}
+
+/* Blue: Menu */
+#mobius-os-sidebar.theme-blue .sidecar-menu-btn,
+#mobius-os-sidebar.theme-blue .sidecar-collapse-btn,
+#mobius-os-sidebar.theme-blue .sidecar-alert-indicator {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-menu-btn svg,
+#mobius-os-sidebar.theme-blue .sidecar-collapse-btn svg,
+#mobius-os-sidebar.theme-blue .sidecar-alert-icon svg {
+  fill: #3b82f6;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-menu-dropdown,
+#mobius-os-sidebar.theme-blue .sidecar-menu-submenu {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.15);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-menu-item {
+  color: #1e3a5f;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-menu-item:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-menu-icon svg {
+  fill: #3b82f6;
+}
+
+/* Blue: Quick Chat */
+#mobius-os-sidebar.theme-blue .sidecar-quick-chat {
+  background: rgba(255, 255, 255, 0.7);
+  border-top-color: rgba(37, 99, 235, 0.1);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-quick-chat-input {
+  background: #ffffff;
+  border-color: #bfdbfe;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-quick-chat-input:focus {
+  border-color: #3b82f6;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-quick-chat-send svg {
+  fill: #3b82f6;
 }
 

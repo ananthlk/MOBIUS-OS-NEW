@@ -573,4 +573,17 @@ export function getAuthService(): AuthService {
   return _authService;
 }
 
+/**
+ * Get Authorization header for API calls.
+ * Returns the header object or null if not authenticated.
+ */
+export async function getAuthHeader(): Promise<{ Authorization: string } | null> {
+  const authService = getAuthService();
+  const token = await authService.getAccessToken();
+  if (!token) {
+    return null;
+  }
+  return { Authorization: `Bearer ${token}` };
+}
+
 export { AuthService };

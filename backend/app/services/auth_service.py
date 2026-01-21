@@ -456,3 +456,20 @@ def get_auth_service() -> AuthService:
     if _auth_service is None:
         _auth_service = AuthService()
     return _auth_service
+
+
+def get_user_from_token(db, token: str) -> Optional[AppUser]:
+    """
+    Get user from access token. 
+    
+    Convenience function for route handlers that already have a db session.
+    
+    Args:
+        db: SQLAlchemy session (unused, but matches pattern)
+        token: JWT access token
+        
+    Returns:
+        AppUser if valid token, None otherwise
+    """
+    auth_service = get_auth_service()
+    return auth_service.validate_access_token(token)

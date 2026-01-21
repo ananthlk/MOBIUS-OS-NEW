@@ -24,8 +24,21 @@ import {
   RecordIDInput,
   WorkflowButtons,
   UserDetails,
-  PreferencesPanel
+  PreferencesPanel,
+  // Sidecar components
+  StatusBar,
+  BottleneckCard,
+  AllClearCard,
+  ContextExpander,
+  QuickChat,
+  SidecarMenu,
+  CollapseButton,
+  AlertIndicator,
+  updateAlertIndicator
 } from './components';
+import * as ToastManager from './services/toastManager';
+import { createPatientContext, buildPrivacyContext, PrivacyMode } from './services/personalization';
+import type { SidecarStateResponse, Bottleneck, RecordContext, PrivacyContext } from './types/record';
 import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, DetectedPatient, ResolvedPatientContext, UserProfile, PersonalizationData, MiniStatusResponse as MiniStatusResponseType, ResolutionPlan } from './types';
 import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService } from './services/auth';
@@ -138,6 +151,43 @@ let taskCount = 0;
 // Resolution Plan state (action-centric UI)
 let resolutionPlan: MiniStatusResponseType['resolution_plan'] | null = null;
 let actionsForUser = 0;
+
+// Sidecar state
+let sidecarState: SidecarStateResponse | null = null;
+let sidecarPrivacyMode = false;
+
+// Initialize toast manager on load
+let toastManagerInitialized = false;
+
+async function initToastManager(): Promise<void> {
+  if (toastManagerInitialized) return;
+  
+  try {
+    await ToastManager.init({
+      onAction: (toastId, actionId) => {
+        console.log('[Mobius] Toast action:', toastId, actionId);
+        // Handle reminder actions
+        if (actionId === 'hand_to_mobius') {
+          // TODO: Implement hand back to Mobius
+        }
+      },
+      onJumpToPatient: async (patientKey) => {
+        console.log('[Mobius] Jump to patient:', patientKey);
+        // Load patient context and open sidecar
+        patientOverride = { name: 'Patient', id: patientKey };
+        await storageSet({ [STORAGE_KEYS.patientOverride]: patientOverride });
+        await expandToSidebar();
+      },
+    });
+    
+    // Start polling for alerts
+    ToastManager.startPolling();
+    toastManagerInitialized = true;
+    console.log('[Mobius] Toast manager initialized');
+  } catch (error) {
+    console.error('[Mobius] Failed to initialize toast manager:', error);
+  }
+}
 
 /**
  * Update the unified status row with priority question.
@@ -691,6 +741,18 @@ async function updateMiniWithResolvedPatient(resolved: ResolvedPatientContext): 
       
       // Start polling for cross-tab sync
       startStatusPolling();
+      
+      // Also refresh Sidecar if it's open
+      if (document.getElementById('mobius-os-sidebar')) {
+        console.log('[Mobius] Refreshing Sidecar with new patient');
+        const miniState: MiniState = {
+          patient: { name: resolved.display_name || 'Unknown', id: resolved.patient_key || '' },
+          resolutionPlan,
+          userProfile: currentUserProfile,
+          needsAttention,
+        };
+        await refreshSidecarState(miniState);
+      }
     } catch (err) {
       console.error('[Mobius] Error fetching status for auto-detected patient:', err);
     }
@@ -2194,7 +2256,497 @@ async function expandToSidebar(): Promise<void> {
     await storageSet({ [STORAGE_KEYS.miniPos]: miniLastPos });
     mini.style.display = 'none';
   }
-  await initSidebar();
+  
+  // Pass current state to sidecar
+  const miniState = {
+    patient: patientOverride || (autoDetectedPatient?.found ? {
+      name: autoDetectedPatient.display_name || 'Patient',
+      id: autoDetectedPatient.patient_key || '',
+    } : null),
+    resolutionPlan,
+    userProfile: currentUserProfile,
+    needsAttention,
+  };
+  
+  await initSidecarUI(miniState);
+}
+
+/**
+ * Initialize the new bottleneck-focused Sidecar UI
+ */
+interface MiniState {
+  patient: { name: string; id: string } | null;
+  resolutionPlan: MiniStatusResponseType['resolution_plan'] | null;
+  userProfile: UserProfile | null;
+  needsAttention: { color: MiniColor; problemStatement: string | null; userStatus: AttentionStatus };
+}
+
+async function initSidecarUI(miniState: MiniState): Promise<void> {
+  console.log('[Mobius OS] Initializing Sidecar UI...');
+  
+  // Check if sidebar already exists
+  if (document.getElementById('mobius-os-sidebar')) {
+    console.log('[Mobius OS] Sidebar already exists, skipping initialization');
+    return;
+  }
+  
+  // Get session
+  sessionId = await getOrCreateSessionId();
+  
+  // Load privacy mode
+  sidecarPrivacyMode = await PrivacyMode.isEnabled();
+  
+  // Build record context
+  const patient = miniState.patient;
+  const recordContext: RecordContext = patient 
+    ? createPatientContext(patient.id, patient.name)
+    : { type: 'patient', id: '', displayName: 'Unknown Patient', shortName: 'Patient', possessive: "Patient's" };
+  
+  const staffName = miniState.userProfile?.greeting_name || miniState.userProfile?.display_name;
+  const privacyContext = buildPrivacyContext(recordContext, staffName, sidecarPrivacyMode);
+  
+  // Fetch sidecar state from backend
+  try {
+    const patientKey = patient?.id || '';
+    const queryParams = new URLSearchParams({
+      session_id: sessionId,
+      ...(patientKey && { patient_key: patientKey }),
+    });
+    const response = await fetch(`${API_BASE_URL}/api/v1/sidecar/state?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await getAuthHeader()),
+      },
+    });
+    
+    if (response.ok) {
+      sidecarState = await response.json();
+    } else {
+      console.warn('[Mobius] Failed to fetch sidecar state, using fallback');
+      // Create fallback state from mini state
+      sidecarState = createFallbackSidecarState(miniState, recordContext);
+    }
+  } catch (error) {
+    console.error('[Mobius] Error fetching sidecar state:', error);
+    sidecarState = createFallbackSidecarState(miniState, recordContext);
+  }
+  
+  // Create sidebar container
+  sidebarContainer = document.createElement('div');
+  sidebarContainer.id = 'mobius-os-sidebar';
+  sidebarContainer.setAttribute('style', `
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 400px !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+    background: white !important;
+    z-index: 2147483646 !important;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.1) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  `);
+  
+  // Adjust page content
+  const style = document.createElement('style');
+  style.id = 'mobius-os-page-adjust';
+  style.textContent = `
+    body {
+      margin-right: 400px !important;
+      transition: margin-right 0.3s ease !important;
+    }
+    html {
+      overflow-x: hidden !important;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Build the UI
+  
+  // === HEADER ===
+  const header = document.createElement('div');
+  header.className = 'top-row';
+  header.setAttribute('style', 'display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid rgba(11, 18, 32, 0.08); background: rgba(11, 18, 32, 0.02);');
+  
+  // Left: Logos
+  const headerLeft = document.createElement('div');
+  headerLeft.className = 'header-left';
+  headerLeft.setAttribute('style', 'display: flex; align-items: center; gap: 8px;');
+  headerLeft.appendChild(ClientLogo({ clientName: 'CMHC' }));
+  
+  const logoSection = document.createElement('div');
+  logoSection.className = 'logo-section';
+  logoSection.setAttribute('style', 'display: flex; align-items: center; gap: 4px;');
+  logoSection.appendChild(MobiusLogo({ status: 'idle' }));
+  const logoLabel = document.createElement('span');
+  logoLabel.className = 'logo-label';
+  logoLabel.setAttribute('style', 'font-size: 11px; font-weight: 600; color: #0b1220;');
+  logoLabel.textContent = 'Mobius OS';
+  logoSection.appendChild(logoLabel);
+  headerLeft.appendChild(logoSection);
+  header.appendChild(headerLeft);
+  
+  // Right: Actions
+  const headerRight = document.createElement('div');
+  headerRight.setAttribute('style', 'display: flex; align-items: center; gap: 4px;');
+  
+  // Alert indicator
+  const alertIndicator = AlertIndicator({
+    alerts: sidecarState?.alerts || [],
+    onClick: () => {
+      showToast('Inbox coming soon');
+    },
+  });
+  headerRight.appendChild(alertIndicator);
+  
+  // Privacy indicator (if enabled)
+  if (sidecarPrivacyMode) {
+    const privacyIndicator = document.createElement('span');
+    privacyIndicator.className = 'sidecar-privacy-indicator';
+    privacyIndicator.textContent = '🔒';
+    privacyIndicator.title = 'Privacy mode enabled';
+    headerRight.appendChild(privacyIndicator);
+  }
+  
+  // Menu
+  const menu = SidecarMenu({
+    onCollapse: () => void collapseToMini(),
+    onHistoryClick: () => showToast('History coming soon'),
+    onSettingsClick: () => showToast('Settings coming soon'),
+    onHelpClick: () => showToast('Help coming soon'),
+    onPrivacyChange: async (enabled) => {
+      sidecarPrivacyMode = enabled;
+      // Refresh UI to apply privacy mode
+      removeSidebar();
+      await initSidecarUI(miniState);
+    },
+    onNotificationsChange: (enabled) => {
+      console.log('[Mobius] Notifications:', enabled);
+    },
+  });
+  headerRight.appendChild(menu);
+  
+  // Collapse button
+  const collapseBtn = CollapseButton(() => void collapseToMini());
+  headerRight.appendChild(collapseBtn);
+  
+  header.appendChild(headerRight);
+  sidebarContainer.appendChild(header);
+  
+  // === STATUS BAR ===
+  if (sidecarState?.care_readiness) {
+    const statusBar = StatusBar({ careReadiness: sidecarState.care_readiness });
+    sidebarContainer.appendChild(statusBar);
+  }
+  
+  // === MAIN CONTENT (scrollable) ===
+  const mainContent = document.createElement('div');
+  mainContent.className = 'sidecar-main-content';
+  mainContent.setAttribute('style', 'flex: 1; overflow-y: auto; display: flex; flex-direction: column;');
+  
+  // === CARDS CONTAINER (bottlenecks, patient context) ===
+  const cardsContainer = document.createElement('div');
+  cardsContainer.className = 'sidecar-cards-container';
+  cardsContainer.setAttribute('style', 'padding: 8px 10px; flex-shrink: 0;');
+  
+  // === MOBIUS GREETING ===
+  const greeting = document.createElement('div');
+  greeting.className = 'sidecar-greeting';
+  const userName = currentUserProfile?.display_name?.split(' ')[0] || 'there';
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  greeting.innerHTML = `
+    <span class="sidecar-greeting-text">${timeGreeting}, ${userName}.</span>
+    <span class="sidecar-greeting-subtext">I'm here to help.</span>
+  `;
+  cardsContainer.appendChild(greeting);
+  
+  // === PATIENT CONTEXT (compact single line) ===
+  if (patient) {
+    const patientSection = document.createElement('div');
+    patientSection.className = 'sidecar-patient-row';
+    patientSection.setAttribute('style', `
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+      margin-bottom: 6px;
+    `);
+    
+    // Label (smaller)
+    const rowLabel = document.createElement('div');
+    rowLabel.setAttribute('style', `
+      width: 40px;
+      flex: 0 0 auto;
+      font-size: 7px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(91, 102, 122, 0.95);
+      font-weight: 600;
+    `);
+    rowLabel.textContent = 'PATIENT';
+    patientSection.appendChild(rowLabel);
+    
+    // Patient info - single line with name + ID
+    const patientInfo = document.createElement('div');
+    patientInfo.setAttribute('style', 'flex: 1; min-width: 0; display: flex; flex-direction: row; align-items: baseline; gap: 6px;');
+    
+    const patientName = document.createElement('span');
+    patientName.setAttribute('style', 'font-size: 10px; font-weight: 500; color: #0b1220; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;');
+    patientName.textContent = sidecarPrivacyMode ? 'Patient' : patient.name;
+    
+    const patientId = document.createElement('span');
+    patientId.setAttribute('style', 'font-size: 9px; font-weight: 400; color: rgba(91, 102, 122, 0.7); white-space: nowrap;');
+    patientId.textContent = sidecarPrivacyMode ? '****' : `· ${patient.id.slice(-4).padStart(8, '*')}`;
+    
+    patientInfo.appendChild(patientName);
+    patientInfo.appendChild(patientId);
+    patientSection.appendChild(patientInfo);
+    
+    // Edit button (pencil icon like Mini)
+    const editBtn = document.createElement('button');
+    editBtn.className = 'sidecar-icon-btn';
+    editBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+    editBtn.title = 'Change patient';
+    editBtn.addEventListener('click', () => {
+      showToast('Patient search coming soon');
+    });
+    patientSection.appendChild(editBtn);
+    
+    cardsContainer.appendChild(patientSection);
+  }
+  
+  // === BOTTLENECK CARD ===
+  const bottlenecks = sidecarState?.bottlenecks || [];
+  const bottleneckCard = BottleneckCard({
+    bottlenecks,
+    privacyContext,
+    onAnswer: async (bottleneckId, answerId) => {
+      console.log('[Mobius] Answer:', bottleneckId, answerId);
+      try {
+        await fetch(`${API_BASE_URL}/api/v1/sidecar/answer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(await getAuthHeader()),
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            patient_key: patient?.id,
+            bottleneck_id: bottleneckId,
+            answer_id: answerId,
+          }),
+        });
+        showToast('Answer recorded');
+        // Don't refresh UI immediately - let selection persist
+        // State will refresh on next poll cycle
+      } catch (error) {
+        console.error('[Mobius] Failed to submit answer:', error);
+        showToast('Failed to submit answer');
+      }
+    },
+    onAssign: async (bottleneckId, mode) => {
+      console.log('[Mobius] Assign to Mobius:', bottleneckId, mode);
+      try {
+        await fetch(`${API_BASE_URL}/api/v1/sidecar/assign`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(await getAuthHeader()),
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            patient_key: patient?.id,
+            bottleneck_id: bottleneckId,
+            mode,
+          }),
+        });
+        showToast('Mobius is working on it...');
+      } catch (error) {
+        console.error('[Mobius] Failed to assign:', error);
+        showToast('Failed to assign');
+      }
+    },
+    onOwn: async (bottleneckId) => {
+      console.log('[Mobius] User taking ownership:', bottleneckId);
+      try {
+        await fetch(`${API_BASE_URL}/api/v1/sidecar/own`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(await getAuthHeader()),
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            patient_key: patient?.id,
+            bottleneck_id: bottleneckId,
+          }),
+        });
+        showToast("Got it - you're on it");
+      } catch (error) {
+        console.error('[Mobius] Failed to take ownership:', error);
+      }
+    },
+    onAddNote: async (bottleneckId, noteText) => {
+      try {
+        await fetch(`${API_BASE_URL}/api/v1/sidecar/note`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(await getAuthHeader()),
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            patient_key: patient?.id,
+            bottleneck_id: bottleneckId,
+            note_text: noteText,
+          }),
+        });
+        showToast('Note added');
+      } catch (error) {
+        console.error('[Mobius] Failed to add note:', error);
+      }
+    },
+    onBulkAssign: async (bottleneckIds) => {
+      console.log('[Mobius] Bulk assign:', bottleneckIds);
+      try {
+        await fetch(`${API_BASE_URL}/api/v1/sidecar/assign-bulk`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(await getAuthHeader()),
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            patient_key: patient?.id,
+            bottleneck_ids: bottleneckIds,
+          }),
+        });
+        showToast(`Assigned ${bottleneckIds.length} items to Mobius`);
+      } catch (error) {
+        console.error('[Mobius] Failed to bulk assign:', error);
+      }
+    },
+  });
+  cardsContainer.appendChild(bottleneckCard);
+  
+  // === CONTEXT EXPANDER ===
+  if (sidecarState?.milestones && sidecarState?.knowledge_context) {
+    const contextExpander = ContextExpander({
+      milestones: sidecarState.milestones,
+      knowledgeContext: sidecarState.knowledge_context,
+      privacyContext,
+      resolutionPlan: miniState.resolutionPlan,
+    });
+    cardsContainer.appendChild(contextExpander);
+  }
+  
+  mainContent.appendChild(cardsContainer);
+  
+  // === CHAT CONTAINER (separate from cards) ===
+  const chatContainer = document.createElement('div');
+  chatContainer.className = 'sidecar-chat-container';
+  chatContainer.setAttribute('style', 'flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid rgba(11, 18, 32, 0.08);');
+  
+  mainContent.appendChild(chatContainer);
+  sidebarContainer.appendChild(mainContent);
+  
+  // === QUICK CHAT ===
+  const quickChat = QuickChat({
+    record: recordContext,
+    knowledgeContext: sidecarState?.knowledge_context || { payer: { name: '' }, policy_excerpts: [], relevant_history: [] },
+    onSend: async (message) => {
+      console.log('[Mobius] Chat:', message);
+      // TODO: Implement chat with knowledge context
+      showToast('Chat coming soon');
+    },
+  });
+  sidebarContainer.appendChild(quickChat);
+  
+  // Add to DOM
+  document.body.appendChild(sidebarContainer);
+  console.log('[Mobius OS] Sidecar UI initialized');
+}
+
+/**
+ * Create fallback sidecar state from mini state
+ */
+function createFallbackSidecarState(miniState: MiniState, recordContext: RecordContext): SidecarStateResponse {
+  // Convert resolution plan to bottlenecks
+  const bottlenecks: Bottleneck[] = [];
+  
+  if (miniState.resolutionPlan?.current_step) {
+    const step = miniState.resolutionPlan.current_step;
+    bottlenecks.push({
+      id: step.step_id,
+      milestone_id: step.factor_type || 'unknown',
+      question_text: step.question_text,
+      answer_options: (step.answer_options || []).map(opt => ({
+        id: opt.code,
+        label: opt.label,
+        description: opt.description,
+      })),
+      // Always allow Mobius assignment - user should have the choice
+      mobius_can_handle: true,
+      mobius_mode: step.system_suggestion ? 'agentic' : 'copilot',
+      mobius_action: step.system_suggestion?.source || 'Mobius will verify this for you',
+      sources: {},
+    });
+  }
+  
+  return {
+    ok: true,
+    session_id: sessionId,
+    surface: 'sidecar',
+    record: recordContext,
+    care_readiness: {
+      position: 50,
+      direction: 'stable',
+      factors: {
+        visit_confirmed: { status: 'pending' },
+        eligibility_verified: { status: 'pending' },
+        authorization_secured: { status: 'pending' },
+        documentation_ready: { status: 'pending' },
+      },
+    },
+    bottlenecks,
+    milestones: [],
+    knowledge_context: {
+      payer: { name: '' },
+      policy_excerpts: [],
+      relevant_history: [],
+    },
+    alerts: [],
+    user_owned_tasks: [],
+    computed_at: new Date().toISOString(),
+  };
+}
+
+/**
+ * Refresh sidecar state and re-render
+ */
+async function refreshSidecarState(miniState: MiniState): Promise<void> {
+  removeSidebar();
+  await initSidecarUI(miniState);
+}
+
+/**
+ * Get auth header for API calls
+ */
+async function getAuthHeader(): Promise<Record<string, string>> {
+  const authService = getAuthService();
+  const token = await authService.getAccessToken();
+  if (token) {
+    return { 'Authorization': `Bearer ${token}` };
+  }
+  return {};
 }
 
 async function collapseToMini(): Promise<void> {
@@ -3512,5 +4064,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 (async () => {
   sessionId = await getOrCreateSessionId();
+  
+  // Initialize toast manager for global notifications
+  await initToastManager();
+  
   await renderMiniIfAllowed();
 })();
