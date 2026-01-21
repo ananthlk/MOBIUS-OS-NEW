@@ -94,19 +94,24 @@ def get_sidecar_state():
         session_id = request.args.get('session_id', '')
         
         with get_db_session() as db:
-            # Find patient context
+            # Find patient context by patient_key (external key like "demo_001")
             patient_context = None
             if patient_key:
+                # First try by patient_key (external identifier)
                 patient_context = db.query(PatientContext).filter(
                     PatientContext.tenant_id == g.tenant_id,
-                    PatientContext.patient_context_id == patient_key
+                    PatientContext.patient_key == patient_key
                 ).first()
                 
-                # Also try by external key if not found by ID
+                # If not found, try by patient_context_id (UUID) for backwards compatibility
                 if not patient_context:
-                    patient_context = db.query(PatientContext).filter(
-                        PatientContext.tenant_id == g.tenant_id
-                    ).first()  # Fallback - would need proper key lookup
+                    try:
+                        patient_context = db.query(PatientContext).filter(
+                            PatientContext.tenant_id == g.tenant_id,
+                            PatientContext.patient_context_id == UUID(patient_key)
+                        ).first()
+                    except (ValueError, TypeError):
+                        pass  # Not a valid UUID, skip
             
             # Build state
             state = build_sidecar_state(
