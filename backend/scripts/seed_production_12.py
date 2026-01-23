@@ -59,6 +59,7 @@ BATCH JOB INTEGRATION:
 import sys
 import os
 import uuid
+import bcrypt
 from datetime import datetime, date, timedelta
 
 os.environ['FLASK_DEBUG'] = '0'
@@ -96,6 +97,26 @@ from app.models.activity import Activity, UserActivity
 # =============================================================================
 
 USER_DEFINITIONS = [
+    {
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "email": "dev@mobius.local",
+        "display_name": "Dev User",
+        "first_name": "Dev",
+        "role_name": "admin",
+        "activities": [
+            "verify_eligibility",
+            "check_in_patients",
+            "schedule_appointments",
+            "submit_claims",
+            "rework_denials",
+            "prior_authorization",
+            "patient_collections",
+            "post_payments",
+            "patient_outreach",
+            "document_notes",
+            "coordinate_referrals",
+        ],
+    },
     {
         "user_id": "00000000-0000-0000-0000-000000000010",
         "email": "admin@demo.clinic",
@@ -836,7 +857,6 @@ def cleanup_existing(db, tenant_id):
     from app.models.resolution import StepAnswer, PlanNote, UserRemedy
     from app.models.probability import TaskInstance
     from app.models.evidence import FactSourceLink, SourceDocument, RawData
-    from app.models.mock_emr import MockEmrRecord
     
     # Get patient IDs to delete
     patient_keys = [p["patient_key"] for p in PATIENTS]
@@ -882,8 +902,14 @@ def cleanup_existing(db, tenant_id):
     db.query(Evidence).filter(Evidence.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
     db.query(PaymentProbability).filter(PaymentProbability.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
     db.query(TaskInstance).filter(TaskInstance.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
-    db.query(MockEmrRecord).filter(MockEmrRecord.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
     db.query(PatientId).filter(PatientId.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
+    
+    # Try to delete from mock_emr if it exists
+    try:
+        from sqlalchemy import text
+        db.execute(text("DELETE FROM mock_emr WHERE patient_context_id = ANY(:ids)"), {"ids": patient_ids})
+    except Exception:
+        pass  # Table may not exist
     db.query(PatientSnapshot).filter(PatientSnapshot.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
     
     # Clean up sidecar tables (Milestone, UserAlert, UserOwnedTask)
@@ -1065,6 +1091,9 @@ def create_patient(db, tenant_id, patient_def):
 def create_users(db, tenant_id):
     """Create demo users with roles and activities."""
     
+    # Generate password hash for demo1234
+    password_hash = bcrypt.hashpw(b'demo1234', bcrypt.gensalt()).decode('utf-8')
+    
     # Get or create roles
     role_cache = {}
     for user_def in USER_DEFINITIONS:
@@ -1125,6 +1154,7 @@ def create_users(db, tenant_id):
             existing.display_name = user_def["display_name"]
             existing.first_name = user_def["first_name"]
             existing.role_id = role_cache[user_def["role_name"]].role_id
+            existing.password_hash = password_hash  # Set password to demo1234
             user = existing
         else:
             # Create new user
@@ -1136,6 +1166,7 @@ def create_users(db, tenant_id):
                 first_name=user_def["first_name"],
                 role_id=role_cache[user_def["role_name"]].role_id,
                 status="active",
+                password_hash=password_hash,  # Set password to demo1234
             )
             db.add(user)
             created_count += 1

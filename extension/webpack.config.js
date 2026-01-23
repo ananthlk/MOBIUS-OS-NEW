@@ -1,8 +1,18 @@
- const path = require('path');
+const path = require('path');
+const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 
-module.exports = {
+module.exports = (env, argv) => {
+  // Determine if this is a production build based on:
+  // 1. BUILD_TARGET env var (build:prod vs build:dev scripts)
+  // 2. Fallback to webpack mode
+  const isProduction = env?.BUILD_TARGET === 'production' || argv.mode === 'production';
+  
+  console.log(`\n📦 Building for: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+  console.log(`   API Target: ${isProduction ? 'https://mobius-os-backend-mc2ivyhdxq-uc.a.run.app' : 'http://localhost:5001'}\n`);
+
+  return {
   entry: {
     popup: './src/popup.ts',
     background: './src/background.ts',
@@ -36,6 +46,10 @@ module.exports = {
     }
   },
   plugins: [
+    // Inject PRODUCTION flag at build time
+    new webpack.DefinePlugin({
+      'process.env.PRODUCTION': JSON.stringify(isProduction),
+    }),
     new HtmlWebpackPlugin({
       template: './src/popup.html',
       filename: 'popup.html',
@@ -48,5 +62,6 @@ module.exports = {
       ]
     })
   ],
-  devtool: 'source-map'
+  devtool: isProduction ? false : 'source-map'
+  };
 };

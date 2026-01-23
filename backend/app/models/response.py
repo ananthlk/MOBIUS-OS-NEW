@@ -49,7 +49,7 @@ class SystemResponse(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "proceed_indicator IN ('grey', 'green', 'yellow', 'blue', 'red')",
+            "proceed_indicator IN ('grey', 'green', 'yellow', 'blue', 'red', 'purple')",
             name="check_proceed_indicator",
         ),
     )
