@@ -211,11 +211,6 @@ class SourceDocument(Base):
     
     def __repr__(self):
         return f"<SourceDocument {self.source_id} type={self.document_type} label='{self.document_label}'>"
-
-
-# =============================================================================
-# Layer 4: Evidence
-# =============================================================================
     
     def to_dict(self) -> dict:
         """Convert to dictionary for API responses."""
@@ -228,6 +223,11 @@ class SourceDocument(Base):
             "document_date": self.document_date.isoformat() if self.document_date else None,
             "trust_score": self.trust_score,
         }
+
+
+# =============================================================================
+# Layer 4: Evidence
+# =============================================================================
 
 
 class Evidence(Base):

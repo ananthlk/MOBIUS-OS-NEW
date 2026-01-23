@@ -106,12 +106,13 @@ def compute_care_readiness(probability: Optional[PaymentProbability]) -> Dict[st
 # =============================================================================
 
 # Factor definitions in sequence order
+# Patient-centric labels for display
 FACTOR_DEFINITIONS = [
-    {"type": "attendance", "label": "ATTENDANCE", "order": 1, "prob_field": "prob_appointment_attendance"},
-    {"type": "eligibility", "label": "ELIGIBILITY", "order": 2, "prob_field": "prob_eligibility"},
-    {"type": "coverage", "label": "COVERAGE", "order": 3, "prob_field": "prob_coverage"},
-    {"type": "clean_claim", "label": "CLEAN CLAIM", "order": 4, "prob_field": "prob_no_errors"},
-    {"type": "errors", "label": "ERRORS", "order": 5, "prob_field": "prob_no_errors"},
+    {"type": "attendance", "label": "Preparing the Patient for Their Visit", "order": 1, "prob_field": "prob_appointment_attendance"},
+    {"type": "eligibility", "label": "Removing Barriers to Patient Care", "order": 2, "prob_field": "prob_eligibility"},
+    {"type": "coverage", "label": "Advocating for the Patient's Care", "order": 3, "prob_field": "prob_coverage"},
+    {"type": "clean_claim", "label": "Representing the Patient's Care Accurately", "order": 4, "prob_field": "prob_no_errors"},
+    {"type": "errors", "label": "Resolving Billing Issues", "order": 5, "prob_field": "prob_no_errors"},
 ]
 
 
