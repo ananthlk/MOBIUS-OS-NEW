@@ -2,12 +2,23 @@
  * SidecarMenu Component
  * 
  * Hamburger menu with settings and secondary features.
- * Includes notifications toggle, privacy mode, and theme selection.
- * Matches Mini's menu styling.
+ * Includes notifications toggle, privacy mode, theme and density selection.
+ * Uses centralized theme system for consistency with Mini.
  */
 
 import { PrivacyMode } from '../../services/personalization';
 import * as ToastManager from '../../services/toastManager';
+import { 
+  THEME_LIST, 
+  DENSITY_LIST,
+  ThemeId,
+  DensityId,
+  saveTheme,
+  saveDensity,
+  applyStyles,
+  loadTheme,
+  loadDensity
+} from '../../styles/themes';
 
 export interface SidecarMenuProps {
   onCollapse: () => void;
@@ -17,17 +28,12 @@ export interface SidecarMenuProps {
   onPrivacyChange: (enabled: boolean) => void;
   onNotificationsChange: (enabled: boolean) => void;
   onThemeChange?: (theme: string) => void;
+  onDensityChange?: (density: string) => void;
   onViewChange?: (view: 'focus' | 'all') => void;
   currentView?: 'focus' | 'all';
+  currentTheme?: ThemeId;
+  currentDensity?: DensityId;
 }
-
-// Available themes - matches Mini's themes
-const THEMES = [
-  { id: 'light', label: 'Light', icon: '○' },
-  { id: 'dark', label: 'Dark', icon: '●' },
-  { id: 'blue', label: 'Blue', icon: '◑' },
-  { id: 'glass', label: 'Glass', icon: '◐' },
-];
 
 // View options for factor filtering
 const VIEW_OPTIONS = [
@@ -39,7 +45,19 @@ const VIEW_OPTIONS = [
  * Create the SidecarMenu element
  */
 export function SidecarMenu(props: SidecarMenuProps): HTMLElement {
-  const { onHistoryClick, onSettingsClick, onHelpClick, onPrivacyChange, onNotificationsChange, onThemeChange, onViewChange, currentView = 'focus' } = props;
+  const { 
+    onHistoryClick, 
+    onSettingsClick, 
+    onHelpClick, 
+    onPrivacyChange, 
+    onNotificationsChange, 
+    onThemeChange,
+    onDensityChange,
+    onViewChange, 
+    currentView = 'focus',
+    currentTheme = 'light',
+    currentDensity = 'normal'
+  } = props;
   
   const container = document.createElement('div');
   container.className = 'sidecar-menu';
@@ -106,6 +124,11 @@ export function SidecarMenu(props: SidecarMenuProps): HTMLElement {
     {
       label: 'Theme',
       icon: 'palette',
+      submenu: true,
+    },
+    {
+      label: 'Text Size',
+      icon: 'textsize',
       submenu: true,
     },
     {
@@ -184,6 +207,25 @@ export function SidecarMenu(props: SidecarMenuProps): HTMLElement {
       menuItem.addEventListener('mouseleave', () => {
         submenu.style.display = 'none';
       });
+    } else if (item.submenu && item.label === 'Text Size') {
+      // Text Size submenu arrow
+      const arrow = document.createElement('span');
+      arrow.className = 'sidecar-menu-arrow';
+      arrow.textContent = '›';
+      menuItem.appendChild(arrow);
+      
+      // Text Size (density) submenu
+      const submenu = createDensitySubmenu(currentDensity, onDensityChange, () => {
+        dropdown.style.display = 'none';
+      });
+      menuItem.appendChild(submenu);
+      
+      menuItem.addEventListener('mouseenter', () => {
+        submenu.style.display = 'block';
+      });
+      menuItem.addEventListener('mouseleave', () => {
+        submenu.style.display = 'none';
+      });
     } else if (item.submenu && item.label === 'View') {
       // View submenu arrow
       const arrow = document.createElement('span');
@@ -225,6 +267,7 @@ function getMenuIcon(name: string): string {
     bell: '<svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>',
     lock: '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>',
     palette: '<svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>',
+    textsize: '<svg viewBox="0 0 24 24"><path d="M9 4v3h5v12h3V7h5V4H9zm-6 8h3v7h3v-7h3V9H3v3z"/></svg>',
     view: '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>',
     history: '<svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>',
     settings: '<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
@@ -266,30 +309,75 @@ function createViewSubmenu(
 }
 
 /**
- * Create theme submenu
+ * Create theme submenu using centralized theme system
  */
 function createThemeSubmenu(onThemeChange?: (theme: string) => void): HTMLElement {
   const submenu = document.createElement('div');
   submenu.className = 'sidecar-menu-submenu';
   submenu.style.display = 'none';
   
-  for (const theme of THEMES) {
+  for (const theme of THEME_LIST) {
     const option = document.createElement('div');
     option.className = 'sidecar-menu-submenu-item';
     option.innerHTML = `
       <span class="sidecar-menu-theme-icon">${theme.icon}</span>
       <span class="sidecar-menu-theme-label">${theme.label}</span>
     `;
-    option.addEventListener('click', (e) => {
+    option.addEventListener('click', async (e) => {
       e.stopPropagation();
-      // Apply theme to sidecar
+      // Apply theme to sidecar using centralized system
       const sidebar = document.getElementById('mobius-os-sidebar');
       if (sidebar) {
-        sidebar.classList.remove('theme-light', 'theme-dark', 'theme-blue', 'theme-glass');
-        sidebar.classList.add(`theme-${theme.id}`);
+        const currentDensity = await loadDensity();
+        applyStyles(sidebar, theme.id as ThemeId, currentDensity);
       }
+      await saveTheme(theme.id as ThemeId);
       onThemeChange?.(theme.id);
       submenu.style.display = 'none';
+    });
+    submenu.appendChild(option);
+  }
+  
+  return submenu;
+}
+
+/**
+ * Create density (text size) submenu
+ */
+function createDensitySubmenu(
+  currentDensity: DensityId,
+  onDensityChange?: (density: string) => void,
+  closeDropdown?: () => void
+): HTMLElement {
+  const submenu = document.createElement('div');
+  submenu.className = 'sidecar-menu-submenu';
+  submenu.style.display = 'none';
+  
+  for (const density of DENSITY_LIST) {
+    const option = document.createElement('div');
+    option.className = `sidecar-menu-submenu-item ${currentDensity === density.id ? 'active' : ''}`;
+    option.innerHTML = `
+      <span class="sidecar-menu-density-label">${density.label}</span>
+      <span class="sidecar-menu-density-desc">${density.description}</span>
+      ${currentDensity === density.id ? '<span class="sidecar-menu-check">✓</span>' : ''}
+    `;
+    option.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      // Apply density using centralized system
+      const sidebar = document.getElementById('mobius-os-sidebar');
+      if (sidebar) {
+        const currentTheme = await loadTheme();
+        applyStyles(sidebar, currentTheme, density.id as DensityId);
+      }
+      // Also apply to mini widget
+      const mini = document.getElementById('mobius-mini-widget');
+      if (mini) {
+        const currentTheme = await loadTheme();
+        applyStyles(mini, currentTheme, density.id as DensityId);
+      }
+      await saveDensity(density.id as DensityId);
+      onDensityChange?.(density.id);
+      closeDropdown?.();
     });
     submenu.appendChild(option);
   }

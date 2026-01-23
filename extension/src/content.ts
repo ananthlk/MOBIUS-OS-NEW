@@ -45,6 +45,19 @@ import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService } from './services/auth';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
 import { initTooltipStyles, applyAutoTooltips, setupTooltips } from './services/tooltips';
+import { 
+  THEME_LIST, 
+  DENSITY_LIST,
+  ThemeId,
+  DensityId,
+  saveTheme,
+  saveDensity,
+  loadTheme,
+  loadDensity,
+  applyStyles,
+  initializeStyles
+} from './styles/themes';
+import { injectBaseCSS } from './styles/base.css';
 
 const componentRegistry = {
   contextSummary: ContextSummary,
@@ -99,34 +112,28 @@ const STORAGE_KEYS = {
   allowedDomains: 'mobius.allowedDomains',
   miniPos: 'mobius.miniPos',
   patientOverride: 'mobius.patientOverride',
-  miniTheme: 'mobius.miniTheme',
 } as const;
 
-type MiniTheme = 'light' | 'dark' | 'blue' | 'glass';
+// Theme system state (loaded from centralized theme system)
+let currentThemeId: ThemeId = 'light';
+let currentDensityId: DensityId = 'normal';
 
-// Apply theme class to Mini widget
-function applyMiniTheme(root: HTMLElement, theme: string) {
-  root.classList.remove('theme-light', 'theme-dark', 'theme-blue', 'theme-glass');
-  root.classList.add(`theme-${theme}`);
+// Apply theme and density to Mini widget using centralized system
+async function applyMiniTheme(root: HTMLElement, themeId?: ThemeId) {
+  const theme = themeId || await loadTheme();
+  const density = await loadDensity();
+  currentThemeId = theme;
+  currentDensityId = density;
+  applyStyles(root, theme, density);
 }
 
-// Save theme to Chrome storage
-async function saveMiniTheme(theme: string): Promise<void> {
-  try {
-    await chrome.storage.local.set({ [STORAGE_KEYS.miniTheme]: theme });
-  } catch (e) {
-    console.warn('[Mobius] Failed to save theme:', e);
-  }
-}
-
-// Load theme from Chrome storage
-async function loadMiniTheme(): Promise<MiniTheme> {
-  try {
-    const result = await chrome.storage.local.get(STORAGE_KEYS.miniTheme);
-    return (result[STORAGE_KEYS.miniTheme] as MiniTheme) || 'light';
-  } catch {
-    return 'light';
-  }
+// Apply density to Mini widget
+async function applyMiniDensity(root: HTMLElement, densityId?: DensityId) {
+  const theme = await loadTheme();
+  const density = densityId || await loadDensity();
+  currentThemeId = theme;
+  currentDensityId = density;
+  applyStyles(root, theme, density);
 }
 
 type MiniPos = { x: number; y: number };
@@ -1210,65 +1217,115 @@ function createMini(): HTMLElement {
     pointer-events: auto;
   `;
 
-  // Store theme state
+  // Store submenu state
   let themeSubmenuOpen = false;
+  let densitySubmenuOpen = false;
 
-  // Helper to apply theme
-  const selectTheme = async (themeId: string) => {
+  // Helper to apply theme using centralized system
+  const selectTheme = async (themeId: ThemeId) => {
     console.log('[Mobius] Applying theme:', themeId);
-    applyMiniTheme(root, themeId);
-    await saveMiniTheme(themeId);
+    await saveTheme(themeId);
+    await applyMiniTheme(root, themeId);
+    // Also apply to sidecar if open
+    const sidebar = document.getElementById('mobius-os-sidebar');
+    if (sidebar) applyStyles(sidebar, themeId, currentDensityId);
     menu.style.display = 'none';
     themeSubmenuOpen = false;
   };
 
+  // Helper to apply density using centralized system
+  const selectDensity = async (densityId: DensityId) => {
+    console.log('[Mobius] Applying density:', densityId);
+    await saveDensity(densityId);
+    await applyMiniDensity(root, densityId);
+    // Also apply to sidecar if open
+    const sidebar = document.getElementById('mobius-os-sidebar');
+    if (sidebar) applyStyles(sidebar, currentThemeId, densityId);
+    menu.style.display = 'none';
+    densitySubmenuOpen = false;
+  };
+
   // Build menu HTML with consistent compact styling
   const menuItemStyle = 'padding:6px 12px;cursor:pointer;display:flex;align-items:center;gap:6px;color:#374151;';
-  const menuItemHover = 'background:rgba(59,130,246,0.08);';
+  
+  // Generate theme options HTML
+  const themeOptionsHtml = THEME_LIST.map(t => 
+    `<div class="mobius-mini-menu-item" data-theme="${t.id}" style="${menuItemStyle}font-size:var(--mobius-font-sm, 10px);">${t.icon} ${t.label}</div>`
+  ).join('');
+  
+  // Generate density options HTML
+  const densityOptionsHtml = DENSITY_LIST.map(d => 
+    `<div class="mobius-mini-menu-item" data-density="${d.id}" style="${menuItemStyle}font-size:var(--mobius-font-sm, 10px);flex-direction:column;align-items:flex-start;gap:2px;">
+      <span style="font-weight:500;">${d.label}</span>
+      <span style="font-size:var(--mobius-font-xs, 9px);color:#64748b;">${d.description}</span>
+    </div>`
+  ).join('');
   
   menu.innerHTML = `
     <div class="mobius-mini-menu-item mobius-mini-theme-trigger" style="${menuItemStyle}">
       Theme <span style="margin-left:auto;font-size:9px;opacity:0.5;">›</span>
     </div>
     <div class="mobius-mini-theme-submenu" style="display:none;border-top:1px solid rgba(11,18,32,0.06);padding:2px 0;margin:0 4px;">
-      <div class="mobius-mini-menu-item" data-theme="light" style="${menuItemStyle}font-size:10px;">Light</div>
-      <div class="mobius-mini-menu-item" data-theme="dark" style="${menuItemStyle}font-size:10px;">Dark</div>
-      <div class="mobius-mini-menu-item" data-theme="blue" style="${menuItemStyle}font-size:10px;">Blue</div>
-      <div class="mobius-mini-menu-item" data-theme="glass" style="${menuItemStyle}font-size:10px;">Glass</div>
+      ${themeOptionsHtml}
+    </div>
+    <div class="mobius-mini-menu-item mobius-mini-density-trigger" style="${menuItemStyle}">
+      Text Size <span style="margin-left:auto;font-size:9px;opacity:0.5;">›</span>
+    </div>
+    <div class="mobius-mini-density-submenu" style="display:none;border-top:1px solid rgba(11,18,32,0.06);padding:2px 0;margin:0 4px;">
+      ${densityOptionsHtml}
     </div>
     <div style="height:1px;background:rgba(11,18,32,0.06);margin:2px 8px;"></div>
-    <div class="mobius-mini-menu-item danger" style="${menuItemStyle}color:#dc2626;font-size:10px;">Disable on this site</div>
+    <div class="mobius-mini-menu-item danger" style="${menuItemStyle}color:#dc2626;font-size:var(--mobius-font-sm, 10px);">Disable on this site</div>
   `;
 
   const themeSubmenu = menu.querySelector('.mobius-mini-theme-submenu') as HTMLElement;
+  const densitySubmenu = menu.querySelector('.mobius-mini-density-submenu') as HTMLElement;
 
-  // Add click handlers directly to each element
+  // Theme trigger handler
   const themeTriggerEl = menu.querySelector('.mobius-mini-theme-trigger') as HTMLElement;
-  console.log('[Mobius] Theme trigger found:', !!themeTriggerEl);
-  
-  // Theme options count
-  const themeOptions = menu.querySelectorAll('[data-theme]');
-  console.log('[Mobius] Theme options found:', themeOptions.length);
-
-  // Use mousedown instead of click - fires before any other handlers
   if (themeTriggerEl) {
     themeTriggerEl.onmousedown = (e) => {
       e.stopPropagation();
       e.preventDefault();
       themeSubmenuOpen = !themeSubmenuOpen;
+      densitySubmenuOpen = false;
       themeSubmenu.style.display = themeSubmenuOpen ? 'block' : 'none';
-      console.log('[Mobius] Theme submenu toggled:', themeSubmenuOpen);
+      densitySubmenu.style.display = 'none';
     };
   }
 
-  // Add mousedown handlers to each theme option
+  // Density trigger handler
+  const densityTriggerEl = menu.querySelector('.mobius-mini-density-trigger') as HTMLElement;
+  if (densityTriggerEl) {
+    densityTriggerEl.onmousedown = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      densitySubmenuOpen = !densitySubmenuOpen;
+      themeSubmenuOpen = false;
+      densitySubmenu.style.display = densitySubmenuOpen ? 'block' : 'none';
+      themeSubmenu.style.display = 'none';
+    };
+  }
+
+  // Theme option handlers
+  const themeOptions = menu.querySelectorAll('[data-theme]');
   themeOptions.forEach((el) => {
     (el as HTMLElement).onmousedown = async (e) => {
       e.stopPropagation();
       e.preventDefault();
-      const theme = (el as HTMLElement).dataset.theme || 'light';
-      console.log('[Mobius] Theme option clicked:', theme);
+      const theme = (el as HTMLElement).dataset.theme as ThemeId || 'light';
       await selectTheme(theme);
+    };
+  });
+
+  // Density option handlers
+  const densityOptions = menu.querySelectorAll('[data-density]');
+  densityOptions.forEach((el) => {
+    (el as HTMLElement).onmousedown = async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const density = (el as HTMLElement).dataset.density as DensityId || 'normal';
+      await selectDensity(density);
     };
   });
 
@@ -1329,7 +1386,9 @@ function createMini(): HTMLElement {
       menu.style.left = 'auto';
       menu.style.display = 'block';
       themeSubmenu.style.display = 'none';
+      densitySubmenu.style.display = 'none';
       themeSubmenuOpen = false;
+      densitySubmenuOpen = false;
       
       // Append to body if not already there
       if (!document.body.contains(menu)) {
@@ -1353,7 +1412,9 @@ function createMini(): HTMLElement {
         console.log('[Mobius] Closing menu - clicked outside');
         menu.style.display = 'none';
         themeSubmenu.style.display = 'none';
+        densitySubmenu.style.display = 'none';
         themeSubmenuOpen = false;
+        densitySubmenuOpen = false;
       }
     }
   });
@@ -3370,9 +3431,13 @@ async function renderMiniIfAllowed(): Promise<void> {
     const initial = miniLastPos || { x: 14, y: 14 };
     await setMiniPos(mini, initial);
     
-    // Apply saved theme
-    const savedTheme = await loadMiniTheme();
-    applyMiniTheme(mini, savedTheme);
+    // Apply saved theme and density using centralized system
+    const { theme, density } = await initializeStyles(mini);
+    currentThemeId = theme;
+    currentDensityId = density;
+    
+    // Inject base CSS for utility classes
+    injectBaseCSS();
   } else {
     // Ensure it's visible after collapsing from the full sidebar.
     mini.style.display = '';
