@@ -57,7 +57,8 @@ def cleanup_all_patients(db, tenant_id):
     db.query(Milestone).delete()
     
     # Clear resolution plan data
-    from app.models.resolution import StepAnswer, PlanNote
+    from app.models.resolution import StepAnswer, PlanNote, UserRemedy
+    db.query(UserRemedy).delete()  # FK to resolution_plan
     db.query(StepAnswer).delete()
     db.query(PlanNote).delete()
     db.query(PlanStepFactLink).delete()

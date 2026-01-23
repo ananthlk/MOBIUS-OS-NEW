@@ -2651,6 +2651,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       session_id: sessionId,
       ...(patientKey && { patient_key: patientKey }),
     });
+    console.log('[Mobius] Fetching sidecar state for patient:', patientKey);
     const response = await fetch(`${API_BASE_URL}/api/v1/sidecar/state?${queryParams}`, {
       method: 'GET',
       headers: {
@@ -2660,15 +2661,27 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     });
     
     if (response.ok) {
-      sidecarState = await response.json();
+      const newState = await response.json();
+      console.log('[Mobius] Sidecar state fetched, factors:', newState.factors?.length || 0);
+      sidecarState = newState;
     } else {
-      console.warn('[Mobius] Failed to fetch sidecar state, using fallback');
-      // Create fallback state from mini state
-      sidecarState = createFallbackSidecarState(miniState, recordContext);
+      const errorText = await response.text();
+      console.warn('[Mobius] Failed to fetch sidecar state:', response.status, errorText);
+      // Only use fallback if we don't have existing state
+      if (!sidecarState || !sidecarState.factors || sidecarState.factors.length === 0) {
+        sidecarState = createFallbackSidecarState(miniState, recordContext);
+      } else {
+        console.log('[Mobius] Keeping existing sidecar state');
+      }
     }
   } catch (error) {
     console.error('[Mobius] Error fetching sidecar state:', error);
-    sidecarState = createFallbackSidecarState(miniState, recordContext);
+    // Only use fallback if we don't have existing state
+    if (!sidecarState || !sidecarState.factors || sidecarState.factors.length === 0) {
+      sidecarState = createFallbackSidecarState(miniState, recordContext);
+    } else {
+      console.log('[Mobius] Keeping existing sidecar state after error');
+    }
   }
   
   // Create sidebar container
@@ -2899,11 +2912,24 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   const allFactors = sidecarState?.factors || [];
   
   // Filter factors based on preference
-  // "focus" = only show factors where is_focus=true OR status is blocked/waiting
-  // "all" = show all factors
-  const factors = currentViewPref === 'focus'
-    ? allFactors.filter(f => f.is_focus || f.status === 'blocked' || f.status === 'waiting')
-    : allFactors;
+  // "focus" = show factors with steps OR need attention (hide empty resolved ones)
+  // "all" = show all 5 factors
+  let factors = allFactors;
+  if (currentViewPref === 'focus') {
+    // Show factors that have steps (work to do) or need attention
+    // Hide only factors that are resolved AND have no steps
+    factors = allFactors.filter(f => 
+      (f.steps && f.steps.length > 0) ||  // Has steps = always show
+      f.is_focus || 
+      f.status === 'blocked' || 
+      f.status === 'waiting' ||
+      f.user_override === 'unresolved'
+    );
+    // Never leave empty - fall back to all
+    if (factors.length === 0) {
+      factors = allFactors;
+    }
+  }
   
   if (factors.length > 0) {
     // NEW: Factor-based cascading UI
@@ -3253,10 +3279,38 @@ function createFallbackSidecarState(miniState: MiniState, recordContext: RecordC
 
 /**
  * Refresh sidecar state and re-render
+ * Preserves current state if API refresh fails
  */
 async function refreshSidecarState(miniState: MiniState): Promise<void> {
+  // Store current state in case refresh fails
+  const previousState = sidecarState;
+  
+  // Remove current sidebar
   removeSidebar();
-  await initSidecarUI(miniState);
+  
+  // Try to reinitialize - if it fails, restore previous state
+  try {
+    await initSidecarUI(miniState);
+    
+    // Check if we got valid factors - if not and we had them before, something went wrong
+    if (previousState?.factors && previousState.factors.length > 0 && 
+        (!sidecarState?.factors || sidecarState.factors.length === 0)) {
+      console.warn('[Mobius] Refresh resulted in empty factors, restoring previous state');
+      sidecarState = previousState;
+      removeSidebar();
+      await initSidecarUI(miniState);
+    }
+  } catch (error) {
+    console.error('[Mobius] Error refreshing sidecar, restoring previous state:', error);
+    if (previousState) {
+      sidecarState = previousState;
+      try {
+        await initSidecarUI(miniState);
+      } catch (e) {
+        console.error('[Mobius] Failed to restore previous sidecar state:', e);
+      }
+    }
+  }
 }
 
 /**
