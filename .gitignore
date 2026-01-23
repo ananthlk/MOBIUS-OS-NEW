@@ -31,5 +31,17 @@ extension/dist/
 
 # Environment / secrets
 .env
+.env.*
 *.env.local
 gcp-credentials.json
+
+# GCP / Service Account Keys - NEVER COMMIT THESE
+Keys/
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+**/credentials*.json
+**/service-account*.json
+**/gcp-*.json
+**/*-key.json
