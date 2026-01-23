@@ -87,6 +87,84 @@ from app.models.patient_ids import PatientId
 from app.models.evidence import PlanStepFactLink, Evidence
 from app.models.event_log import EventLog
 from app.models.response import SystemResponse
+from app.models.tenant import AppUser, Role
+from app.models.activity import Activity, UserActivity
+
+
+# =============================================================================
+# USER DEFINITIONS (5 Demo Users)
+# =============================================================================
+
+USER_DEFINITIONS = [
+    {
+        "user_id": "00000000-0000-0000-0000-000000000010",
+        "email": "admin@demo.clinic",
+        "display_name": "Alex Admin",
+        "first_name": "Alex",
+        "role_name": "admin",
+        "activities": [
+            "verify_eligibility",
+            "check_in_patients",
+            "schedule_appointments",
+            "submit_claims",
+            "rework_denials",
+            "prior_authorization",
+            "patient_collections",
+            "post_payments",
+            "patient_outreach",
+            "document_notes",
+            "coordinate_referrals",
+        ],
+    },
+    {
+        "user_id": "00000000-0000-0000-0000-000000000011",
+        "email": "scheduler@demo.clinic",
+        "display_name": "Sam Scheduler",
+        "first_name": "Sam",
+        "role_name": "staff",
+        "activities": [
+            "schedule_appointments",
+            "check_in_patients",
+            "patient_outreach",
+        ],
+    },
+    {
+        "user_id": "00000000-0000-0000-0000-000000000012",
+        "email": "eligibility@demo.clinic",
+        "display_name": "Eli Eligibility",
+        "first_name": "Eli",
+        "role_name": "staff",
+        "activities": [
+            "verify_eligibility",
+            "check_in_patients",
+        ],
+    },
+    {
+        "user_id": "00000000-0000-0000-0000-000000000013",
+        "email": "claims@demo.clinic",
+        "display_name": "Claire Claims",
+        "first_name": "Claire",
+        "role_name": "billing_specialist",
+        "activities": [
+            "submit_claims",
+            "rework_denials",
+            "post_payments",
+            "patient_collections",
+        ],
+    },
+    {
+        "user_id": "00000000-0000-0000-0000-000000000014",
+        "email": "clinical@demo.clinic",
+        "display_name": "Dr. Casey Clinical",
+        "first_name": "Casey",
+        "role_name": "clinical",
+        "activities": [
+            "prior_authorization",
+            "document_notes",
+            "coordinate_referrals",
+        ],
+    },
+]
 
 
 # =============================================================================
@@ -984,6 +1062,103 @@ def create_patient(db, tenant_id, patient_def):
     return patient
 
 
+def create_users(db, tenant_id):
+    """Create demo users with roles and activities."""
+    
+    # Get or create roles
+    role_cache = {}
+    for user_def in USER_DEFINITIONS:
+        role_name = user_def["role_name"]
+        if role_name not in role_cache:
+            role = db.query(Role).filter(Role.name == role_name).first()
+            if not role:
+                role = Role(name=role_name)
+                db.add(role)
+                db.flush()
+            role_cache[role_name] = role
+    
+    # Ensure all required activities exist
+    all_activity_codes = set()
+    for user_def in USER_DEFINITIONS:
+        all_activity_codes.update(user_def["activities"])
+    
+    activity_labels = {
+        "verify_eligibility": "Verify eligibility",
+        "check_in_patients": "Check in patients",
+        "schedule_appointments": "Schedule appointments",
+        "submit_claims": "Submit claims",
+        "rework_denials": "Rework denied claims",
+        "prior_authorization": "Handle prior authorizations",
+        "patient_collections": "Patient collections",
+        "post_payments": "Post payments",
+        "patient_outreach": "Patient outreach",
+        "document_notes": "Document clinical notes",
+        "coordinate_referrals": "Coordinate referrals",
+    }
+    
+    for code in all_activity_codes:
+        existing = db.query(Activity).filter(Activity.activity_code == code).first()
+        if not existing:
+            activity = Activity(
+                activity_code=code,
+                label=activity_labels.get(code, code.replace("_", " ").title()),
+            )
+            db.add(activity)
+    db.flush()
+    
+    # Get activity cache
+    activity_cache = {}
+    activities = db.query(Activity).all()
+    for act in activities:
+        activity_cache[act.activity_code] = act
+    
+    # Create users
+    created_count = 0
+    for user_def in USER_DEFINITIONS:
+        user_id = uuid.UUID(user_def["user_id"])
+        
+        # Check if user exists
+        existing = db.query(AppUser).filter(AppUser.user_id == user_id).first()
+        if existing:
+            # Update existing user
+            existing.email = user_def["email"]
+            existing.display_name = user_def["display_name"]
+            existing.first_name = user_def["first_name"]
+            existing.role_id = role_cache[user_def["role_name"]].role_id
+            user = existing
+        else:
+            # Create new user
+            user = AppUser(
+                user_id=user_id,
+                tenant_id=tenant_id,
+                email=user_def["email"],
+                display_name=user_def["display_name"],
+                first_name=user_def["first_name"],
+                role_id=role_cache[user_def["role_name"]].role_id,
+                status="active",
+            )
+            db.add(user)
+            created_count += 1
+        
+        db.flush()
+        
+        # Clear existing activities for this user
+        db.query(UserActivity).filter(UserActivity.user_id == user_id).delete(synchronize_session=False)
+        
+        # Add user activities
+        for i, activity_code in enumerate(user_def["activities"]):
+            if activity_code in activity_cache:
+                user_activity = UserActivity(
+                    user_id=user_id,
+                    activity_id=activity_cache[activity_code].activity_id,
+                    is_primary=(i == 0),  # First activity is primary
+                )
+                db.add(user_activity)
+    
+    db.flush()
+    return created_count
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -1011,8 +1186,15 @@ def main():
         else:
             print(f"\nTenant: {tenant.name}")
         
-        # Clean up existing
+        # Clean up existing patients
         cleanup_existing(db, tenant.tenant_id)
+        
+        # Create users
+        print("\n--- Creating Demo Users ---")
+        user_count = create_users(db, tenant.tenant_id)
+        for user_def in USER_DEFINITIONS:
+            role_icon = "👤" if user_def["role_name"] != "admin" else "👑"
+            print(f"  {role_icon} {user_def['display_name']} ({user_def['email']}) - {user_def['role_name']}")
         
         # Create patients
         print("\n--- Creating 12 Patients with L1-L4 Data ---")
@@ -1039,12 +1221,15 @@ def main():
         db.commit()
         
         print("\n" + "=" * 60)
-        print("SUCCESS - 12 PATIENTS CREATED WITH COMPLETE HIERARCHY")
+        print("SUCCESS - DEMO DATA SEEDED")
         print("=" * 60)
-        print(f"\n  Attendance Factor: {attendance_count}")
-        print(f"  Eligibility Factor: {eligibility_count}")
-        print(f"  Green/Resolved: {green_count}")
-        print(f"\n  Total: {attendance_count + eligibility_count + green_count}")
+        print(f"\n  Users: {len(USER_DEFINITIONS)}")
+        print(f"    - Admin: 1 (Alex Admin)")
+        print(f"    - Staff: 4 (Sam, Eli, Claire, Casey)")
+        print(f"\n  Patients: {attendance_count + eligibility_count + green_count}")
+        print(f"    - Attendance Factor: {attendance_count}")
+        print(f"    - Eligibility Factor: {eligibility_count}")
+        print(f"    - Green/Resolved: {green_count}")
         print("\n  Data Layers:")
         print("    L1: PaymentProbability with agentic recommendations")
         print("    L2: ResolutionPlan with factor modes")
