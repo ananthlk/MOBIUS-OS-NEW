@@ -350,6 +350,7 @@ def assign_to_mobius():
             
             # Update step assignment
             step.assigned_to_user_id = None  # Unassign from user
+            step.assignee_type = "mobius"  # Set assignee type for UI display
             step.status = StepStatus.CURRENT
             
             # Record the assignment mode (would trigger agent execution)
@@ -415,6 +416,7 @@ def bulk_assign_to_mobius():
                 
                 # Assign to Mobius
                 step.assigned_to_user_id = None
+                step.assignee_type = "mobius"  # Set assignee type for UI display
                 step.status = StepStatus.CURRENT
                 
                 answer = StepAnswer(
@@ -491,6 +493,7 @@ def take_ownership():
             
             # Update step assignment
             step.assigned_to_user_id = g.user_id
+            step.assignee_type = "user"  # Set assignee type for UI display
             step.status = StepStatus.CURRENT
             
             # Create user-owned task record

@@ -44,6 +44,7 @@ import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, Det
 import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService } from './services/auth';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
+import { initTooltipStyles, applyAutoTooltips, setupTooltips } from './services/tooltips';
 
 const componentRegistry = {
   contextSummary: ContextSummary,
@@ -2305,7 +2306,10 @@ function createMini(): HTMLElement {
     }
     
     // Get the bottleneck factor type from resolution plan
-    const factorType = resolutionPlan?.current_step?.factor_type;
+    // Try current_step first, then fall back to gap_types[0]
+    const factorType = resolutionPlan?.current_step?.factor_type 
+      || resolutionPlan?.gap_types?.[0]
+      || null;
     if (!factorType) {
       showToast('No bottleneck factor found');
       return;
@@ -3218,6 +3222,10 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   
   // Add to DOM
   document.body.appendChild(sidebarContainer);
+  
+  // Setup tooltips with auto-observer (reapplies on DOM changes like FactorList re-renders)
+  setupTooltips(sidebarContainer);
+  
   console.log('[Mobius OS] Sidecar UI initialized');
 }
 
@@ -4290,6 +4298,9 @@ async function renderMiniIfAllowed(): Promise<void> {
   if (isAutoDetectionEnabled) {
     startPatientContextDetection();
   }
+  
+  // Setup tooltips for Mini widget (with auto-observer for dynamic content)
+  setupTooltips(mini);
 }
 
 // Initialize sidebar

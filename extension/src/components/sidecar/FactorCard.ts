@@ -432,10 +432,10 @@ function createStepsSection(factor: Factor, onStepAction: (stepId: string, actio
   const section = document.createElement('div');
   section.className = 'factor-steps';
   
-  for (const step of factor.steps) {
-    const stepEl = createStepElement(step, factor.mode, onStepAction);
+  factor.steps.forEach((step, index) => {
+    const stepEl = createStepElement(step, factor.mode, onStepAction, index + 1);
     section.appendChild(stepEl);
-  }
+  });
   
   return section;
 }
@@ -443,13 +443,21 @@ function createStepsSection(factor: Factor, onStepAction: (stepId: string, actio
 /**
  * Create a single step element (compact single-line layout)
  */
-function createStepElement(step: FactorStep, mode: WorkflowMode | null, onStepAction: (stepId: string, action: 'done' | 'skip' | 'delegate', answerCode?: string) => void): HTMLElement {
+function createStepElement(step: FactorStep, mode: WorkflowMode | null, onStepAction: (stepId: string, action: 'done' | 'skip' | 'delegate', answerCode?: string) => void, stepNumber?: number): HTMLElement {
   const el = document.createElement('div');
   el.className = `factor-step step-${step.status}`;
   
-  // Left side: icon + label
+  // Left side: number + icon + label
   const left = document.createElement('div');
   left.className = 'step-left';
+  
+  // Step number (1, 2, 3...)
+  if (stepNumber) {
+    const numEl = document.createElement('span');
+    numEl.className = 'step-number';
+    numEl.textContent = `${stepNumber}.`;
+    left.appendChild(numEl);
+  }
   
   // Assignee icon
   const icon = document.createElement('span');
