@@ -577,17 +577,18 @@ PATIENT_PROFILES = {
     },
     
     # =========================================================================
-    # GROUP 2: ATTENDANCE COMPLETED, ELIGIBILITY IN PROGRESS (3 patients)
+    # GROUP 2: YELLOW PATIENTS - Eligibility focus (3 patients)
+    # All steps OPEN - nothing completed
     # =========================================================================
     "angela": {
         "name": "Angela Morris",
         "mrn_suffix": "ANGELA01",
         "profile": "Established patient, simple eligibility",
-        "theme": "Mobius success → Simple eligibility decision",
+        "theme": "Eligibility focus — Coverage path decision needed",
         "group": "eligibility_in_progress",
         "probability": {
             "overall": 0.85,
-            "attendance": 0.95,  # High - visit readiness complete
+            "attendance": 0.95,  # High
             "eligibility": 0.75,  # Medium - needs path confirmation
             "coverage": 0.88,
             "errors": 0.92,
@@ -596,16 +597,16 @@ PATIENT_PROFILES = {
             "recommendation_reason": "Active commercial PPO confirmed. Straightforward path - recommend automated execution.",
         },
         "attendance_steps": [
-            {"code": "understanding_visit", "answer": "standard_visit", "assignee": "mobius", "status": "answered"},
-            {"code": "staying_on_track", "answer": "standard_outreach", "assignee": "mobius", "status": "answered"},
-            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "answered"},
-            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "answered"},
-            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "answered"},
+            {"code": "understanding_visit", "answer": "standard_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "standard_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "pending"},
+            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "pending"},
         ],
         "eligibility_steps": [
-            {"code": "coverage_discovery", "answer": "commercial_ppo", "assignee": "mobius", "status": "answered"},
-            {"code": "coverage_status", "answer": "active_stable", "assignee": "mobius", "status": "answered"},
-            {"code": "coverage_path_selection", "answer": None, "assignee": "user", "status": "current"},
+            {"code": "coverage_discovery", "answer": "commercial_ppo", "assignee": "mobius", "status": "current"},
+            {"code": "coverage_status", "answer": "active_stable", "assignee": "mobius", "status": "pending"},
+            {"code": "coverage_path_selection", "answer": None, "assignee": "user", "status": "pending"},
             {"code": "coverage_escalation", "answer": None, "assignee": "user", "status": "pending"},
         ],
         "attendance_evidence": {
@@ -625,11 +626,11 @@ PATIENT_PROFILES = {
         "name": "Carlos Ramirez",
         "mrn_suffix": "CARLOS01",
         "profile": "New patient, complex eligibility (reinstatement needed)",
-        "theme": "Mobius success → Parallel eligibility paths",
+        "theme": "Eligibility focus — Reinstatement paths available",
         "group": "eligibility_in_progress",
         "probability": {
             "overall": 0.62,
-            "attendance": 0.88,  # Good - visit readiness complete
+            "attendance": 0.88,
             "eligibility": 0.45,  # Low - expired coverage, needs action
             "coverage": 0.70,
             "errors": 0.85,
@@ -638,16 +639,16 @@ PATIENT_PROFILES = {
             "recommendation_reason": "Medicaid reinstatement possible but requires coordination. Parallel paths available - recommend collaborative approach.",
         },
         "attendance_steps": [
-            {"code": "understanding_visit", "answer": "new_visit", "assignee": "mobius", "status": "answered"},
-            {"code": "staying_on_track", "answer": "tailored_outreach", "assignee": "mobius", "status": "answered"},
-            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "answered"},
-            {"code": "reducing_risks", "answer": "scheduling_conflict", "assignee": "mobius", "status": "answered"},
-            {"code": "backup_plan", "answer": "increased_confirmation", "assignee": "mobius", "status": "answered"},
+            {"code": "understanding_visit", "answer": "new_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "tailored_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "pending"},
+            {"code": "reducing_risks", "answer": "scheduling_conflict", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "increased_confirmation", "assignee": "mobius", "status": "pending"},
         ],
         "eligibility_steps": [
-            {"code": "coverage_discovery", "answer": "managed_medicaid", "assignee": "mobius", "status": "answered"},
-            {"code": "coverage_status", "answer": "expired_reinstatable", "assignee": "mobius", "status": "answered"},
-            {"code": "coverage_path_selection", "answer": None, "assignee": "user", "status": "current"},
+            {"code": "coverage_discovery", "answer": "managed_medicaid", "assignee": "mobius", "status": "current"},
+            {"code": "coverage_status", "answer": "expired_reinstatable", "assignee": "mobius", "status": "pending"},
+            {"code": "coverage_path_selection", "answer": None, "assignee": "user", "status": "pending"},
             {"code": "coverage_escalation", "answer": None, "assignee": "user", "status": "pending"},
         ],
         "attendance_evidence": {
@@ -667,11 +668,11 @@ PATIENT_PROFILES = {
         "name": "Denise Walker",
         "mrn_suffix": "DENISE01",
         "profile": "High-risk patient, no coverage (escalation required)",
-        "theme": "Joint success → Escalated eligibility",
+        "theme": "Eligibility focus — Escalation needed",
         "group": "eligibility_in_progress",
         "probability": {
             "overall": 0.38,
-            "attendance": 0.72,  # Moderate - joint completion
+            "attendance": 0.72,
             "eligibility": 0.20,  # Very low - no coverage
             "coverage": 0.30,
             "errors": 0.80,
@@ -680,16 +681,16 @@ PATIENT_PROFILES = {
             "recommendation_reason": "No coverage found. Complex case requiring leadership escalation and multi-path evaluation.",
         },
         "attendance_steps": [
-            {"code": "understanding_visit", "answer": "high_risk_visit", "assignee": "user", "status": "answered"},
-            {"code": "staying_on_track", "answer": "personalized_outreach", "assignee": "user", "status": "answered"},
-            {"code": "clinical_readiness", "answer": "possible_decompensation", "assignee": "user", "status": "answered"},
-            {"code": "reducing_risks", "answer": ["transportation", "readiness_anxiety"], "assignee": "user", "status": "answered"},
-            {"code": "backup_plan", "answer": "modality_shift", "assignee": "user", "status": "answered"},
+            {"code": "understanding_visit", "answer": "high_risk_visit", "assignee": "user", "status": "current"},
+            {"code": "staying_on_track", "answer": "personalized_outreach", "assignee": "user", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "possible_decompensation", "assignee": "user", "status": "pending"},
+            {"code": "reducing_risks", "answer": ["transportation", "readiness_anxiety"], "assignee": "user", "status": "pending"},
+            {"code": "backup_plan", "answer": "modality_shift", "assignee": "user", "status": "pending"},
         ],
         "eligibility_steps": [
-            {"code": "coverage_discovery", "answer": "no_coverage", "assignee": "mobius", "status": "answered"},
-            {"code": "coverage_status", "answer": "not_active", "assignee": "mobius", "status": "answered"},
-            {"code": "coverage_path_selection", "answer": None, "assignee": "user", "status": "current"},
+            {"code": "coverage_discovery", "answer": "no_coverage", "assignee": "mobius", "status": "current"},
+            {"code": "coverage_status", "answer": "not_active", "assignee": "mobius", "status": "pending"},
+            {"code": "coverage_path_selection", "answer": None, "assignee": "user", "status": "pending"},
             {"code": "coverage_escalation", "answer": None, "assignee": "user", "status": "pending"},
         ],
         "attendance_evidence": {
@@ -704,6 +705,215 @@ PATIENT_PROFILES = {
             "coverage_status": ["coverage_not_active"],
             "coverage_path_selection": ["medicaid_eligibility_likely", "state_program_path", "emergency_path_available", "escalation_required"],
         },
+    },
+    
+    # =========================================================================
+    # GROUP 3: GREEN PATIENTS - Mobius monitoring, user just confirms (6 patients)
+    # High probability, simple cases - "just click approve"
+    # =========================================================================
+    
+    # --- 4 patients: Fully Mobius-handled (user just confirms) ---
+    
+    "patricia": {
+        "name": "Patricia Chen",
+        "mrn_suffix": "PATRIC01",
+        "profile": "Routine follow-up, everything on file",
+        "theme": "Green light — Just confirm and move on",
+        "group": "green_mobius",
+        "probability": {
+            "overall": 0.94,
+            "attendance": 0.96,
+            "eligibility": 0.95,
+            "coverage": 0.94,
+            "errors": 0.96,
+            "agentic_confidence": 0.96,
+            "recommended_mode": "mobius",
+            "recommendation_reason": "All systems go. Insurance verified, patient confirmed. Mobius will send reminder.",
+        },
+        "attendance_steps": [
+            {"code": "understanding_visit", "answer": "standard_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "standard_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "pending"},
+            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "pending"},
+        ],
+        "eligibility_steps": [],  # Eligibility already confirmed
+        "attendance_evidence": {
+            "understanding_visit": ["prior_completed_visits", "stable_attendance_history", "no_recent_noshow"],
+            "staying_on_track": ["valid_contact_info", "prior_responsiveness"],
+            "clinical_readiness": ["no_crisis_indicators"],
+            "reducing_risks": ["no_barriers_identified"],
+            "backup_plan": ["high_attendance_likelihood"],
+        },
+        "eligibility_evidence": {},
+    },
+    "robert": {
+        "name": "Robert Kim",
+        "mrn_suffix": "ROBERT01",
+        "profile": "Regular patient, insurance active",
+        "theme": "Green light — Insurance verified, send reminder",
+        "group": "green_mobius",
+        "probability": {
+            "overall": 0.92,
+            "attendance": 0.94,
+            "eligibility": 0.93,
+            "coverage": 0.90,
+            "errors": 0.95,
+            "agentic_confidence": 0.94,
+            "recommended_mode": "mobius",
+            "recommendation_reason": "Commercial PPO active through 2027. Patient responds well to SMS. Let Mobius handle.",
+        },
+        "attendance_steps": [
+            {"code": "understanding_visit", "answer": "standard_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "standard_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "pending"},
+            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "pending"},
+        ],
+        "eligibility_steps": [],
+        "attendance_evidence": {
+            "understanding_visit": ["prior_completed_visits", "stable_attendance_history"],
+            "staying_on_track": ["valid_contact_info", "prior_responsiveness"],
+            "clinical_readiness": ["no_crisis_indicators"],
+            "reducing_risks": ["no_barriers_identified"],
+            "backup_plan": ["high_attendance_likelihood"],
+        },
+        "eligibility_evidence": {},
+    },
+    "linda": {
+        "name": "Linda Thompson",
+        "mrn_suffix": "LINDA01",
+        "profile": "Established Medicare patient, reliable",
+        "theme": "Green light — Medicare active, no action needed",
+        "group": "green_mobius",
+        "probability": {
+            "overall": 0.91,
+            "attendance": 0.93,
+            "eligibility": 0.92,
+            "coverage": 0.89,
+            "errors": 0.94,
+            "agentic_confidence": 0.93,
+            "recommended_mode": "mobius",
+            "recommendation_reason": "Medicare Part B active. 100% attendance rate last 12 months. Mobius will confirm.",
+        },
+        "attendance_steps": [
+            {"code": "understanding_visit", "answer": "standard_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "standard_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "pending"},
+            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "pending"},
+        ],
+        "eligibility_steps": [],
+        "attendance_evidence": {
+            "understanding_visit": ["prior_completed_visits", "stable_attendance_history", "no_recent_noshow"],
+            "staying_on_track": ["valid_contact_info", "prior_responsiveness"],
+            "clinical_readiness": ["no_crisis_indicators"],
+            "reducing_risks": ["no_barriers_identified"],
+            "backup_plan": ["high_attendance_likelihood"],
+        },
+        "eligibility_evidence": {},
+    },
+    "michael": {
+        "name": "Michael Davis",
+        "mrn_suffix": "MICHAE01",
+        "profile": "Employer-sponsored insurance, stable",
+        "theme": "Green light — Employer plan verified, good to go",
+        "group": "green_mobius",
+        "probability": {
+            "overall": 0.93,
+            "attendance": 0.95,
+            "eligibility": 0.94,
+            "coverage": 0.91,
+            "errors": 0.95,
+            "agentic_confidence": 0.95,
+            "recommended_mode": "mobius",
+            "recommendation_reason": "Large employer group plan. Verified last week. Just needs reminder sent.",
+        },
+        "attendance_steps": [
+            {"code": "understanding_visit", "answer": "standard_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "standard_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "pending"},
+            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "pending"},
+        ],
+        "eligibility_steps": [],
+        "attendance_evidence": {
+            "understanding_visit": ["prior_completed_visits", "stable_attendance_history"],
+            "staying_on_track": ["valid_contact_info", "prior_responsiveness"],
+            "clinical_readiness": ["no_crisis_indicators"],
+            "reducing_risks": ["no_barriers_identified"],
+            "backup_plan": ["high_attendance_likelihood"],
+        },
+        "eligibility_evidence": {},
+    },
+    
+    # --- 2 patients: Mobius + User together (simple collaboration) ---
+    
+    "jennifer": {
+        "name": "Jennifer Martinez",
+        "mrn_suffix": "JENNIF01",
+        "profile": "New patient, but all info provided",
+        "theme": "Green light — New but straightforward, quick review",
+        "group": "green_together",
+        "probability": {
+            "overall": 0.88,
+            "attendance": 0.85,
+            "eligibility": 0.92,
+            "coverage": 0.88,
+            "errors": 0.91,
+            "agentic_confidence": 0.85,
+            "recommended_mode": "together",
+            "recommendation_reason": "New patient but complete intake. Insurance verified. Quick review recommended.",
+        },
+        "attendance_steps": [
+            {"code": "understanding_visit", "answer": "new_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "tailored_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "user", "status": "pending"},
+            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "pending"},
+        ],
+        "eligibility_steps": [],
+        "attendance_evidence": {
+            "understanding_visit": ["no_prior_visits"],
+            "staying_on_track": ["stated_preferences", "valid_contact_info"],
+            "clinical_readiness": ["no_crisis_indicators"],
+            "reducing_risks": ["no_barriers_identified"],
+            "backup_plan": ["high_attendance_likelihood"],
+        },
+        "eligibility_evidence": {},
+    },
+    "david": {
+        "name": "David Wilson",
+        "mrn_suffix": "DAVID01",
+        "profile": "Returning after gap, but re-verified",
+        "theme": "Green light — Re-established, just confirm",
+        "group": "green_together",
+        "probability": {
+            "overall": 0.86,
+            "attendance": 0.82,
+            "eligibility": 0.90,
+            "coverage": 0.88,
+            "errors": 0.90,
+            "agentic_confidence": 0.82,
+            "recommended_mode": "together",
+            "recommendation_reason": "6-month gap but re-verified insurance. Contact info updated. Brief clinical check suggested.",
+        },
+        "attendance_steps": [
+            {"code": "understanding_visit", "answer": "standard_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "tailored_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "user", "status": "pending"},
+            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "pending"},
+        ],
+        "eligibility_steps": [],
+        "attendance_evidence": {
+            "understanding_visit": ["prior_completed_visits"],
+            "staying_on_track": ["stated_preferences", "valid_contact_info"],
+            "clinical_readiness": ["no_crisis_indicators"],
+            "reducing_risks": ["no_barriers_identified"],
+            "backup_plan": ["high_attendance_likelihood"],
+        },
+        "eligibility_evidence": {},
     },
 }
 
@@ -748,16 +958,14 @@ def cleanup_all_patients(db, tenant_id):
     db.query(PaymentProbability).delete()
     db.query(TaskInstance).delete()
     
-    # Clear patient data
+    # Clear patient data - delete ALL to avoid stale overrides
     db.query(MockEmrRecord).delete()
     db.query(PatientId).delete()
     db.query(PatientSnapshot).delete()
-    db.query(PatientContext).filter(
-        PatientContext.tenant_id == tenant_id
-    ).delete()
+    db.query(PatientContext).delete()  # Delete ALL patient contexts, not just tenant
     
     db.flush()
-    print("  ✓ All existing patient data deleted")
+    print("  ✓ All existing patient data deleted (no stale overrides)")
 
 
 def create_patient(db, tenant_id, profile_key):
@@ -769,10 +977,13 @@ def create_patient(db, tenant_id, profile_key):
     print(f"    Profile: {profile['profile']}")
     print(f"    Theme: {profile['theme']}")
     
-    # Create patient context
+    # Create patient context - explicitly NO overrides so color is computed from probability
     patient = PatientContext(
         tenant_id=tenant_id,
         patient_key=f"demo_{profile_key}_{uuid.uuid4().hex[:6]}",
+        attention_status=None,  # No user override
+        override_color=None,    # Let color be computed from probability (green/yellow/red)
+        factor_overrides={},    # No per-factor overrides
     )
     db.add(patient)
     db.flush()
@@ -803,10 +1014,15 @@ def create_patient(db, tenant_id, profile_key):
         lowest_factor = "attendance"
         problem_statement = f"Preparing {profile['name'].split()[0]} for their visit"
         gap_types = ["attendance"]
-    else:
+    elif group == "eligibility_in_progress":
         lowest_factor = "eligibility"
         problem_statement = f"Securing coverage for {profile['name'].split()[0]}"
         gap_types = ["attendance", "eligibility"]
+    elif group in ["green_mobius", "green_together"]:
+        # Green patients - no real issues, just monitoring
+        lowest_factor = "attendance"  # Still tracking attendance
+        problem_statement = f"{profile['name'].split()[0]} is ready — confirm and proceed"
+        gap_types = ["attendance"]  # Only attendance factor active
     
     # Create payment probability (Layer 1)
     prob_data = profile["probability"]
@@ -853,23 +1069,20 @@ def create_patient(db, tenant_id, profile_key):
     current_step_id = None
     
     # Create ATTENDANCE steps
-    attendance_completed = group == "eligibility_in_progress"
-    print(f"    ATTENDANCE FACTOR ({'Completed' if attendance_completed else 'In Progress'}):")
+    # NO steps should be auto-completed - all steps use their profile status
+    print(f"    ATTENDANCE FACTOR (In Progress):")
     
     for step_profile in profile["attendance_steps"]:
         step_def = next(s for s in ATTENDANCE_L3_STEPS if s["step_code"] == step_profile["code"])
         
-        # Determine status based on group
-        if attendance_completed:
+        # Use status from profile - never auto-complete
+        status = step_profile.get("status", "pending")
+        if status == "answered":
             step_status = StepStatus.ANSWERED
+        elif status == "current":
+            step_status = StepStatus.CURRENT
         else:
-            status = step_profile.get("status", "pending")
-            if status == "answered":
-                step_status = StepStatus.ANSWERED
-            elif status == "current":
-                step_status = StepStatus.CURRENT
-            else:
-                step_status = StepStatus.PENDING
+            step_status = StepStatus.PENDING
         
         step = PlanStep(
             plan_id=plan.plan_id,
@@ -1025,10 +1238,11 @@ def create_patient(db, tenant_id, profile_key):
 
 def main():
     print("=" * 70)
-    print("SEEDING 6 DEMO PATIENTS")
+    print("SEEDING 12 DEMO PATIENTS")
     print("=" * 70)
-    print("GROUP 1: Attendance In Progress (3 patients)")
-    print("GROUP 2: Attendance Completed + Eligibility In Progress (3 patients)")
+    print("GROUP 1: Attendance In Progress - Yellow/Red (3 patients)")
+    print("GROUP 2: Attendance Done + Eligibility In Progress - Yellow (3 patients)")
+    print("GROUP 3: GREEN - Mobius monitoring, user confirms (6 patients)")
     print("=" * 70)
     
     init_db()
@@ -1046,9 +1260,16 @@ def main():
         # Clean up all existing patients
         cleanup_all_patients(db, tenant.tenant_id)
         
-        # Create all 6 patients
+        # Create all 12 patients
         patients = []
-        all_keys = ["maria", "james", "tanya", "angela", "carlos", "denise"]
+        all_keys = [
+            # Group 1: Attendance in progress
+            "maria", "james", "tanya",
+            # Group 2: Eligibility in progress  
+            "angela", "carlos", "denise",
+            # Group 3: Green - Mobius handled
+            "patricia", "robert", "linda", "michael", "jennifer", "david"
+        ]
         for profile_key in all_keys:
             patient = create_patient(db, tenant.tenant_id, profile_key)
             patients.append(patient)
@@ -1056,28 +1277,34 @@ def main():
         db.commit()
         
         print("\n" + "=" * 70)
-        print("SUCCESS! Created 6 demo patients:")
+        print("SUCCESS! Created 12 demo patients:")
         print("=" * 70)
         
-        print("\n  GROUP 1: ATTENDANCE IN PROGRESS")
-        print("  " + "-" * 40)
+        print("\n  GROUP 1: ATTENDANCE IN PROGRESS (Yellow/Red)")
+        print("  " + "-" * 50)
         for key in ["maria", "james", "tanya"]:
             profile = PATIENT_PROFILES[key]
             print(f"    • {profile['name']}")
-            print(f"      Attendance: ► IN PROGRESS")
             print(f"      Theme: {profile['theme']}")
         
-        print("\n  GROUP 2: ELIGIBILITY IN PROGRESS")
-        print("  " + "-" * 40)
+        print("\n  GROUP 2: ELIGIBILITY IN PROGRESS (Yellow)")
+        print("  " + "-" * 50)
         for key in ["angela", "carlos", "denise"]:
             profile = PATIENT_PROFILES[key]
             print(f"    • {profile['name']}")
-            print(f"      Attendance: ✓ COMPLETED")
-            print(f"      Eligibility: ► IN PROGRESS")
             print(f"      Theme: {profile['theme']}")
         
+        print("\n  GROUP 3: GREEN - Just Confirm (Mobius Monitoring)")
+        print("  " + "-" * 50)
+        for key in ["patricia", "robert", "linda", "michael"]:
+            profile = PATIENT_PROFILES[key]
+            print(f"    🤖 {profile['name']} — {profile['theme']}")
+        for key in ["jennifer", "david"]:
+            profile = PATIENT_PROFILES[key]
+            print(f"    🤝 {profile['name']} — {profile['theme']}")
+        
         print("\n" + "=" * 70)
-        print("To verify, open Sidecar and navigate to each patient.")
+        print("Demo scenario: 6 need attention, 6 are green (just click approve)")
         print("=" * 70)
         
     finally:

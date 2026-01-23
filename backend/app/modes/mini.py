@@ -537,40 +537,8 @@ def status():
         attention_status = patient_context.attention_status
         resolved_until = patient_context.resolved_until
         
-        # If system determines patient is resolved (GREEN >= 85%), automatically set attention_status
-        # This ensures system-resolved patients also show purple and persist
-        if computed_response.proceed_indicator.value == "green" and not attention_status:
-            # System determined it's resolved - set attention_status automatically
-            try:
-                patient_context.attention_status = "resolved"
-                # Set resolved_until to target_date + 30 days (or now + 30 days)
-                target_date = None
-                if payment_probability and payment_probability.get("target_date"):
-                    try:
-                        target_date_str = payment_probability["target_date"]
-                        if "T" in target_date_str:
-                            target_date = datetime.fromisoformat(target_date_str.replace("Z", "+00:00")).date()
-                        else:
-                            target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
-                    except (ValueError, AttributeError, TypeError):
-                        pass
-                
-                if target_date:
-                    resolved_until = datetime.combine(target_date, datetime.max.time()) + timedelta(days=30)
-                else:
-                    resolved_until = datetime.utcnow() + timedelta(days=30)
-                
-                patient_context.resolved_until = resolved_until
-                patient_context.attention_status_at = datetime.utcnow()
-                patient_context.attention_status_by_id = user_id
-                patient_context.override_color = "purple"  # System-resolved also gets purple color
-                db.commit()
-                attention_status = "resolved"
-                print(f"[mini/status] Auto-set attention_status='resolved' for system-resolved patient {patient_key}")
-            except Exception as e:
-                print(f"[mini/status] Error auto-setting resolved status: {e}")
-                db.rollback()
-        elif attention_status == "resolved" and resolved_until:
+        # Check if user previously marked as resolved - if so, check if still valid
+        if attention_status == "resolved" and resolved_until:
             # User or system previously marked as resolved - check if still valid
             is_resolved = datetime.utcnow() < resolved_until
             if not is_resolved:

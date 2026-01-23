@@ -52,27 +52,7 @@ steps:
       - '--all-tags'
       - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}'
 
-  # Step 3: Run database migrations (using Cloud SQL Proxy)
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'migrate'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "Running database migrations..."
-        docker run --rm \
-          -e DATABASE_MODE=cloud \
-          -e CLOUDSQL_CONNECTION_NAME=$PROJECT_ID:${_REGION}:${_CLOUDSQL_INSTANCE} \
-          -e POSTGRES_DB_CLOUD=mobius \
-          -e POSTGRES_USER_CLOUD=mobius_app \
-          -e POSTGRES_PASSWORD_CLOUD=$$DB_PASSWORD \
-          -v /cloudsql:/cloudsql \
-          gcr.io/$PROJECT_ID/${_SERVICE_NAME}:${_TAG} \
-          alembic upgrade head
-    secretEnv: ['DB_PASSWORD']
-    waitFor: ['push']
-
-  # Step 4: Deploy to Cloud Run
+  # Step 3: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy'
     entrypoint: gcloud
@@ -90,7 +70,7 @@ steps:
       - '--add-cloudsql-instances'
       - '$PROJECT_ID:${_REGION}:${_CLOUDSQL_INSTANCE}'
       - '--set-env-vars'
-      - 'DATABASE_MODE=cloud,ENABLE_FIRESTORE=true,FLASK_ENV=production,FLASK_DEBUG=0,CLOUDSQL_CONNECTION_NAME=$PROJECT_ID:${_REGION}:${_CLOUDSQL_INSTANCE},POSTGRES_DB_CLOUD=mobius,POSTGRES_USER_CLOUD=mobius_app'
+      - 'DATABASE_MODE=cloud,ENABLE_FIRESTORE=true,FLASK_ENV=production,FLASK_DEBUG=0,CLOUDSQL_CONNECTION_NAME=$PROJECT_ID:${_REGION}:${_CLOUDSQL_INSTANCE},POSTGRES_DB_CLOUD=mobius,POSTGRES_USER_CLOUD=postgres,GCP_PROJECT_ID=$PROJECT_ID'
       - '--set-secrets'
       - 'POSTGRES_PASSWORD_CLOUD=db-password:latest,SECRET_KEY=app-secret-key:latest'
       - '--memory'
@@ -103,12 +83,7 @@ steps:
       - '10'
       - '--timeout'
       - '300'
-    waitFor: ['migrate']
-
-availableSecrets:
-  secretManager:
-    - versionName: projects/$PROJECT_ID/secrets/db-password/versions/latest
-      env: 'DB_PASSWORD'
+    waitFor: ['push']
 
 images:
   - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:${_TAG}'
