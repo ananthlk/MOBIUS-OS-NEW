@@ -1,14 +1,59 @@
 #!/usr/bin/env python3
 """
-Production Seed Script - 12 Demo Patients
+=============================================================================
+GOLD STANDARD SEED SCRIPT - Canonical Data Contract for Batch Jobs
+=============================================================================
 
-Creates the 12 curated demo patients for production:
-- 3 Attendance factor patients (Maria, James, Tanya)
-- 3 Eligibility factor patients (Angela, Carlos, Denise)
-- 6 Green/Resolved patients (Patricia, Robert, Linda, Michael, Jennifer, David)
+This script defines the AUTHORITATIVE data structure for the L1-L4 hierarchy.
+Any batch job that creates patient data MUST follow the patterns defined here.
 
-Usage:
+PATIENTS (12 Demo):
+  - 3 Attendance factor patients (Maria, James, Tanya)
+  - 3 Eligibility factor patients (Angela, Carlos, Denise)
+  - 6 Green/Resolved patients (Patricia, Robert, Linda, Michael, Jennifer, David)
+
+DATA HIERARCHY CONTRACT:
+
+  L1: PaymentProbability
+      - overall_probability (0.0-1.0)
+      - prob_appointment_attendance, prob_eligibility, prob_coverage, prob_no_errors
+      - lowest_factor ("attendance", "eligibility", or "none")
+      - lowest_factor_reason (human-readable theme)
+      - problem_statement (actionable description)
+      - Agentic fields: agentic_confidence, recommended_mode, recommendation_reason, agentic_actions
+
+  L2: ResolutionPlan
+      - gap_types: list of factors being addressed
+      - status: PlanStatus (ACTIVE, COMPLETED, etc.)
+      - factor_mode: FactorType (MOBIUS, TOGETHER, MANUAL)
+      - current_step_id: links to active PlanStep
+
+  L3: PlanSteps (per factor type)
+      - Attendance: 5 categories (understanding_visit, staying_on_track, clinical_readiness, barriers, escalation)
+      - Eligibility: 4 categories (verify_coverage, identify_options, execute_resolution, confirm_resolution)
+      - Each step has: question, description, input_type, answer_options, system_suggestion, assignable_activities
+      - Steps linked to Evidence via PlanStepFactLink
+
+  L4: Evidence
+      - factor_type: which probability factor this evidence relates to
+      - fact_type: category of fact (visit_history, insurance_status, barriers, etc.)
+      - fact_summary: human-readable summary
+      - fact_data: structured JSONB data
+      - impact_direction: positive, negative, or neutral
+      - impact_weight: 0.0-1.0 influence on probability
+
+USAGE:
+  # Seed production database via Cloud SQL proxy
   DATABASE_MODE=cloud python scripts/seed_production_12.py
+
+  # Seed local database
+  DATABASE_MODE=local python scripts/seed_production_12.py
+
+BATCH JOB INTEGRATION:
+  The ATTENDANCE_STEPS, ELIGIBILITY_STEPS, L4_EVIDENCE, and PATIENT_DEFINITIONS
+  constants in this file define the exact data structures that batch jobs should
+  produce. The create_patient() function demonstrates the correct creation order
+  and relationship linking.
 """
 
 import sys
@@ -40,10 +85,354 @@ from app.models.resolution import (
 )
 from app.models.patient_ids import PatientId
 from app.models.evidence import PlanStepFactLink, Evidence
+from app.models.event_log import EventLog
+from app.models.response import SystemResponse
 
 
 # =============================================================================
-# PATIENT DEFINITIONS
+# L3: ATTENDANCE STEP DEFINITIONS (5 Categories)
+# =============================================================================
+
+ATTENDANCE_STEPS = [
+    {
+        "order": 1,
+        "code": "understanding_visit",
+        "question": "Understanding the Patient's Visit",
+        "description": "Determine planning intensity and lead time required for the visit.",
+        "can_auto": True,
+        "input_type": InputType.SINGLE_CHOICE,
+        "assignable_activities": ["schedule_appointments", "patient_outreach"],
+        "answer_options": [
+            {"code": "new_visit", "label": "New Visit"},
+            {"code": "standard_visit", "label": "Standard Visit"},
+            {"code": "high_risk_visit", "label": "High-Risk Visit"},
+        ],
+    },
+    {
+        "order": 2,
+        "code": "staying_on_track",
+        "question": "Helping the Patient Stay on Track",
+        "description": "Select the appropriate outreach strategy based on responsiveness, preferences, and risk.",
+        "can_auto": True,
+        "input_type": InputType.SINGLE_CHOICE,
+        "assignable_activities": ["patient_outreach", "schedule_appointments"],
+        "answer_options": [
+            {"code": "standard_outreach", "label": "Standard Outreach (automated)"},
+            {"code": "tailored_outreach", "label": "Tailored Outreach (automated)"},
+            {"code": "personalized_outreach", "label": "Personalized Outreach (care team call)"},
+            {"code": "reestablish_contact", "label": "Re-establish Contact (shared workflow)"},
+        ],
+    },
+    {
+        "order": 3,
+        "code": "clinical_readiness",
+        "question": "Assessing Clinical Readiness",
+        "description": "Ensure the planned visit is still appropriate from a safety and stability perspective.",
+        "can_auto": True,
+        "input_type": InputType.SINGLE_CHOICE,
+        "assignable_activities": ["patient_outreach"],
+        "answer_options": [
+            {"code": "clinically_stable", "label": "Clinically Stable - Proceed as Planned"},
+            {"code": "possible_decompensation", "label": "Possible Decompensation - Care Team Review"},
+            {"code": "acute_concern", "label": "Acute Concern - Immediate Escalation"},
+            {"code": "insufficient_info", "label": "Insufficient Information - Monitor Closely"},
+        ],
+    },
+    {
+        "order": 4,
+        "code": "reducing_risks",
+        "question": "Reducing Attendance Risks",
+        "description": "Identify non-clinical barriers that could prevent attendance.",
+        "can_auto": True,
+        "input_type": InputType.MULTI_CHOICE,
+        "assignable_activities": ["patient_outreach", "schedule_appointments"],
+        "answer_options": [
+            {"code": "no_barriers", "label": "No Material Barriers"},
+            {"code": "transportation", "label": "Transportation Barriers"},
+            {"code": "social_environmental", "label": "Social & Environmental Barriers"},
+            {"code": "scheduling_conflict", "label": "Scheduling Conflicts"},
+            {"code": "readiness_anxiety", "label": "Readiness or Anxiety-Related"},
+            {"code": "communication", "label": "Communication Barriers"},
+        ],
+    },
+    {
+        "order": 5,
+        "code": "backup_plan",
+        "question": "Creating a Backup Plan",
+        "description": "Manage capacity responsibly based on anticipated likelihood of attendance.",
+        "can_auto": True,
+        "input_type": InputType.SINGLE_CHOICE,
+        "assignable_activities": ["schedule_appointments"],
+        "answer_options": [
+            {"code": "proceed_scheduled", "label": "Proceed as Scheduled"},
+            {"code": "increased_confirmation", "label": "Increased Confirmation Required"},
+            {"code": "double_booking", "label": "Double-Booking Approved"},
+            {"code": "advance_reschedule", "label": "Advance Reschedule Recommended"},
+            {"code": "modality_shift", "label": "Modality Shift Planned"},
+            {"code": "visit_released", "label": "Visit Released"},
+        ],
+    },
+]
+
+
+# =============================================================================
+# L3: ELIGIBILITY STEP DEFINITIONS (5 Categories)
+# =============================================================================
+
+ELIGIBILITY_STEPS = [
+    {
+        "order": 1,
+        "code": "verify_coverage",
+        "question": "Verifying Current Coverage Status",
+        "description": "Determine if patient has active insurance coverage on file.",
+        "can_auto": True,
+        "input_type": InputType.SINGLE_CHOICE,
+        "assignable_activities": ["verify_eligibility", "check_in_patients"],
+        "answer_options": [
+            {"code": "active_verified", "label": "Active Coverage Verified"},
+            {"code": "expired_coverage", "label": "Coverage Expired"},
+            {"code": "no_insurance_on_file", "label": "No Insurance on File"},
+            {"code": "pending_verification", "label": "Pending Verification"},
+        ],
+    },
+    {
+        "order": 2,
+        "code": "identify_gaps",
+        "question": "Identifying Coverage Gaps",
+        "description": "Analyze what specific coverage issues need to be addressed.",
+        "can_auto": True,
+        "input_type": InputType.MULTI_CHOICE,
+        "assignable_activities": ["verify_eligibility"],
+        "answer_options": [
+            {"code": "no_gaps", "label": "No Coverage Gaps"},
+            {"code": "missing_card", "label": "Missing Insurance Card"},
+            {"code": "lapsed_premium", "label": "Lapsed Premium Payment"},
+            {"code": "job_change", "label": "Possible Job/Coverage Change"},
+            {"code": "coordination_needed", "label": "Coordination of Benefits Needed"},
+        ],
+    },
+    {
+        "order": 3,
+        "code": "explore_options",
+        "question": "Exploring Coverage Options",
+        "description": "Identify alternative coverage paths if current coverage is insufficient.",
+        "can_auto": False,
+        "input_type": InputType.SINGLE_CHOICE,
+        "assignable_activities": ["verify_eligibility", "patient_outreach"],
+        "answer_options": [
+            {"code": "reinstate_current", "label": "Reinstate Current Coverage"},
+            {"code": "new_employer", "label": "Check New Employer Coverage"},
+            {"code": "marketplace", "label": "Explore Marketplace Options"},
+            {"code": "medicaid_screen", "label": "Screen for Medicaid/Medicare"},
+            {"code": "self_pay", "label": "Discuss Self-Pay Options"},
+            {"code": "charity_care", "label": "Explore Charity Care"},
+        ],
+    },
+    {
+        "order": 4,
+        "code": "initiate_action",
+        "question": "Initiating Coverage Action",
+        "description": "Take action to resolve coverage issues.",
+        "can_auto": False,
+        "input_type": InputType.SINGLE_CHOICE,
+        "assignable_activities": ["verify_eligibility", "patient_outreach"],
+        "answer_options": [
+            {"code": "contact_patient", "label": "Contact Patient for Info"},
+            {"code": "contact_payer", "label": "Contact Payer Directly"},
+            {"code": "submit_application", "label": "Submit Coverage Application"},
+            {"code": "send_portal_request", "label": "Send Portal Request"},
+            {"code": "schedule_callback", "label": "Schedule Patient Callback"},
+        ],
+    },
+    {
+        "order": 5,
+        "code": "confirm_eligibility",
+        "question": "Confirming Eligibility",
+        "description": "Final verification that coverage is active and sufficient.",
+        "can_auto": True,
+        "input_type": InputType.SINGLE_CHOICE,
+        "assignable_activities": ["verify_eligibility"],
+        "answer_options": [
+            {"code": "fully_verified", "label": "Fully Verified - Ready for Visit"},
+            {"code": "partial_coverage", "label": "Partial Coverage - Patient Aware"},
+            {"code": "self_pay_confirmed", "label": "Self-Pay Confirmed"},
+            {"code": "pending_resolution", "label": "Pending Resolution - Monitor"},
+        ],
+    },
+]
+
+
+# =============================================================================
+# L4: EVIDENCE LIBRARY
+# =============================================================================
+
+L4_EVIDENCE = {
+    # Attendance - Understanding Visit
+    "prior_completed_visits": {
+        "factor_type": "attendance",
+        "fact_type": "visit_history",
+        "fact_summary": "Prior completed visits of same type",
+        "fact_data": {"visit_count": 12, "same_type_count": 8},
+        "impact_direction": "positive",
+        "impact_weight": 0.5,
+    },
+    "stable_attendance_history": {
+        "factor_type": "attendance",
+        "fact_type": "attendance_history",
+        "fact_summary": "Stable attendance history with consistent pattern",
+        "fact_data": {"attendance_rate": 0.95, "pattern": "consistent"},
+        "impact_direction": "positive",
+        "impact_weight": 0.5,
+    },
+    "no_recent_noshow": {
+        "factor_type": "attendance",
+        "fact_type": "attendance_history",
+        "fact_summary": "No recent no-shows in past 6 months",
+        "fact_data": {"noshow_count": 0, "period_months": 6},
+        "impact_direction": "positive",
+        "impact_weight": 0.4,
+    },
+    "no_prior_visits": {
+        "factor_type": "attendance",
+        "fact_type": "visit_history",
+        "fact_summary": "No prior completed visits for this service",
+        "fact_data": {"visit_count": 0, "is_new_patient": True},
+        "impact_direction": "neutral",
+        "impact_weight": 0.3,
+    },
+    "recent_noshow_history": {
+        "factor_type": "attendance",
+        "fact_type": "attendance_history",
+        "fact_summary": "Recent no-show history detected",
+        "fact_data": {"noshow_count": 3, "period_months": 6},
+        "impact_direction": "negative",
+        "impact_weight": 0.6,
+    },
+    "long_gap_since_visit": {
+        "factor_type": "attendance",
+        "fact_type": "visit_history",
+        "fact_summary": "Long gap since last visit (6+ months)",
+        "fact_data": {"months_since_last": 9, "gap_threshold": 6},
+        "impact_direction": "negative",
+        "impact_weight": 0.4,
+    },
+    
+    # Attendance - Staying on Track
+    "valid_contact_info": {
+        "factor_type": "attendance",
+        "fact_type": "contact_info",
+        "fact_summary": "Valid phone and email on file",
+        "fact_data": {"phone_valid": True, "email_valid": True},
+        "impact_direction": "positive",
+        "impact_weight": 0.4,
+    },
+    "prior_responsiveness": {
+        "factor_type": "attendance",
+        "fact_type": "engagement_history",
+        "fact_summary": "Patient responds to automated outreach",
+        "fact_data": {"response_rate": 0.85, "preferred_channel": "sms"},
+        "impact_direction": "positive",
+        "impact_weight": 0.5,
+    },
+    "poor_automated_response": {
+        "factor_type": "attendance",
+        "fact_type": "engagement_history",
+        "fact_summary": "Poor response to automated outreach",
+        "fact_data": {"response_rate": 0.15, "requires_personal": True},
+        "impact_direction": "negative",
+        "impact_weight": 0.5,
+    },
+    
+    # Attendance - Clinical Readiness
+    "no_crisis_indicators": {
+        "factor_type": "attendance",
+        "fact_type": "clinical_status",
+        "fact_summary": "No crisis indicators present",
+        "fact_data": {"crisis_flags": [], "stable": True},
+        "impact_direction": "positive",
+        "impact_weight": 0.6,
+    },
+    "medication_change": {
+        "factor_type": "attendance",
+        "fact_type": "clinical_status",
+        "fact_summary": "Recent medication change may affect readiness",
+        "fact_data": {"medication_changed": True, "days_ago": 14},
+        "impact_direction": "neutral",
+        "impact_weight": 0.3,
+    },
+    "care_team_risk_flag": {
+        "factor_type": "attendance",
+        "fact_type": "clinical_status",
+        "fact_summary": "Care team flagged as high-risk",
+        "fact_data": {"risk_level": "high", "flagged_by": "care_team"},
+        "impact_direction": "negative",
+        "impact_weight": 0.7,
+    },
+    
+    # Attendance - Barriers
+    "no_barriers_identified": {
+        "factor_type": "attendance",
+        "fact_type": "barriers",
+        "fact_summary": "No material barriers identified",
+        "fact_data": {"barriers": [], "risk_level": "low"},
+        "impact_direction": "positive",
+        "impact_weight": 0.5,
+    },
+    "transportation_barrier": {
+        "factor_type": "attendance",
+        "fact_type": "barriers",
+        "fact_summary": "Transportation barrier identified",
+        "fact_data": {"barrier_type": "transportation", "has_ride": False},
+        "impact_direction": "negative",
+        "impact_weight": 0.5,
+    },
+    "work_schedule_conflict": {
+        "factor_type": "attendance",
+        "fact_type": "barriers",
+        "fact_summary": "Work schedule may conflict with appointment",
+        "fact_data": {"barrier_type": "scheduling", "conflict_type": "work"},
+        "impact_direction": "negative",
+        "impact_weight": 0.4,
+    },
+    
+    # Eligibility - Coverage
+    "active_commercial_coverage": {
+        "factor_type": "eligibility",
+        "fact_type": "insurance_status",
+        "fact_summary": "Active commercial insurance verified",
+        "fact_data": {"payer": "Blue Cross", "plan_type": "PPO", "active": True},
+        "impact_direction": "positive",
+        "impact_weight": 0.8,
+    },
+    "medicaid_expired": {
+        "factor_type": "eligibility",
+        "fact_type": "insurance_status",
+        "fact_summary": "Medicaid coverage expired",
+        "fact_data": {"payer": "Medicaid", "expiry_date": "2025-12-01", "active": False},
+        "impact_direction": "negative",
+        "impact_weight": 0.7,
+    },
+    "no_insurance_on_file": {
+        "factor_type": "eligibility",
+        "fact_type": "insurance_status",
+        "fact_summary": "No insurance information on file",
+        "fact_data": {"has_insurance": False, "self_pay": None},
+        "impact_direction": "negative",
+        "impact_weight": 0.8,
+    },
+    "reinstatement_eligible": {
+        "factor_type": "eligibility",
+        "fact_type": "coverage_options",
+        "fact_summary": "Patient may be eligible for Medicaid reinstatement",
+        "fact_data": {"option": "medicaid_reinstatement", "likelihood": "high"},
+        "impact_direction": "positive",
+        "impact_weight": 0.5,
+    },
+}
+
+
+# =============================================================================
+# PATIENT DEFINITIONS (12 Total)
 # =============================================================================
 
 PATIENTS = [
@@ -60,6 +449,27 @@ PATIENTS = [
         "problem": "Preparing Maria for her visit",
         "status": "active",
         "assignee": "mobius",
+        # L1: Agentic Recommendations
+        "agentic_confidence": 0.92,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "High automation potential - stable patient with excellent attendance history",
+        "agentic_actions": ["send_reminder", "confirm_via_portal", "verify_contact"],
+        # L3: Step answers and evidence
+        "steps": [
+            {"code": "understanding_visit", "answer": "standard_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "standard_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "clinically_stable", "assignee": "mobius", "status": "pending"},
+            {"code": "reducing_risks", "answer": "no_barriers", "assignee": "mobius", "status": "pending"},
+            {"code": "backup_plan", "answer": "proceed_scheduled", "assignee": "mobius", "status": "pending"},
+        ],
+        # L4: Evidence per step
+        "evidence": {
+            "understanding_visit": ["prior_completed_visits", "stable_attendance_history", "no_recent_noshow"],
+            "staying_on_track": ["valid_contact_info", "prior_responsiveness"],
+            "clinical_readiness": ["no_crisis_indicators"],
+            "reducing_risks": ["no_barriers_identified"],
+            "backup_plan": ["stable_attendance_history"],
+        },
     },
     {
         "name": "James Walker",
@@ -71,6 +481,27 @@ PATIENTS = [
         "problem": "Preparing James for his visit",
         "status": "active",
         "assignee": "mobius",
+        # L1: Agentic Recommendations
+        "agentic_confidence": 0.68,
+        "recommended_mode": "together",
+        "recommendation_reason": "Mixed automation - new patient needs some manual review for clinical readiness",
+        "agentic_actions": ["send_reminder", "tailored_outreach"],
+        # L3: Step answers and evidence
+        "steps": [
+            {"code": "understanding_visit", "answer": "new_visit", "assignee": "mobius", "status": "current"},
+            {"code": "staying_on_track", "answer": "tailored_outreach", "assignee": "mobius", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "possible_decompensation", "assignee": "user", "status": "pending"},
+            {"code": "reducing_risks", "answer": "scheduling_conflict", "assignee": "user", "status": "pending"},
+            {"code": "backup_plan", "answer": "increased_confirmation", "assignee": "mobius", "status": "pending"},
+        ],
+        # L4: Evidence per step
+        "evidence": {
+            "understanding_visit": ["no_prior_visits"],
+            "staying_on_track": ["valid_contact_info"],
+            "clinical_readiness": ["medication_change"],
+            "reducing_risks": ["work_schedule_conflict"],
+            "backup_plan": [],
+        },
     },
     {
         "name": "Tanya Brooks",
@@ -82,6 +513,27 @@ PATIENTS = [
         "problem": "Re-engaging Tanya for upcoming appointment",
         "status": "active",
         "assignee": "user",
+        # L1: Agentic Recommendations
+        "agentic_confidence": 0.35,
+        "recommended_mode": "manual",
+        "recommendation_reason": "High-risk patient requires personal outreach - poor response to automation",
+        "agentic_actions": [],
+        # L3: Step answers and evidence
+        "steps": [
+            {"code": "understanding_visit", "answer": "high_risk_visit", "assignee": "user", "status": "current"},
+            {"code": "staying_on_track", "answer": "personalized_outreach", "assignee": "user", "status": "pending"},
+            {"code": "clinical_readiness", "answer": "possible_decompensation", "assignee": "user", "status": "pending"},
+            {"code": "reducing_risks", "answer": "transportation", "assignee": "user", "status": "pending"},
+            {"code": "backup_plan", "answer": "modality_shift", "assignee": "user", "status": "pending"},
+        ],
+        # L4: Evidence per step
+        "evidence": {
+            "understanding_visit": ["recent_noshow_history", "long_gap_since_visit", "care_team_risk_flag"],
+            "staying_on_track": ["poor_automated_response"],
+            "clinical_readiness": ["care_team_risk_flag"],
+            "reducing_risks": ["transportation_barrier"],
+            "backup_plan": ["recent_noshow_history"],
+        },
     },
     
     # -------------------------------------------------------------------------
@@ -97,6 +549,27 @@ PATIENTS = [
         "problem": "Verifying Angela's insurance coverage",
         "status": "active",
         "assignee": "mobius",
+        # L1: Agentic Recommendations
+        "agentic_confidence": 0.88,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Simple verification - commercial PPO with clean history",
+        "agentic_actions": ["run_eligibility_check", "verify_benefits"],
+        # L3: Step answers and evidence
+        "steps": [
+            {"code": "verify_coverage", "answer": "active_verified", "assignee": "mobius", "status": "current"},
+            {"code": "identify_gaps", "answer": "no_gaps", "assignee": "mobius", "status": "pending"},
+            {"code": "explore_options", "answer": None, "assignee": "mobius", "status": "pending"},
+            {"code": "initiate_action", "answer": None, "assignee": "mobius", "status": "pending"},
+            {"code": "confirm_eligibility", "answer": "fully_verified", "assignee": "mobius", "status": "pending"},
+        ],
+        # L4: Evidence per step
+        "evidence": {
+            "verify_coverage": ["active_commercial_coverage"],
+            "identify_gaps": [],
+            "explore_options": [],
+            "initiate_action": [],
+            "confirm_eligibility": ["active_commercial_coverage"],
+        },
     },
     {
         "name": "Carlos Ramirez",
@@ -108,6 +581,27 @@ PATIENTS = [
         "problem": "Helping Carlos reinstate Medicaid coverage",
         "status": "active",
         "assignee": "user",
+        # L1: Agentic Recommendations
+        "agentic_confidence": 0.45,
+        "recommended_mode": "together",
+        "recommendation_reason": "Medicaid reinstatement requires patient action - system can guide process",
+        "agentic_actions": ["check_medicaid_status", "send_portal_request"],
+        # L3: Step answers and evidence
+        "steps": [
+            {"code": "verify_coverage", "answer": "expired_coverage", "assignee": "mobius", "status": "current"},
+            {"code": "identify_gaps", "answer": "lapsed_premium", "assignee": "mobius", "status": "pending"},
+            {"code": "explore_options", "answer": "medicaid_screen", "assignee": "user", "status": "pending"},
+            {"code": "initiate_action", "answer": "contact_patient", "assignee": "user", "status": "pending"},
+            {"code": "confirm_eligibility", "answer": "pending_resolution", "assignee": "user", "status": "pending"},
+        ],
+        # L4: Evidence per step
+        "evidence": {
+            "verify_coverage": ["medicaid_expired"],
+            "identify_gaps": ["medicaid_expired"],
+            "explore_options": ["reinstatement_eligible"],
+            "initiate_action": ["valid_contact_info"],
+            "confirm_eligibility": [],
+        },
     },
     {
         "name": "Denise Walker",
@@ -119,6 +613,27 @@ PATIENTS = [
         "problem": "Finding coverage options for Denise",
         "status": "active",
         "assignee": "user",
+        # L1: Agentic Recommendations
+        "agentic_confidence": 0.30,
+        "recommended_mode": "manual",
+        "recommendation_reason": "No coverage on file - requires financial counseling and manual exploration",
+        "agentic_actions": [],
+        # L3: Step answers and evidence
+        "steps": [
+            {"code": "verify_coverage", "answer": "no_insurance_on_file", "assignee": "user", "status": "current"},
+            {"code": "identify_gaps", "answer": "missing_card", "assignee": "user", "status": "pending"},
+            {"code": "explore_options", "answer": "charity_care", "assignee": "user", "status": "pending"},
+            {"code": "initiate_action", "answer": "schedule_callback", "assignee": "user", "status": "pending"},
+            {"code": "confirm_eligibility", "answer": "pending_resolution", "assignee": "user", "status": "pending"},
+        ],
+        # L4: Evidence per step
+        "evidence": {
+            "verify_coverage": ["no_insurance_on_file"],
+            "identify_gaps": ["no_insurance_on_file"],
+            "explore_options": [],
+            "initiate_action": [],
+            "confirm_eligibility": [],
+        },
     },
     
     # -------------------------------------------------------------------------
@@ -134,6 +649,12 @@ PATIENTS = [
         "problem": None,
         "status": "resolved",
         "assignee": None,
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
+        "steps": [],
+        "evidence": {},
     },
     {
         "name": "Robert Kim",
@@ -145,6 +666,12 @@ PATIENTS = [
         "problem": None,
         "status": "resolved",
         "assignee": None,
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
+        "steps": [],
+        "evidence": {},
     },
     {
         "name": "Linda Thompson",
@@ -156,6 +683,12 @@ PATIENTS = [
         "problem": None,
         "status": "resolved",
         "assignee": None,
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
+        "steps": [],
+        "evidence": {},
     },
     {
         "name": "Michael Davis",
@@ -167,6 +700,12 @@ PATIENTS = [
         "problem": None,
         "status": "resolved",
         "assignee": None,
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
+        "steps": [],
+        "evidence": {},
     },
     {
         "name": "Jennifer Martinez",
@@ -178,6 +717,12 @@ PATIENTS = [
         "problem": None,
         "status": "resolved",
         "assignee": None,
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
+        "steps": [],
+        "evidence": {},
     },
     {
         "name": "David Wilson",
@@ -189,28 +734,13 @@ PATIENTS = [
         "problem": None,
         "status": "resolved",
         "assignee": None,
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
+        "steps": [],
+        "evidence": {},
     },
-]
-
-
-# =============================================================================
-# STEP DEFINITIONS BY FACTOR
-# =============================================================================
-
-ATTENDANCE_STEPS = [
-    {"order": 1, "code": "understanding_visit", "question": "Understanding the Patient's Visit", "can_auto": True},
-    {"order": 2, "code": "staying_on_track", "question": "Helping the Patient Stay on Track", "can_auto": True},
-    {"order": 3, "code": "clinical_readiness", "question": "Assessing Clinical Readiness", "can_auto": True},
-    {"order": 4, "code": "reducing_risks", "question": "Reducing Attendance Risks", "can_auto": True},
-    {"order": 5, "code": "backup_plan", "question": "Creating a Backup Plan", "can_auto": True},
-]
-
-ELIGIBILITY_STEPS = [
-    {"order": 1, "code": "verify_coverage", "question": "Verifying Current Coverage Status", "can_auto": True},
-    {"order": 2, "code": "identify_gaps", "question": "Identifying Coverage Gaps", "can_auto": True},
-    {"order": 3, "code": "explore_options", "question": "Exploring Coverage Options", "can_auto": False},
-    {"order": 4, "code": "initiate_action", "question": "Initiating Coverage Action", "can_auto": False},
-    {"order": 5, "code": "confirm_eligibility", "question": "Confirming Eligibility", "can_auto": True},
 ]
 
 
@@ -262,6 +792,12 @@ def cleanup_existing(db, tenant_id):
         
         db.query(UserRemedy).filter(UserRemedy.plan_id.in_(plan_ids)).delete(synchronize_session=False)
         db.query(PlanNote).filter(PlanNote.plan_id.in_(plan_ids)).delete(synchronize_session=False)
+        
+        # Clear current_step_id references before deleting steps
+        for plan in plans:
+            plan.current_step_id = None
+        db.flush()
+        
         db.query(PlanStep).filter(PlanStep.plan_id.in_(plan_ids)).delete(synchronize_session=False)
         db.query(ResolutionPlan).filter(ResolutionPlan.plan_id.in_(plan_ids)).delete(synchronize_session=False)
     
@@ -271,14 +807,31 @@ def cleanup_existing(db, tenant_id):
     db.query(MockEmrRecord).filter(MockEmrRecord.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
     db.query(PatientId).filter(PatientId.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
     db.query(PatientSnapshot).filter(PatientSnapshot.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
+    
+    # Clean up sidecar tables (Milestone, UserAlert, UserOwnedTask)
+    milestones = db.query(Milestone).filter(Milestone.patient_context_id.in_(patient_ids)).all()
+    milestone_ids = [m.milestone_id for m in milestones]
+    if milestone_ids:
+        db.query(UserAlert).filter(UserAlert.related_milestone_id.in_(milestone_ids)).update(
+            {"related_milestone_id": None}, synchronize_session=False
+        )
+        db.query(MilestoneHistory).filter(MilestoneHistory.milestone_id.in_(milestone_ids)).delete(synchronize_session=False)
+        db.query(MilestoneSubstep).filter(MilestoneSubstep.milestone_id.in_(milestone_ids)).delete(synchronize_session=False)
+        db.query(Milestone).filter(Milestone.milestone_id.in_(milestone_ids)).delete(synchronize_session=False)
+    
+    db.query(UserAlert).filter(UserAlert.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
+    db.query(UserOwnedTask).filter(UserOwnedTask.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
+    db.query(EventLog).filter(EventLog.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
+    db.query(SystemResponse).filter(SystemResponse.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
+    
     db.query(PatientContext).filter(PatientContext.patient_context_id.in_(patient_ids)).delete(synchronize_session=False)
     
     db.flush()
-    print(f"  ✓ Cleaned up {len(patient_ids)} existing patients")
+    print(f"  Cleaned up {len(patient_ids)} existing patients")
 
 
 def create_patient(db, tenant_id, patient_def):
-    """Create a single patient with all related data."""
+    """Create a single patient with all L1-L4 data."""
     
     # Create patient context
     patient = PatientContext(
@@ -310,7 +863,7 @@ def create_patient(db, tenant_id, patient_def):
     )
     db.add(patient_id)
     
-    # Create probability
+    # Create L1: PaymentProbability with agentic recommendations
     prob_data = patient_def["probability"]
     prob = PaymentProbability(
         patient_context_id=patient.patient_context_id,
@@ -325,11 +878,36 @@ def create_patient(db, tenant_id, patient_def):
         lowest_factor_reason=patient_def["theme"],
         problem_statement=patient_def["problem"],
         batch_job_id="production_seed_12",
+        # Agentic recommendations
+        agentic_confidence=patient_def.get("agentic_confidence"),
+        recommended_mode=patient_def.get("recommended_mode"),
+        recommendation_reason=patient_def.get("recommendation_reason"),
+        agentic_actions=patient_def.get("agentic_actions"),
     )
     db.add(prob)
     db.flush()
     
-    # Create resolution plan if active
+    # Create L4: Evidence records (for all patients)
+    evidence_map = patient_def.get("evidence", {})
+    evidence_objects = {}
+    for step_code, evidence_keys in evidence_map.items():
+        for evidence_key in evidence_keys:
+            if evidence_key in L4_EVIDENCE and evidence_key not in evidence_objects:
+                ev_def = L4_EVIDENCE[evidence_key]
+                evidence = Evidence(
+                    patient_context_id=patient.patient_context_id,
+                    factor_type=ev_def["factor_type"],
+                    fact_type=ev_def["fact_type"],
+                    fact_summary=ev_def["fact_summary"],
+                    fact_data=ev_def["fact_data"],
+                    impact_direction=ev_def["impact_direction"],
+                    impact_weight=ev_def["impact_weight"],
+                )
+                db.add(evidence)
+                db.flush()
+                evidence_objects[evidence_key] = evidence
+    
+    # Create L2: ResolutionPlan (if active)
     if patient_def["status"] == "active" and patient_def["factor"]:
         plan = ResolutionPlan(
             patient_context_id=patient.patient_context_id,
@@ -348,27 +926,56 @@ def create_patient(db, tenant_id, patient_def):
         steps_def = ATTENDANCE_STEPS if patient_def["factor"] == "attendance" else ELIGIBILITY_STEPS
         factor_type = FactorType.ATTENDANCE if patient_def["factor"] == "attendance" else FactorType.ELIGIBILITY
         
+        # Get patient-specific step profiles
+        step_profiles = {s["code"]: s for s in patient_def.get("steps", [])}
+        
         first_step_id = None
-        for i, step_def in enumerate(steps_def):
-            status = StepStatus.CURRENT if i == 0 else StepStatus.PENDING
+        for step_def in steps_def:
+            step_profile = step_profiles.get(step_def["code"], {})
             
+            # Determine status from profile or default
+            profile_status = step_profile.get("status", "pending")
+            if profile_status == "current":
+                status = StepStatus.CURRENT
+            elif profile_status == "answered":
+                status = StepStatus.ANSWERED
+            else:
+                status = StepStatus.PENDING
+            
+            # Determine assignee from profile or patient default
+            assignee = step_profile.get("assignee", patient_def["assignee"])
+            
+            # Create L3: PlanStep with answer_options
             step = PlanStep(
                 plan_id=plan.plan_id,
                 step_order=step_def["order"],
                 step_code=step_def["code"],
                 step_type=StepType.QUESTION,
-                input_type=InputType.SINGLE_CHOICE,
+                input_type=step_def.get("input_type", InputType.SINGLE_CHOICE),
                 question_text=step_def["question"],
+                description=step_def.get("description"),
                 factor_type=factor_type,
                 can_system_answer=step_def["can_auto"],
-                assignee_type=patient_def["assignee"],
+                assignable_activities=step_def.get("assignable_activities"),
+                answer_options=step_def.get("answer_options"),
+                assignee_type=assignee,
                 status=status,
             )
             db.add(step)
             db.flush()
             
-            if i == 0:
+            if status == StepStatus.CURRENT and first_step_id is None:
                 first_step_id = step.step_id
+            
+            # Link L4 evidence to step
+            evidence_keys_for_step = evidence_map.get(step_def["code"], [])
+            for evidence_key in evidence_keys_for_step:
+                if evidence_key in evidence_objects:
+                    link = PlanStepFactLink(
+                        plan_step_id=step.step_id,
+                        fact_id=evidence_objects[evidence_key].evidence_id,
+                    )
+                    db.add(link)
         
         if first_step_id:
             plan.current_step_id = first_step_id
@@ -383,7 +990,7 @@ def create_patient(db, tenant_id, patient_def):
 
 def main():
     print("=" * 60)
-    print("PRODUCTION SEED - 12 DEMO PATIENTS")
+    print("PRODUCTION SEED - 12 DEMO PATIENTS (L1-L4)")
     print("=" * 60)
     
     init_db()
@@ -400,7 +1007,7 @@ def main():
             )
             db.add(tenant)
             db.flush()
-            print(f"\n✓ Created tenant: {tenant.name}")
+            print(f"\nCreated tenant: {tenant.name}")
         else:
             print(f"\nTenant: {tenant.name}")
         
@@ -408,7 +1015,7 @@ def main():
         cleanup_existing(db, tenant.tenant_id)
         
         # Create patients
-        print("\n--- Creating 12 Patients ---")
+        print("\n--- Creating 12 Patients with L1-L4 Data ---")
         
         attendance_count = 0
         eligibility_count = 0
@@ -419,7 +1026,8 @@ def main():
             
             status_icon = "🟢" if patient_def["status"] == "resolved" else "🔵"
             factor_label = patient_def["factor"] or "resolved"
-            print(f"  {status_icon} {patient_def['name']} ({factor_label})")
+            mode_label = f" [{patient_def.get('recommended_mode', 'n/a')}]" if patient_def.get("recommended_mode") else ""
+            print(f"  {status_icon} {patient_def['name']} ({factor_label}){mode_label}")
             
             if patient_def["factor"] == "attendance":
                 attendance_count += 1
@@ -431,15 +1039,22 @@ def main():
         db.commit()
         
         print("\n" + "=" * 60)
-        print("✓ SUCCESS - 12 PATIENTS CREATED")
+        print("SUCCESS - 12 PATIENTS CREATED WITH COMPLETE HIERARCHY")
         print("=" * 60)
         print(f"\n  Attendance Factor: {attendance_count}")
         print(f"  Eligibility Factor: {eligibility_count}")
         print(f"  Green/Resolved: {green_count}")
         print(f"\n  Total: {attendance_count + eligibility_count + green_count}")
+        print("\n  Data Layers:")
+        print("    L1: PaymentProbability with agentic recommendations")
+        print("    L2: ResolutionPlan with factor modes")
+        print("    L3: PlanSteps with answer_options")
+        print("    L4: Evidence linked via PlanStepFactLink")
         
     except Exception as e:
-        print(f"\n✗ ERROR: {e}")
+        print(f"\nERROR: {e}")
+        import traceback
+        traceback.print_exc()
         db.rollback()
         raise
     finally:
