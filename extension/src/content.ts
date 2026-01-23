@@ -2760,15 +2760,21 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     height: 100vh !important;
     min-height: 100vh !important;
     max-height: 100vh !important;
-    background: white !important;
     z-index: 2147483646 !important;
-    box-shadow: -2px 0 8px rgba(0,0,0,0.1) !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
     margin: 0 !important;
     padding: 0 !important;
   `);
+  
+  // Apply saved theme and density using centralized system
+  const { theme: sidecarTheme, density: sidecarDensity } = await initializeStyles(sidebarContainer);
+  currentThemeId = sidecarTheme;
+  currentDensityId = sidecarDensity;
+  
+  // Inject base CSS for utility classes
+  injectBaseCSS();
   
   // Adjust page content
   const style = document.createElement('style');
