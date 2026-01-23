@@ -1,7 +1,7 @@
 /**
  * QuickChat Component
  * 
- * Single-line chat input at bottom of sidecar.
+ * Chat area with message container and input.
  * Uses knowledge context for intelligent responses.
  */
 
@@ -22,6 +22,18 @@ export function QuickChat(props: QuickChatProps): HTMLElement {
   
   const container = document.createElement('div');
   container.className = 'sidecar-quick-chat';
+  
+  // Messages container (bounded, scrollable area for 4-5 lines)
+  const messagesContainer = document.createElement('div');
+  messagesContainer.className = 'sidecar-chat-messages';
+  
+  // Empty state placeholder
+  const emptyState = document.createElement('div');
+  emptyState.className = 'sidecar-chat-empty';
+  emptyState.textContent = 'Ask questions about coverage, auth requirements, history...';
+  messagesContainer.appendChild(emptyState);
+  
+  container.appendChild(messagesContainer);
   
   // Input wrapper
   const inputWrapper = document.createElement('div');
@@ -76,12 +88,6 @@ export function QuickChat(props: QuickChatProps): HTMLElement {
   inputWrapper.appendChild(sendBtn);
   container.appendChild(inputWrapper);
   
-  // Hint text
-  const hint = document.createElement('div');
-  hint.className = 'sidecar-quick-chat-hint';
-  hint.textContent = 'Ask questions about coverage, auth requirements, history...';
-  container.appendChild(hint);
-  
   return container;
 }
 
@@ -109,42 +115,59 @@ export function setQuickChatLoading(element: HTMLElement, loading: boolean): voi
 }
 
 /**
+ * Add a user message to the chat
+ */
+export function addUserMessage(element: HTMLElement, message: string): void {
+  const messagesContainer = element.querySelector('.sidecar-chat-messages');
+  if (!messagesContainer) return;
+  
+  // Remove empty state if present
+  const emptyState = messagesContainer.querySelector('.sidecar-chat-empty');
+  if (emptyState) emptyState.remove();
+  
+  // Add user message
+  const msgEl = document.createElement('div');
+  msgEl.className = 'sidecar-chat-message user-message';
+  msgEl.textContent = message;
+  messagesContainer.appendChild(msgEl);
+  
+  // Scroll to bottom
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+/**
  * Show a response in the chat area
  */
 export function showQuickChatResponse(element: HTMLElement, response: string, source?: string): void {
-  // Find or create response area
-  let responseArea = element.querySelector('.sidecar-quick-chat-response') as HTMLElement;
-  if (!responseArea) {
-    responseArea = document.createElement('div');
-    responseArea.className = 'sidecar-quick-chat-response';
-    element.insertBefore(responseArea, element.querySelector('.sidecar-quick-chat-wrapper'));
-  }
+  const messagesContainer = element.querySelector('.sidecar-chat-messages');
+  if (!messagesContainer) return;
   
-  // Clear previous response
-  responseArea.innerHTML = '';
+  // Remove empty state if present
+  const emptyState = messagesContainer.querySelector('.sidecar-chat-empty');
+  if (emptyState) emptyState.remove();
+  
+  // Add system response
+  const msgEl = document.createElement('div');
+  msgEl.className = 'sidecar-chat-message system-message';
   
   // Response text
   const text = document.createElement('div');
-  text.className = 'sidecar-quick-chat-response-text';
+  text.className = 'sidecar-chat-message-text';
   text.textContent = response;
-  responseArea.appendChild(text);
+  msgEl.appendChild(text);
   
   // Source citation (if provided)
   if (source) {
     const citation = document.createElement('div');
-    citation.className = 'sidecar-quick-chat-response-source';
+    citation.className = 'sidecar-chat-message-source';
     citation.textContent = `Source: ${source}`;
-    responseArea.appendChild(citation);
+    msgEl.appendChild(citation);
   }
   
-  // Dismiss button
-  const dismissBtn = document.createElement('button');
-  dismissBtn.className = 'sidecar-quick-chat-response-dismiss';
-  dismissBtn.textContent = '×';
-  dismissBtn.addEventListener('click', () => {
-    responseArea.remove();
-  });
-  responseArea.appendChild(dismissBtn);
+  messagesContainer.appendChild(msgEl);
+  
+  // Scroll to bottom
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
 /**

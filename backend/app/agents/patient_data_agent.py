@@ -51,6 +51,8 @@ class PatientDataAgent:
         """Get patient context by tenant + patient_key.
         
         Also resolves by MRN if patient_key looks like an MRN (e.g., MRN-12345678).
+        
+        Always fetches fresh data from database (not cached) by expiring the object.
         """
         # First try direct patient_key lookup
         context = (
@@ -63,6 +65,8 @@ class PatientDataAgent:
         )
         
         if context:
+            # Expire the object to force fresh data on next access
+            self.db.expire(context)
             return context
         
         # If not found and key looks like an MRN, try resolving via patient_ids
@@ -86,6 +90,8 @@ class PatientDataAgent:
                     .first()
                 )
                 if context:
+                    # Expire the object to force fresh data on next access
+                    self.db.expire(context)
                     self.logger.debug(f"Resolved MRN {patient_key} to patient_key {context.patient_key}")
                     return context
         

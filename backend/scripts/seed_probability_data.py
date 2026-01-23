@@ -221,48 +221,77 @@ def seed_payment_probabilities(db, tenant_id: uuid.UUID):
     probabilities_created = 0
     probabilities_updated = 0
     
-    # Action templates by issue type
-    PROBLEM_ACTIONS = {
-        "eligibility": "Confirm insurance eligibility",
-        "coverage": "Verify service coverage",
-        "attendance": "Confirm appointment attendance",
-        "errors": "Review billing information",
-    }
-    
-    # Sample reasons for each issue type (simulating LLM output)
-    PROBLEM_REASONS = {
+    # Patient-centered problem statements (5 categories, user-friendly language)
+    # These align with Affordable Care Act style, patient/individual centered approach
+    PROBLEM_STATEMENTS = {
+        "attendance": [
+            "Is the patient likely to attend this visit?",
+            "Will the patient show up for their appointment?",
+            "Is there a risk the patient may miss this visit?",
+        ],
         "eligibility": [
-            "prior insurance expired",
-            "no insurance on file",
-            "insurance expiring soon",
-            "coverage gap detected",
-            "Medicaid renewal pending",
-            "employer change reported",
-            "policy not found in clearinghouse",
+            "Does the patient have coverage for this service?",
+            "Is the patient's insurance active and valid?",
+            "Does the patient have funding for this care?",
         ],
         "coverage": [
-            "procedure not in plan",
-            "new CPT code requires verification",
-            "out-of-network provider",
-            "prior authorization needed",
-            "service limit reached",
-            "specialty referral required",
-        ],
-        "attendance": [
-            "missed last 2 appointments",
-            "no-show history noted",
-            "transportation issues reported",
-            "first-time patient",
-            "no appointment confirmation received",
-            "rescheduled multiple times",
+            "Is this service covered under their plan?",
+            "Will the patient's insurance pay for this service?",
+            "Is this procedure covered by the patient's insurance?",
         ],
         "errors": [
-            "billing code mismatch",
-            "duplicate claim detected",
-            "missing modifier",
-            "incorrect provider NPI",
-            "diagnosis code mismatch",
-            "service date discrepancy",
+            "Are there any claim issues we need to address?",
+            "Will we be able to submit a clean claim?",
+            "Are there any billing problems to resolve?",
+        ],
+        "payor_error": [
+            "Are there any payor errors to resolve?",
+            "Does the payor need to correct their records?",
+            "Are there payor system issues affecting this claim?",
+        ],
+    }
+    
+    # Patient-centered reasons (more empathetic, less technical)
+    PROBLEM_REASONS = {
+        "attendance": [
+            "patient missed last appointment",
+            "transportation challenges",
+            "work schedule conflicts",
+            "first-time visit - needs confirmation",
+            "patient requested reschedule",
+            "no response to reminder",
+        ],
+        "eligibility": [
+            "insurance may have expired",
+            "coverage change reported",
+            "new insurance not yet verified",
+            "Medicaid renewal in progress",
+            "employer plan change",
+            "coverage gap detected",
+        ],
+        "coverage": [
+            "service may require authorization",
+            "plan may not cover this procedure",
+            "out-of-network concern",
+            "benefit limit may be reached",
+            "specialty referral needed",
+            "plan restrictions apply",
+        ],
+        "errors": [
+            "billing codes need review",
+            "claim may have errors",
+            "documentation incomplete",
+            "provider information mismatch",
+            "diagnosis codes need verification",
+            "service dates need confirmation",
+        ],
+        "payor_error": [
+            "payor system error detected",
+            "payor records incorrect",
+            "payor processing delay",
+            "payor data mismatch",
+            "payor portal issue",
+            "payor requires correction",
         ],
     }
     
@@ -290,7 +319,7 @@ def seed_payment_probabilities(db, tenant_id: uuid.UUID):
         # Pick a random profile
         profile = random.choice(profiles)
         
-        # Determine lowest factor
+        # Determine lowest factor (map "errors" to "payor_error" if needed)
         lowest_factor = profile.get("lowest")
         if not lowest_factor:
             # Determine from values
@@ -302,17 +331,22 @@ def seed_payment_probabilities(db, tenant_id: uuid.UUID):
             }
             lowest_factor = min(factors, key=factors.get)
         
-        # Generate problem statement: "Action - Reason"
-        action = PROBLEM_ACTIONS[lowest_factor]
-        reason = random.choice(PROBLEM_REASONS[lowest_factor])
-        problem_statement = f"{action} - {reason}"
+        # Map "errors" to either "errors" or "payor_error" (20% chance for payor_error)
+        if lowest_factor == "errors" and random.random() < 0.2:
+            factor_key = "payor_error"
+        else:
+            factor_key = lowest_factor
+        
+        # Generate patient-centered problem statement
+        problem_statement = random.choice(PROBLEM_STATEMENTS.get(factor_key, PROBLEM_STATEMENTS[lowest_factor]))
+        reason = random.choice(PROBLEM_REASONS.get(factor_key, PROBLEM_REASONS[lowest_factor]))
         
         # Generate problem details (ordered list of issues)
         problem_details = []
         # Add primary issue
         problem_details.append({
-            "issue": lowest_factor,
-            "action": action,
+            "issue": lowest_factor,  # Keep original factor for matching
+            "question": problem_statement,  # Patient-centered question
             "reason": reason,
             "severity": "high" if profile["overall"] < 0.6 else "medium",
         })
@@ -320,19 +354,21 @@ def seed_payment_probabilities(db, tenant_id: uuid.UUID):
         if random.random() < 0.2:
             other_factors = [f for f in ["eligibility", "coverage", "attendance", "errors"] if f != lowest_factor]
             secondary = random.choice(other_factors)
+            secondary_key = "payor_error" if secondary == "errors" and random.random() < 0.2 else secondary
             problem_details.append({
                 "issue": secondary,
-                "action": PROBLEM_ACTIONS[secondary],
-                "reason": random.choice(PROBLEM_REASONS[secondary]),
+                "question": random.choice(PROBLEM_STATEMENTS.get(secondary_key, PROBLEM_STATEMENTS[secondary])),
+                "reason": random.choice(PROBLEM_REASONS.get(secondary_key, PROBLEM_REASONS[secondary])),
                 "severity": "low",
             })
         
         if existing:
-            # Update existing record with problem_statement if missing
-            if not existing.problem_statement:
-                existing.problem_statement = problem_statement
-                existing.problem_details = problem_details
-                probabilities_updated += 1
+            # Always update existing records to use the 5 categories (patient-centered)
+            existing.problem_statement = problem_statement
+            existing.problem_details = problem_details
+            existing.lowest_factor = lowest_factor
+            existing.lowest_factor_reason = reason
+            probabilities_updated += 1
             continue
         
         # Create new probability record
@@ -345,9 +381,9 @@ def seed_payment_probabilities(db, tenant_id: uuid.UUID):
             prob_eligibility=profile["eligibility"],
             prob_coverage=profile["coverage"],
             prob_no_errors=profile["errors"],
-            lowest_factor=lowest_factor,
+            lowest_factor=lowest_factor,  # Keep original factor for matching with resolution plans
             lowest_factor_reason=reason,
-            problem_statement=problem_statement,
+            problem_statement=problem_statement,  # Patient-centered question
             problem_details=problem_details,
             batch_job_id="seed_script_v2",
         )

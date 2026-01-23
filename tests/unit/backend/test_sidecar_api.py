@@ -8,6 +8,8 @@ Tests the Flask blueprint routes:
 - POST /api/v1/sidecar/note
 - POST /api/v1/sidecar/assign
 - POST /api/v1/sidecar/own
+- POST /api/v1/sidecar/workflow
+- POST /api/v1/sidecar/resolve-override
 """
 
 import pytest
@@ -18,7 +20,9 @@ from unittest.mock import MagicMock, patch
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'backend'))
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'backend'))
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
 
 
 # =============================================================================
@@ -498,6 +502,740 @@ class TestBulkAssign:
         assert data["ok"] == True
         assert data["assigned_count"] == 2
         assert data["skipped_count"] == 1
+
+
+# =============================================================================
+# Test POST /api/v1/sidecar/workflow
+# =============================================================================
+
+class TestWorkflowMode:
+    """Tests for workflow mode endpoint."""
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_set_workflow_mode_mobius(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should set workflow mode to mobius."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        # Mock plan lookup
+        plan = MagicMock()
+        plan.plan_id = uuid.uuid4()
+        plan.workflow_mode = None
+        plan.workflow_mode_set_at = None
+        plan.workflow_mode_set_by = None
+        
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = plan
+        mock_db.query.return_value = mock_query
+        
+        response = client.post(
+            '/api/v1/sidecar/workflow',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "mode": "mobius",
+                "note": "Test note"
+            }
+        )
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["ok"] == True
+        assert data["mode"] == "mobius"
+        assert "Mobius is on it" in data["message"]
+        assert plan.workflow_mode == "mobius"
+        assert plan.workflow_mode_set_by == mock_user.user_id
+        # Verify note was added if provided
+        if mock_db.add.called:
+            # PlanNote should have been added
+            assert mock_db.add.called
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_set_workflow_mode_together(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should set workflow mode to together."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        plan = MagicMock()
+        plan.plan_id = uuid.uuid4()
+        plan.workflow_mode = None
+        
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = plan
+        mock_db.query.return_value = mock_query
+        
+        response = client.post(
+            '/api/v1/sidecar/workflow',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "mode": "together"
+            }
+        )
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["ok"] == True
+        assert data["mode"] == "together"
+        assert "together" in data["message"].lower()
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    def test_set_workflow_mode_invalid_mode(
+        self, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should reject invalid mode."""
+        mock_get_user.return_value = mock_user
+        
+        response = client.post(
+            '/api/v1/sidecar/workflow',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "mode": "invalid"
+            }
+        )
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data["ok"] == False
+        assert "Invalid mode" in data["error"]
+
+
+# =============================================================================
+# Test POST /api/v1/sidecar/resolve-override
+# =============================================================================
+
+class TestResolveOverride:
+    """Tests for resolve override endpoint."""
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_resolve_override_success(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should mark plan as resolved with override."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        # Mock plan and steps
+        from app.models.resolution import PlanStatus
+        plan = MagicMock()
+        plan.plan_id = uuid.uuid4()
+        plan.status = PlanStatus.ACTIVE
+        plan.resolved_at = None
+        plan.resolved_by = None
+        plan.resolution_type = None
+        plan.resolution_notes = None
+        
+        from app.models.resolution import StepStatus
+        step1 = MagicMock()
+        step1.status = StepStatus.PENDING
+        step1.resolved_at = None
+        step2 = MagicMock()
+        step2.status = StepStatus.CURRENT
+        step2.resolved_at = None
+        
+        plan.steps = [step1, step2]
+        
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = plan
+        mock_db.query.return_value = mock_query
+        
+        response = client.post(
+            '/api/v1/sidecar/resolve-override',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "resolution_note": "Issue was resolved manually via phone call"
+            }
+        )
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["ok"] == True
+        assert "Marked as resolved" in data["message"]
+        # Check that plan status was set to resolved
+        from app.models.resolution import PlanStatus, StepStatus
+        assert plan.status == PlanStatus.RESOLVED
+        # Check that steps were marked as resolved
+        assert step1.status == StepStatus.RESOLVED
+        assert step2.status == StepStatus.RESOLVED
+        assert plan.resolved_by == mock_user.user_id
+        assert plan.resolution_type == "user_override"
+        assert plan.resolution_notes == "Issue was resolved manually via phone call"
+        assert step1.status == "resolved"
+        assert step2.status == "resolved"
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    def test_resolve_override_missing_note(
+        self, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should reject if resolution note is missing."""
+        mock_get_user.return_value = mock_user
+        
+        response = client.post(
+            '/api/v1/sidecar/resolve-override',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "resolution_note": ""
+            }
+        )
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data["ok"] == False
+        assert "required" in data["error"].lower()
+
+
+# =============================================================================
+# Test POST /api/v1/sidecar/factor-mode
+# =============================================================================
+
+class TestSetFactorMode:
+    """Tests for setting factor workflow mode."""
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_sets_mode_and_assigns_steps(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should set mode and auto-assign steps based on mode."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        # Mock patient context lookup
+        patient_context = MagicMock()
+        patient_context.patient_context_id = uuid.uuid4()
+        
+        # Mock plan with factor_modes
+        plan = MagicMock()
+        plan.plan_id = uuid.uuid4()
+        plan.factor_modes = {}
+        
+        # Mock steps for the factor
+        step1 = MagicMock()
+        step1.step_id = uuid.uuid4()
+        step1.can_system_answer = True
+        step1.assignee_type = None
+        
+        step2 = MagicMock()
+        step2.step_id = uuid.uuid4()
+        step2.can_system_answer = False
+        step2.assignee_type = None
+        
+        # Configure query chain
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = patient_context
+            elif "ResolutionPlan" in model_name:
+                mock_query.filter.return_value.first.return_value = plan
+            elif "PlanStep" in model_name:
+                mock_query.filter.return_value.all.return_value = [step1, step2]
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.post(
+            '/api/v1/sidecar/factor-mode',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "factor_type": "eligibility",
+                "mode": "together"
+            }
+        )
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["ok"] == True
+        assert data["factor_type"] == "eligibility"
+        assert data["mode"] == "together"
+        assert data["steps_updated"] == 2
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_mobius_mode_assigns_all_to_mobius(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Mobius mode should assign all steps to mobius."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        patient_context = MagicMock()
+        patient_context.patient_context_id = uuid.uuid4()
+        
+        plan = MagicMock()
+        plan.plan_id = uuid.uuid4()
+        plan.factor_modes = {}
+        
+        step1 = MagicMock()
+        step1.step_id = uuid.uuid4()
+        step1.can_system_answer = True
+        step1.assignee_type = None
+        
+        step2 = MagicMock()
+        step2.step_id = uuid.uuid4()
+        step2.can_system_answer = False  # Even manual steps get assigned to mobius
+        step2.assignee_type = None
+        
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = patient_context
+            elif "ResolutionPlan" in model_name:
+                mock_query.filter.return_value.first.return_value = plan
+            elif "PlanStep" in model_name:
+                mock_query.filter.return_value.all.return_value = [step1, step2]
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.post(
+            '/api/v1/sidecar/factor-mode',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "factor_type": "eligibility",
+                "mode": "mobius"
+            }
+        )
+        
+        assert response.status_code == 200
+        # Both steps should be assigned to mobius
+        assert step1.assignee_type == "mobius"
+        assert step2.assignee_type == "mobius"
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_together_mode_splits_by_capability(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Together mode should split steps by capability."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        patient_context = MagicMock()
+        patient_context.patient_context_id = uuid.uuid4()
+        
+        plan = MagicMock()
+        plan.plan_id = uuid.uuid4()
+        plan.factor_modes = {}
+        
+        step1 = MagicMock()
+        step1.step_id = uuid.uuid4()
+        step1.can_system_answer = True  # Should go to mobius
+        step1.assignee_type = None
+        
+        step2 = MagicMock()
+        step2.step_id = uuid.uuid4()
+        step2.can_system_answer = False  # Should go to user
+        step2.assignee_type = None
+        
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = patient_context
+            elif "ResolutionPlan" in model_name:
+                mock_query.filter.return_value.first.return_value = plan
+            elif "PlanStep" in model_name:
+                mock_query.filter.return_value.all.return_value = [step1, step2]
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.post(
+            '/api/v1/sidecar/factor-mode',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "factor_type": "eligibility",
+                "mode": "together"
+            }
+        )
+        
+        assert response.status_code == 200
+        # Step1 (can_system_answer=True) should go to mobius
+        assert step1.assignee_type == "mobius"
+        # Step2 (can_system_answer=False) should go to user
+        assert step2.assignee_type == "user"
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_manual_mode_assigns_all_to_user(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Manual mode should assign all steps to user."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        patient_context = MagicMock()
+        patient_context.patient_context_id = uuid.uuid4()
+        
+        plan = MagicMock()
+        plan.plan_id = uuid.uuid4()
+        plan.factor_modes = {}
+        
+        step1 = MagicMock()
+        step1.step_id = uuid.uuid4()
+        step1.can_system_answer = True  # Even automatable steps go to user
+        step1.assignee_type = None
+        
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = patient_context
+            elif "ResolutionPlan" in model_name:
+                mock_query.filter.return_value.first.return_value = plan
+            elif "PlanStep" in model_name:
+                mock_query.filter.return_value.all.return_value = [step1]
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.post(
+            '/api/v1/sidecar/factor-mode',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "factor_type": "eligibility",
+                "mode": "manual"
+            }
+        )
+        
+        assert response.status_code == 200
+        assert step1.assignee_type == "user"
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    def test_returns_400_for_invalid_factor_type(
+        self, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should return 400 for invalid factor_type."""
+        mock_get_user.return_value = mock_user
+        
+        response = client.post(
+            '/api/v1/sidecar/factor-mode',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "factor_type": "invalid_factor",
+                "mode": "mobius"
+            }
+        )
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data["ok"] == False
+        assert "Invalid factor_type" in data["error"]
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    def test_returns_400_for_invalid_mode(
+        self, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should return 400 for invalid mode."""
+        mock_get_user.return_value = mock_user
+        
+        response = client.post(
+            '/api/v1/sidecar/factor-mode',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "factor_type": "eligibility",
+                "mode": "invalid_mode"
+            }
+        )
+        
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data["ok"] == False
+        assert "Invalid mode" in data["error"]
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_returns_404_when_no_plan(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should return 404 when no active plan for patient."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        patient_context = MagicMock()
+        patient_context.patient_context_id = uuid.uuid4()
+        
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = patient_context
+            elif "ResolutionPlan" in model_name:
+                mock_query.filter.return_value.first.return_value = None  # No plan
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.post(
+            '/api/v1/sidecar/factor-mode',
+            headers=auth_header,
+            json={
+                "patient_key": "demo_001",
+                "factor_type": "eligibility",
+                "mode": "mobius"
+            }
+        )
+        
+        assert response.status_code == 404
+        data = json.loads(response.data)
+        assert data["ok"] == False
+        assert "No active plan found" in data["error"]
+
+
+# =============================================================================
+# Test GET /api/v1/sidecar/evidence
+# =============================================================================
+
+class TestGetEvidence:
+    """Tests for evidence retrieval endpoint."""
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_returns_evidence_for_factor(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should return evidence filtered by factor type."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        # Mock patient context
+        patient_context = MagicMock()
+        patient_context.patient_context_id = uuid.uuid4()
+        
+        # Mock evidence
+        evidence1 = MagicMock()
+        evidence1.evidence_id = uuid.uuid4()
+        evidence1.factor_type = "eligibility"
+        evidence1.fact_type = "insurance_status"
+        evidence1.fact_summary = "Insurance is active"
+        evidence1.fact_data = {"status": "active"}
+        evidence1.impact_direction = "positive"
+        evidence1.impact_weight = 0.3
+        evidence1.is_stale = False
+        evidence1.source_id = None
+        
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = patient_context
+            elif "Evidence" in model_name:
+                mock_filter_chain = MagicMock()
+                mock_filter_chain.filter.return_value = mock_filter_chain
+                mock_filter_chain.all.return_value = [evidence1]
+                mock_query.filter.return_value = mock_filter_chain
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.get(
+            '/api/v1/sidecar/evidence?patient_key=demo_001&factor=eligibility',
+            headers=auth_header
+        )
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["ok"] == True
+        assert data["factor_type"] == "eligibility"
+        assert data["count"] == 1
+        assert len(data["evidence"]) == 1
+        assert data["evidence"][0]["fact_type"] == "insurance_status"
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_returns_evidence_for_step(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should return evidence linked to specific step."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        patient_context = MagicMock()
+        patient_context.patient_context_id = uuid.uuid4()
+        
+        step_id = uuid.uuid4()
+        evidence_id = uuid.uuid4()
+        
+        # Mock step with evidence_ids
+        step = MagicMock()
+        step.step_id = step_id
+        step.evidence_ids = [str(evidence_id)]
+        
+        # Mock evidence
+        evidence1 = MagicMock()
+        evidence1.evidence_id = evidence_id
+        evidence1.factor_type = "eligibility"
+        evidence1.fact_type = "coverage_check"
+        evidence1.fact_summary = "Coverage verified"
+        evidence1.fact_data = {}
+        evidence1.impact_direction = "positive"
+        evidence1.impact_weight = 0.5
+        evidence1.is_stale = False
+        evidence1.source_id = None
+        
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = patient_context
+            elif "PlanStep" in model_name:
+                mock_query.filter.return_value.first.return_value = step
+            elif "Evidence" in model_name:
+                mock_filter_chain = MagicMock()
+                mock_filter_chain.filter.return_value = mock_filter_chain
+                mock_filter_chain.all.return_value = [evidence1]
+                mock_query.filter.return_value = mock_filter_chain
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.get(
+            f'/api/v1/sidecar/evidence?patient_key=demo_001&step_id={step_id}',
+            headers=auth_header
+        )
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["ok"] == True
+        assert data["count"] == 1
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_includes_source_document_info(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should include source document info when available."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        patient_context = MagicMock()
+        patient_context.patient_context_id = uuid.uuid4()
+        
+        source_id = uuid.uuid4()
+        
+        # Mock source document
+        source = MagicMock()
+        source.source_id = source_id
+        source.document_label = "Insurance Card Scan"
+        source.document_type = "insurance_card"
+        source.source_system = "portal_upload"
+        source.document_date = datetime(2024, 1, 15)
+        source.trust_score = 0.95
+        
+        # Mock evidence with source
+        evidence1 = MagicMock()
+        evidence1.evidence_id = uuid.uuid4()
+        evidence1.factor_type = "eligibility"
+        evidence1.fact_type = "card_on_file"
+        evidence1.fact_summary = "Card uploaded"
+        evidence1.fact_data = {}
+        evidence1.impact_direction = "positive"
+        evidence1.impact_weight = 0.4
+        evidence1.is_stale = False
+        evidence1.source_id = source_id
+        
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = patient_context
+            elif "Evidence" in model_name:
+                mock_filter_chain = MagicMock()
+                mock_filter_chain.filter.return_value = mock_filter_chain
+                mock_filter_chain.all.return_value = [evidence1]
+                mock_query.filter.return_value = mock_filter_chain
+            elif "SourceDocument" in model_name:
+                mock_query.filter.return_value.first.return_value = source
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.get(
+            '/api/v1/sidecar/evidence?patient_key=demo_001&factor=eligibility',
+            headers=auth_header
+        )
+        
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["ok"] == True
+        assert data["count"] == 1
+        
+        evidence = data["evidence"][0]
+        assert evidence["source"] is not None
+        assert evidence["source"]["label"] == "Insurance Card Scan"
+        assert evidence["source"]["type"] == "insurance_card"
+        assert evidence["source"]["system"] == "portal_upload"
+        assert evidence["source"]["trust_score"] == 0.95
+    
+    @patch('app.api.sidecar.get_user_from_token')
+    @patch('app.api.sidecar.get_db_session')
+    def test_returns_404_for_unknown_patient(
+        self, mock_db_session, mock_get_user, client, mock_user, auth_header
+    ):
+        """Should return 404 for unknown patient key."""
+        mock_get_user.return_value = mock_user
+        
+        mock_db = MagicMock()
+        mock_db_session.return_value.__enter__.return_value = mock_db
+        
+        def query_side_effect(model):
+            mock_query = MagicMock()
+            model_name = str(model)
+            if "PatientContext" in model_name:
+                mock_query.filter.return_value.first.return_value = None  # Not found
+            return mock_query
+        
+        mock_db.query.side_effect = query_side_effect
+        
+        response = client.get(
+            '/api/v1/sidecar/evidence?patient_key=nonexistent&factor=eligibility',
+            headers=auth_header
+        )
+        
+        assert response.status_code == 404
+        data = json.loads(response.data)
+        assert data["ok"] == False
+        assert "Patient not found" in data["error"]
 
 
 # =============================================================================

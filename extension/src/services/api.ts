@@ -83,7 +83,7 @@ type MiniStatusColor = 'green' | 'yellow' | 'grey' | 'blue' | 'red';
 
 export type ExecutionMode = 'agentic' | 'copilot' | 'user_driven';
 
-export type AttentionStatus = 'resolved' | 'confirmed_unresolved' | 'unable_to_confirm' | null;
+export type AttentionStatus = 'resolved' | 'unresolved' | null;
 
 export type MiniStatusResponse = {
   ok: true;
@@ -122,7 +122,7 @@ export type MiniStatusResponse = {
 export async function fetchMiniStatus(
   sessionId: SessionId,
   patientKey?: string
-): Promise<MiniStatusResponse> {
+): Promise<MiniStatusResponseType> {
   // Use authenticated fetch to include user context
   const response = await authenticatedFetch(`${API_BASE_URL}/mini/status`, {
     method: 'POST',
@@ -134,7 +134,8 @@ export async function fetchMiniStatus(
     throw new Error(error.error || 'Failed to fetch mini status');
   }
 
-  return response.json();
+  const data = await response.json();
+  return data as MiniStatusResponseType;
 }
 
 export type MiniAckResponse = {
@@ -164,9 +165,9 @@ export async function submitMiniAck(
     attentionStatus?: AttentionStatus;
   }
 ): Promise<MiniAckResponse> {
-  const response = await fetch(`${API_BASE_URL}/mini/ack`, {
+  // Use authenticatedFetch to ensure proper token handling
+  const response = await authenticatedFetch(`${API_BASE_URL}/mini/ack`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       session_id: sessionId,
       note,
@@ -192,24 +193,39 @@ export async function submitMiniAck(
 export async function submitAttentionStatus(
   sessionId: SessionId,
   patientKey: string,
-  attentionStatus: AttentionStatus
+  attentionStatus: AttentionStatus,
+  factorType?: string  // Optional: for per-factor overrides
 ): Promise<MiniAckResponse> {
-  const response = await fetch(`${API_BASE_URL}/mini/ack`, {
+  const url = `${API_BASE_URL}/mini/ack`;
+  const body: Record<string, unknown> = {
+    session_id: sessionId,
+    patient_key: patientKey,
+    attention_status: attentionStatus,
+  };
+  // Add factor_type if provided (for L2/per-factor overrides)
+  if (factorType) {
+    body.factor_type = factorType;
+  }
+  console.log('[API DEBUG] submitAttentionStatus - URL:', url);
+  console.log('[API DEBUG] submitAttentionStatus - Body:', body);
+  
+  // Use authenticatedFetch to ensure proper token handling (same as fetchMiniStatus)
+  const response = await authenticatedFetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      session_id: sessionId,
-      patient_key: patientKey,
-      attention_status: attentionStatus,
-    }),
+    body: JSON.stringify(body),
   });
 
+  console.log('[API DEBUG] submitAttentionStatus - Response status:', response.status);
+  
   if (!response.ok) {
     const error = await response.json();
+    console.log('[API DEBUG] submitAttentionStatus - Error:', error);
     throw new Error(error.error || 'Failed to update attention status');
   }
 
-  return response.json();
+  const result = await response.json();
+  console.log('[API DEBUG] submitAttentionStatus - Success result:', result);
+  return result;
 }
 
 /**
@@ -458,6 +474,99 @@ export async function fetchSidecarInbox(
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch inbox');
+  }
+
+  return response.json();
+}
+
+// =============================================================================
+// NEW: Factor-based Sidecar API (/api/v1/sidecar/*)
+// =============================================================================
+
+export type SetFactorModeResponse = {
+  ok: boolean;
+  factor_type: string;
+  mode: string;
+  steps_updated: number;
+  assignments: Array<{
+    step_id: string;
+    assignee_type: string;
+  }>;
+};
+
+/**
+ * Set workflow mode for a specific factor.
+ * When mode is set, auto-assigns steps based on mode.
+ */
+export async function setFactorMode(
+  patientKey: string,
+  factorType: string,
+  mode: 'mobius' | 'together' | 'manual'
+): Promise<SetFactorModeResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/sidecar/factor-mode`, {
+    method: 'POST',
+    body: JSON.stringify({
+      patient_key: patientKey,
+      factor_type: factorType,
+      mode,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to set factor mode');
+  }
+
+  return response.json();
+}
+
+export type EvidenceSource = {
+  source_id: string;
+  label: string;
+  type: string;
+  system: string;
+  date: string | null;
+  trust_score: number;
+};
+
+export type EvidenceItem = {
+  evidence_id: string;
+  factor_type: string;
+  fact_type: string;
+  fact_summary: string;
+  fact_data: Record<string, unknown>;
+  impact_direction: string;
+  impact_weight: number;
+  is_stale: boolean;
+  source: EvidenceSource | null;
+};
+
+export type GetEvidenceResponse = {
+  ok: boolean;
+  factor_type: string | null;
+  evidence: EvidenceItem[];
+  count: number;
+};
+
+/**
+ * Get evidence (Layer 4/5/6) for a factor or step.
+ */
+export async function fetchEvidence(
+  patientKey: string,
+  factorType?: string,
+  stepId?: string
+): Promise<GetEvidenceResponse> {
+  const params = new URLSearchParams({ patient_key: patientKey });
+  if (factorType) params.set('factor', factorType);
+  if (stepId) params.set('step_id', stepId);
+  
+  const response = await authenticatedFetch(`${API_BASE_URL}/sidecar/evidence?${params.toString()}`, {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to fetch evidence');
   }
 
   return response.json();

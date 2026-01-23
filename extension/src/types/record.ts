@@ -6,6 +6,8 @@
  * the Sidecar displays it and captures user decisions.
  */
 
+import { Factor } from './index';
+
 // =============================================================================
 // Record Context (Generic - Patient, Claim, Visit, etc.)
 // =============================================================================
@@ -107,6 +109,12 @@ export interface BottleneckSources {
 export type ExecutionMode = 'agentic' | 'copilot';
 
 /**
+ * Workflow mode - how the user wants to handle a bottleneck
+ * Batch job recommends, user can accept or override
+ */
+export type WorkflowMode = 'mobius' | 'together' | 'manual';
+
+/**
  * A bottleneck/question that needs resolution
  * Uses question format for consistency with Mini
  */
@@ -129,6 +137,9 @@ export interface Bottleneck {
   mobius_mode?: ExecutionMode;     // If yes, which mode?
   mobius_action?: string;          // "Will check via 270/271"
   estimated_duration?: string;     // "~2 minutes" or "1-3 days"
+  
+  // Probability impact (for sorting - highest impact first)
+  probability_impact?: number;     // 0.0-1.0, how much this improves payment odds
   
   // Source tracking
   sources: BottleneckSources;
@@ -343,7 +354,10 @@ export interface SidecarStateResponse {
   // Care readiness (for StatusBar)
   care_readiness: CareReadiness;
   
-  // Bottlenecks/questions (for BottleneckCard) - unresolved steps
+  // NEW: Factor cascade (simplified Sidecar UI)
+  factors: Factor[];
+  
+  // Bottlenecks/questions (for BottleneckCard) - unresolved steps (LEGACY)
   bottlenecks: Bottleneck[];       // pending, current, answered (not yet resolved)
   
   // Resolved steps (for More Info history)
@@ -360,6 +374,10 @@ export interface SidecarStateResponse {
   
   // User-owned tasks
   user_owned_tasks: UserOwnedTask[];
+  
+  // Attention status
+  attention_status?: string;
+  resolved_until?: string;
   
   // Timestamp
   computed_at: string;

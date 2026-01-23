@@ -55,102 +55,115 @@ DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 ELIGIBILITY_STEPS = [
     {
-        "step_code": "insurance_card_uploaded",
+        "step_code": "check_eligibility_270",
+        "step_type": StepType.ACTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Run 270 eligibility check via API",
+        "factor_type": FactorType.ELIGIBILITY,
+        "can_system_answer": True,  # Mobius can do this via API
+        "assignable_activities": ["verify_eligibility"],
+        "answer_options": [
+            {"code": "mobius_handle", "label": "Mobius: Run eligibility check"},
+            {"code": "copilot", "label": "Copilot: I'll review Mobius results"},
+            {"code": "manual", "label": "Manual: I'll check myself"},
+        ],
+    },
+    {
+        "step_code": "verify_coverage_active",
+        "step_type": StepType.QUESTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Does the patient have coverage for this service?",
+        "factor_type": FactorType.ELIGIBILITY,
+        "can_system_answer": True,  # Mobius can analyze API response
+        "assignable_activities": ["verify_eligibility"],
+        "answer_options": [
+            {"code": "yes", "label": "Yes - Coverage confirmed", "next_step_code": "document_eligibility"},
+            {"code": "no", "label": "No - No active coverage", "next_step_code": "contact_patient"},
+            {"code": "unknown", "label": "Unknown - Need more info", "next_step_code": "contact_patient"},
+        ],
+    },
+    {
+        "step_code": "contact_patient",
+        "step_type": StepType.ACTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Contact patient about insurance",
+        "factor_type": FactorType.ELIGIBILITY,
+        "can_system_answer": True,  # Mobius can send email/SMS
+        "assignable_activities": ["patient_outreach"],
+        "answer_options": [
+            {"code": "send_email", "label": "Mobius: Send email (with user guidance)"},
+            {"code": "send_sms", "label": "Mobius: Send SMS"},
+            {"code": "call_patient", "label": "User: Call patient (phone required)"},
+        ],
+    },
+    {
+        "step_code": "document_eligibility",
         "step_type": StepType.CONFIRMATION,
         "input_type": InputType.CONFIRMATION,
-        "question_text": "Insurance card on file?",
-        "factor_type": FactorType.ELIGIBILITY,
-        "can_system_answer": True,
-        "assignable_activities": ["verify_eligibility", "check_in_patients"],
-        "answer_options": [
-            {"code": "yes", "label": "Yes - Card uploaded"},
-            {"code": "no", "label": "No - Missing"},
-        ],
-    },
-    {
-        "step_code": "has_insurance",
-        "step_type": StepType.QUESTION,
-        "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Does patient have active insurance?",
-        "factor_type": FactorType.ELIGIBILITY,
-        "can_system_answer": True,
-        "assignable_activities": ["verify_eligibility", "check_in_patients"],
-        "answer_options": [
-            {"code": "yes", "label": "Yes - Active coverage", "next_step_code": "collect_payer"},
-            {"code": "no", "label": "No - Uninsured", "next_step_code": "self_pay_discussion"},
-            {"code": "unknown", "label": "Unknown - Need to verify", "next_step_code": "contact_patient"},
-        ],
-    },
-    {
-        "step_code": "collect_payer",
-        "step_type": StepType.FORM,
-        "input_type": InputType.FORM,
-        "question_text": "Enter insurance information",
-        "factor_type": FactorType.ELIGIBILITY,
-        "can_system_answer": True,
-        "assignable_activities": ["verify_eligibility", "check_in_patients"],
-        "form_fields": [
-            {"field": "payer_name", "label": "Payer Name", "type": "select", "required": True},
-            {"field": "policy_number", "label": "Policy Number", "type": "text", "required": True},
-            {"field": "group_number", "label": "Group Number", "type": "text", "required": False},
-        ],
-    },
-    {
-        "step_code": "verify_active",
-        "step_type": StepType.QUESTION,
-        "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Is coverage active with valid dates?",
+        "question_text": "Eligibility verified and documented?",
         "factor_type": FactorType.ELIGIBILITY,
         "can_system_answer": True,
         "assignable_activities": ["verify_eligibility"],
         "answer_options": [
-            {"code": "active", "label": "Yes - Active coverage"},
-            {"code": "expired", "label": "No - Coverage expired"},
-            {"code": "check_payer", "label": "Need to verify with payer"},
+            {"code": "yes", "label": "Yes - Documented"},
+            {"code": "no", "label": "No - Still working on it"},
         ],
     },
 ]
 
 COVERAGE_STEPS = [
     {
+        "step_code": "check_coverage_api",
+        "step_type": StepType.ACTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Is this service covered under their plan?",
+        "factor_type": FactorType.COVERAGE,
+        "can_system_answer": True,  # Mobius can check via API/data analysis
+        "assignable_activities": ["prior_authorization"],
+        "answer_options": [
+            {"code": "mobius_check", "label": "Mobius: Check coverage via API"},
+            {"code": "copilot", "label": "Copilot: Review with Mobius"},
+            {"code": "manual", "label": "Manual: Check payer portal"},
+        ],
+    },
+    {
         "step_code": "check_auth_required",
         "step_type": StepType.QUESTION,
         "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Is prior authorization required for this service?",
+        "question_text": "Is prior authorization required?",
         "factor_type": FactorType.COVERAGE,
-        "can_system_answer": True,
-        "assignable_activities": ["prior_authorization"],  # Only auth specialists
+        "can_system_answer": True,  # Mobius can analyze plan rules
+        "assignable_activities": ["prior_authorization"],
         "answer_options": [
-            {"code": "yes", "label": "Yes - Required"},
+            {"code": "yes", "label": "Yes - Auth required", "next_step_code": "gather_docs"},
             {"code": "no", "label": "No - Not required"},
         ],
     },
     {
-        "step_code": "check_documentation",
-        "step_type": StepType.QUESTION,
+        "step_code": "gather_docs",
+        "step_type": StepType.ACTION,
         "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Is medical necessity documented?",
+        "question_text": "Gather clinical documentation",
         "factor_type": FactorType.COVERAGE,
-        "can_system_answer": True,
+        "can_system_answer": True,  # Mobius can scrape/analyze documents
         "assignable_activities": ["prior_authorization"],
         "answer_options": [
-            {"code": "sufficient", "label": "Yes - Sufficient documentation"},
-            {"code": "partial", "label": "Partial - Need more details"},
-            {"code": "missing", "label": "No - Documentation missing"},
+            {"code": "mobius_gather", "label": "Mobius: Gather from EMR/portal"},
+            {"code": "user_review", "label": "User: Review and approve docs"},
         ],
     },
     {
         "step_code": "submit_auth",
         "step_type": StepType.ACTION,
         "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Submit prior authorization request",
+        "question_text": "Submit authorization request",
         "factor_type": FactorType.COVERAGE,
-        "can_system_answer": False,
+        "can_system_answer": True,  # Mobius can submit via API
         "assignable_activities": ["prior_authorization"],
         "answer_options": [
-            {"code": "submitted", "label": "Submit to Payer", "next_step_code": "track_status"},
-            {"code": "manual", "label": "I'll do this manually", "next_step_code": "track_status"},
-            {"code": "need_info", "label": "Need more information"},
+            {"code": "mobius_submit", "label": "Mobius: Submit via payer API"},
+            {"code": "copilot", "label": "Copilot: Mobius prepares, I review"},
+            {"code": "manual", "label": "Manual: I'll submit"},
         ],
     },
     {
@@ -159,73 +172,144 @@ COVERAGE_STEPS = [
         "input_type": InputType.SINGLE_CHOICE,
         "question_text": "Authorization decision received?",
         "factor_type": FactorType.COVERAGE,
-        "can_system_answer": True,
+        "can_system_answer": True,  # Mobius can check status via API/web scraping
         "assignable_activities": ["prior_authorization"],
         "answer_options": [
             {"code": "approved", "label": "Approved"},
             {"code": "denied", "label": "Denied"},
-            {"code": "pending", "label": "Still pending - Follow up"},
+            {"code": "pending", "label": "Still pending"},
         ],
     },
 ]
 
 ATTENDANCE_STEPS = [
     {
-        "step_code": "check_satisfaction",
+        "step_code": "assess_attendance_risk",
         "step_type": StepType.QUESTION,
         "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Is patient satisfied with care?",
+        "question_text": "Is the patient likely to attend this visit?",
         "factor_type": FactorType.ATTENDANCE,
-        "can_system_answer": True,
+        "can_system_answer": True,  # Mobius can analyze history/data
         "assignable_activities": ["schedule_appointments", "patient_outreach"],
         "answer_options": [
-            {"code": "happy", "label": "Happy - No concerns"},
-            {"code": "neutral", "label": "Neutral"},
-            {"code": "unhappy", "label": "Unhappy - Has concerns"},
-            {"code": "unknown", "label": "Unknown - Need to ask"},
+            {"code": "likely", "label": "Likely - Low risk", "next_step_code": "send_confirmation"},
+            {"code": "maybe", "label": "Maybe - Medium risk", "next_step_code": "confirm_details"},
+            {"code": "unlikely", "label": "Unlikely - High risk", "next_step_code": "contact_patient"},
         ],
     },
     {
-        "step_code": "verify_timing",
-        "step_type": StepType.QUESTION,
-        "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Does the appointment time still work?",
-        "factor_type": FactorType.ATTENDANCE,
-        "can_system_answer": False,
-        "assignable_activities": ["schedule_appointments", "patient_outreach"],
-        "answer_options": [
-            {"code": "yes", "label": "Yes - Time works"},
-            {"code": "reschedule", "label": "No - Need to reschedule"},
-            {"code": "unknown", "label": "Unknown - Need to confirm"},
-        ],
-    },
-    {
-        "step_code": "assess_transportation",
-        "step_type": StepType.QUESTION,
-        "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Transportation available?",
-        "factor_type": FactorType.ATTENDANCE,
-        "can_system_answer": False,
-        "assignable_activities": ["schedule_appointments", "patient_outreach"],
-        "answer_options": [
-            {"code": "yes", "label": "Yes - Has transportation"},
-            {"code": "needs_help", "label": "No - Needs assistance"},
-            {"code": "unknown", "label": "Unknown - Need to ask"},
-        ],
-    },
-    {
-        "step_code": "send_reminder",
+        "step_code": "confirm_details",
         "step_type": StepType.ACTION,
         "input_type": InputType.SINGLE_CHOICE,
-        "question_text": "Send appointment reminder",
+        "question_text": "Confirm appointment details with patient",
         "factor_type": FactorType.ATTENDANCE,
-        "can_system_answer": True,
+        "can_system_answer": True,  # Mobius can send email/SMS
+        "assignable_activities": ["schedule_appointments", "patient_outreach"],
+        "answer_options": [
+            {"code": "send_email", "label": "Mobius: Send confirmation email"},
+            {"code": "send_sms", "label": "Mobius: Send SMS confirmation"},
+            {"code": "call", "label": "User: Call patient (phone required)"},
+        ],
+    },
+    {
+        "step_code": "contact_patient",
+        "step_type": StepType.ACTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Reach out to patient about attendance",
+        "factor_type": FactorType.ATTENDANCE,
+        "can_system_answer": True,  # Mobius can send email/SMS
+        "assignable_activities": ["schedule_appointments", "patient_outreach"],
+        "answer_options": [
+            {"code": "send_email", "label": "Mobius: Send email (with user guidance)"},
+            {"code": "send_sms", "label": "Mobius: Send SMS"},
+            {"code": "call", "label": "User: Call patient (phone required)"},
+        ],
+    },
+    {
+        "step_code": "send_confirmation",
+        "step_type": StepType.ACTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Send appointment confirmation",
+        "factor_type": FactorType.ATTENDANCE,
+        "can_system_answer": True,  # Mobius can send email/SMS
         "assignable_activities": ["schedule_appointments"],
         "answer_options": [
-            {"code": "send_sms", "label": "Send SMS reminder"},
-            {"code": "send_email", "label": "Send email reminder"},
-            {"code": "call", "label": "Call patient"},
-            {"code": "skip", "label": "Skip - Already contacted"},
+            {"code": "send_sms", "label": "Mobius: Send SMS reminder"},
+            {"code": "send_email", "label": "Mobius: Send email reminder"},
+            {"code": "skip", "label": "Skip - Already confirmed"},
+        ],
+    },
+]
+
+ERRORS_STEPS = [
+    {
+        "step_code": "analyze_claim",
+        "step_type": StepType.ACTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Are there any claim issues we need to address?",
+        "factor_type": FactorType.ERRORS,
+        "can_system_answer": True,  # Mobius can analyze claim data
+        "assignable_activities": ["review_billing"],
+        "answer_options": [
+            {"code": "mobius_analyze", "label": "Mobius: Analyze claim for errors"},
+            {"code": "copilot", "label": "Copilot: Review with Mobius"},
+            {"code": "manual", "label": "Manual: I'll review"},
+        ],
+    },
+    {
+        "step_code": "review_billing_codes",
+        "step_type": StepType.QUESTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Will we be able to submit a clean claim?",
+        "factor_type": FactorType.ERRORS,
+        "can_system_answer": True,  # Mobius can check codes/data
+        "assignable_activities": ["review_billing"],
+        "answer_options": [
+            {"code": "yes", "label": "Yes - Claim is clean"},
+            {"code": "no", "label": "No - Issues found", "next_step_code": "fix_errors"},
+            {"code": "review", "label": "Need to review", "next_step_code": "fix_errors"},
+        ],
+    },
+    {
+        "step_code": "fix_errors",
+        "step_type": StepType.ACTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Fix identified claim errors",
+        "factor_type": FactorType.ERRORS,
+        "can_system_answer": True,  # Mobius can suggest fixes
+        "assignable_activities": ["review_billing"],
+        "answer_options": [
+            {"code": "mobius_suggest", "label": "Mobius: Suggest fixes (user approves)"},
+            {"code": "user_fix", "label": "User: I'll fix manually"},
+        ],
+    },
+]
+
+PAYOR_ERROR_STEPS = [
+    {
+        "step_code": "identify_payor_error",
+        "step_type": StepType.QUESTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Are there any payor errors to resolve?",
+        "factor_type": FactorType.ERRORS,  # Use errors factor type
+        "can_system_answer": True,  # Mobius can detect payor errors
+        "assignable_activities": ["review_billing"],
+        "answer_options": [
+            {"code": "yes", "label": "Yes - Payor error detected", "next_step_code": "contact_payor"},
+            {"code": "no", "label": "No - No payor errors"},
+        ],
+    },
+    {
+        "step_code": "contact_payor",
+        "step_type": StepType.ACTION,
+        "input_type": InputType.SINGLE_CHOICE,
+        "question_text": "Contact payor to resolve error",
+        "factor_type": FactorType.ERRORS,
+        "can_system_answer": True,  # Mobius can interact via API/portal
+        "assignable_activities": ["review_billing"],
+        "answer_options": [
+            {"code": "mobius_portal", "label": "Mobius: Submit via payor portal/API"},
+            {"code": "user_call", "label": "User: Call payor (phone required)"},
         ],
     },
 ]
@@ -242,16 +326,18 @@ def create_resolved_plan(db, patient, tenant_id, users):
     user = random.choice(users) if users else None
     
     # Randomly pick what was "resolved"
-    gap_type = random.choice(["eligibility", "coverage", "attendance"])
+    gap_type = random.choice(["eligibility", "coverage", "attendance", "errors"])
     resolution_types = {
         "eligibility": "eligibility_verified",
         "coverage": "coverage_confirmed",
         "attendance": "appointment_confirmed",
+        "errors": "claim_issues_resolved",
     }
     resolution_notes = {
-        "eligibility": "Insurance verified - active coverage confirmed",
+        "eligibility": "Patient has active coverage - eligibility verified",
         "coverage": "Service covered under patient's plan - no auth required",
-        "attendance": "Patient confirmed appointment - transportation arranged",
+        "attendance": "Patient confirmed appointment - likely to attend",
+        "errors": "Claim reviewed - no errors found",
     }
     
     plan = ResolutionPlan(
@@ -272,11 +358,13 @@ def create_resolved_plan(db, patient, tenant_id, users):
     db.flush()
     
     # Add 2-3 completed steps
-    steps_template = {
+    steps_template_map = {
         "eligibility": ELIGIBILITY_STEPS[:3],
         "coverage": COVERAGE_STEPS[:3],
         "attendance": ATTENDANCE_STEPS[:3],
-    }[gap_type]
+        "errors": ERRORS_STEPS[:2] if len(ERRORS_STEPS) >= 2 else ERRORS_STEPS,
+    }
+    steps_template = steps_template_map.get(gap_type, ELIGIBILITY_STEPS[:3])
     
     for i, step_data in enumerate(steps_template):
         step = PlanStep(
@@ -305,6 +393,16 @@ def create_resolved_plan(db, patient, tenant_id, users):
 def create_active_plan(db, patient, tenant_id, users, gap_type):
     """Create an active plan with gaps to resolve."""
     
+    # First, check if patient has a payment_probability and use its lowest_factor
+    from app.models.probability import PaymentProbability
+    prob = db.query(PaymentProbability).filter(
+        PaymentProbability.patient_context_id == patient.patient_context_id
+    ).order_by(PaymentProbability.computed_at.desc()).first()
+    
+    # If payment_probability exists, use its lowest_factor to ensure Layer 1/Layer 2 alignment
+    if prob and prob.lowest_factor:
+        gap_type = prob.lowest_factor  # Override with actual Layer 1 factor
+    
     # Determine steps based on gap type
     if gap_type == "eligibility":
         steps_template = ELIGIBILITY_STEPS
@@ -318,12 +416,22 @@ def create_active_plan(db, patient, tenant_id, users, gap_type):
         steps_template = ATTENDANCE_STEPS
         gap_types = ["attendance"]
         initial_prob = random.uniform(0.45, 0.65)
+    elif gap_type == "errors":
+        steps_template = ERRORS_STEPS
+        gap_types = ["errors"]
+        initial_prob = random.uniform(0.30, 0.50)
+    elif gap_type == "payor_error":
+        steps_template = PAYOR_ERROR_STEPS
+        gap_types = ["errors"]  # Use "errors" for matching with payment_probability
+        initial_prob = random.uniform(0.25, 0.45)
     else:  # multiple
         # Combine two gap types
         gap_combo = random.choice([
             ("eligibility", "coverage"),
             ("eligibility", "attendance"),
             ("coverage", "attendance"),
+            ("eligibility", "errors"),
+            ("coverage", "errors"),
         ])
         gap_types = list(gap_combo)
         steps_template = (
@@ -332,6 +440,8 @@ def create_active_plan(db, patient, tenant_id, users, gap_type):
             COVERAGE_STEPS[:2] if "coverage" in gap_combo else []
         ) + (
             ATTENDANCE_STEPS[:2] if "attendance" in gap_combo else []
+        ) + (
+            ERRORS_STEPS[:2] if "errors" in gap_combo else []
         )
         initial_prob = random.uniform(0.20, 0.40)
     
@@ -510,14 +620,16 @@ def main():
         print(f"  Created {resolved_count} resolved plans")
         
         # Create active plans (50%) with gap type distribution:
-        # 40% eligibility, 30% coverage, 20% attendance, 10% multiple
+        # 30% eligibility, 25% coverage, 20% attendance, 15% errors, 5% payor_error, 5% multiple
         print("\n--- Creating Active Plans ---")
         active_count = 0
         gap_distribution = (
-            ["eligibility"] * 40 +
-            ["coverage"] * 30 +
+            ["eligibility"] * 30 +
+            ["coverage"] * 25 +
             ["attendance"] * 20 +
-            ["multiple"] * 10
+            ["errors"] * 15 +
+            ["payor_error"] * 5 +
+            ["multiple"] * 5
         )
         
         for i, patient in enumerate(active_patients):

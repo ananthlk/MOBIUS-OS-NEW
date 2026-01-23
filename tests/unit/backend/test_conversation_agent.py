@@ -3,6 +3,14 @@ Comprehensive unit test for ConversationAgent (Chat Mode)
 Tests all functionality of the conversation agent
 """
 
+import sys
+import os
+
+# Add backend to path BEFORE any app imports
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'backend'))
+if backend_path not in sys.path:
+    sys.path.insert(0, backend_path)
+
 import unittest
 from datetime import datetime
 from app.agents.base_agent.conversation_agent import ConversationAgent

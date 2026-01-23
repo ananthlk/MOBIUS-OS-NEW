@@ -1,31 +1,48 @@
 /**
  * BottleneckCard Component
  * 
- * The core UI for displaying questions/bottlenecks.
- * Uses question format for consistency with Mini.
- * Compact assignment dropdown near question.
- * Checkboxes always visible for bulk selection.
+ * Redesigned for Workflow Mode UI:
+ * - Top-level workflow mode selector (Mobius handle, Do together, I'll handle)
+ * - Batch recommendation pre-selects the mode
+ * - Content changes based on selected mode
+ * - "Set status" button (same as Mini for consistency)
  */
 
-import type { Bottleneck, AnswerOption, PrivacyContext } from '../../types/record';
+import type { Bottleneck, AnswerOption, PrivacyContext, WorkflowMode } from '../../types/record';
 import { formatLabel } from '../../services/personalization';
 import { resolveValue, getSourceBadge, hasConflict } from '../../services/dataHierarchy';
 
 export interface BottleneckCardProps {
   bottlenecks: Bottleneck[];
   privacyContext: PrivacyContext;
+  recommendedMode?: WorkflowMode;
+  agenticConfidence?: number;
+  recommendationReason?: string;
+  agenticActions?: string[];
+  onWorkflowSelect: (mode: WorkflowMode, note?: string) => void;
+  onStatusOverride: (status: 'resolved' | 'unresolved') => void;  // Changed from onResolveOverride - uses same status system as Mini
   onAnswer: (bottleneckId: string, answerId: string) => void;
-  onAssign: (bottleneckId: string, mode: 'agentic' | 'copilot') => void;
-  onOwn: (bottleneckId: string) => void;
   onAddNote: (bottleneckId: string, noteText: string) => void;
-  onBulkAssign: (bottleneckIds: string[]) => void;
+  currentStatus?: 'resolved' | 'unresolved' | null;  // Current user override status (for display)
 }
 
 /**
- * Create the BottleneckCard element
+ * Create the BottleneckCard element with workflow mode selector
  */
 export function BottleneckCard(props: BottleneckCardProps): HTMLElement {
-  const { bottlenecks, privacyContext, onAnswer, onAssign, onOwn, onAddNote, onBulkAssign } = props;
+  const { 
+    bottlenecks, 
+    privacyContext, 
+    recommendedMode,
+    agenticConfidence,
+    recommendationReason,
+    agenticActions,
+    onWorkflowSelect, 
+    onStatusOverride,
+    onAnswer, 
+    onAddNote,
+    currentStatus
+  } = props;
   
   const container = document.createElement('div');
   container.className = 'sidecar-bottleneck-card';
@@ -41,285 +58,585 @@ export function BottleneckCard(props: BottleneckCardProps): HTMLElement {
     return container;
   }
   
-  // Header - always show task count context
-  const header = document.createElement('div');
-  header.className = 'sidecar-bottleneck-header';
-  if (bottlenecks.length > 1) {
-    header.innerHTML = `
-      <span class="sidecar-bottleneck-count">${bottlenecks.length} tasks</span>
-      <span class="sidecar-bottleneck-hint">Assign each to Mobius or resolve yourself</span>
-    `;
+  // State
+  let selectedMode: WorkflowMode | null = recommendedMode || null;
+  
+  // Top row: Set status button (same as Mini for consistency)
+  const overrideRow = document.createElement('div');
+  overrideRow.className = 'sidecar-workflow-override-row';
+  const statusButton = document.createElement('button');
+  statusButton.className = 'sidecar-workflow-status-btn';
+  statusButton.type = 'button';
+  
+  // Set button text based on current status
+  if (currentStatus === 'resolved') {
+    statusButton.textContent = 'Resolved ▾';
+    statusButton.classList.add('status-resolved');
+  } else if (currentStatus === 'unresolved') {
+    statusButton.textContent = 'Unresolved ▾';
+    statusButton.classList.add('status-unresolved');
   } else {
-    header.innerHTML = `
-      <span class="sidecar-bottleneck-count">1 task</span>
-      <span class="sidecar-bottleneck-hint">Assign to Mobius or resolve yourself</span>
-    `;
-  }
-  container.appendChild(header);
-  
-  // Render each bottleneck - no checkboxes, assign one at a time
-  for (const bottleneck of bottlenecks) {
-    const item = createBottleneckItem(
-      bottleneck, 
-      privacyContext,
-      onAnswer,
-      onAssign,
-      onOwn,
-      onAddNote
-    );
-    container.appendChild(item);
+    statusButton.textContent = 'Set status ▾';
   }
   
-  return container;
-}
-
-/**
- * Create a single bottleneck item
- */
-function createBottleneckItem(
-  bottleneck: Bottleneck,
-  privacyContext: PrivacyContext,
-  onAnswer: (bottleneckId: string, answerId: string) => void,
-  onAssign: (bottleneckId: string, mode: 'agentic' | 'copilot') => void,
-  onOwn: (bottleneckId: string) => void,
-  onAddNote: (bottleneckId: string, noteText: string) => void
-): HTMLElement {
-  const item = document.createElement('div');
-  item.className = 'sidecar-bottleneck-item';
-  item.dataset.id = bottleneck.id;
+  overrideRow.appendChild(statusButton);
+  container.appendChild(overrideRow);
   
-  // Question row with question and assignment dropdown
-  const questionRow = document.createElement('div');
-  questionRow.className = 'sidecar-bottleneck-question-row';
+  // Status button handler - shows Resolved/Unresolved dropdown (same as Mini)
+  statusButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Remove any existing dropdown
+    document.querySelectorAll('.sidecar-status-dropdown').forEach(d => d.remove());
+    
+    const btnRect = statusButton.getBoundingClientRect();
+    const dropdown = createStatusDropdown(btnRect, currentStatus, onStatusOverride);
+    document.body.appendChild(dropdown);
+  });
   
-  // Question text
-  const questionText = document.createElement('div');
-  questionText.className = 'sidecar-bottleneck-question';
-  questionText.textContent = formatLabel(bottleneck.question_text, privacyContext);
-  questionRow.appendChild(questionText);
+  // Problem statement (first bottleneck's question)
+  const problemRow = document.createElement('div');
+  problemRow.className = 'sidecar-workflow-problem';
+  problemRow.textContent = formatLabel(bottlenecks[0].question_text, privacyContext);
+  container.appendChild(problemRow);
   
-  // Source badge (if not from user)
-  const resolved = resolveValue(bottleneck.sources);
-  if (resolved && resolved.source !== 'user') {
-    const badge = document.createElement('span');
-    badge.className = 'sidecar-source-badge';
-    badge.textContent = getSourceBadge(resolved.source);
-    badge.title = `Data ${resolved.source === 'batch' ? 'from batch analysis' : 'detected on page'}`;
-    questionRow.appendChild(badge);
-  }
-  
-  // Conflict indicator
-  if (hasConflict(bottleneck.sources)) {
-    const conflict = document.createElement('span');
-    conflict.className = 'sidecar-conflict-badge';
-    conflict.textContent = '⚠️';
-    conflict.title = 'Different sources show different values';
-    questionRow.appendChild(conflict);
-  }
-  
-  // Assignment dropdown (compact, near question)
-  const assignDropdown = createAssignDropdown(bottleneck, onAssign, onOwn);
-  questionRow.appendChild(assignDropdown);
-  
-  item.appendChild(questionRow);
-  
-  // Answer options row
-  const answersRow = document.createElement('div');
-  answersRow.className = 'sidecar-bottleneck-answers';
-  
-  for (const option of bottleneck.answer_options) {
-    const btn = createAnswerButton(option, () => {
-      onAnswer(bottleneck.id, option.id);
-    });
-    // Pre-select if this was the previously selected answer
-    if (bottleneck.selected_answer && option.id === bottleneck.selected_answer) {
-      btn.classList.add('sidecar-answer-btn--selected');
+  // Recommendation message (if available)
+  if (recommendedMode && agenticConfidence !== undefined) {
+    const recRow = document.createElement('div');
+    recRow.className = 'sidecar-workflow-recommendation';
+    
+    let recMessage = '';
+    if (recommendedMode === 'mobius' && agenticConfidence >= 80) {
+      recMessage = `Mobius recommends: Let me handle this (${agenticConfidence}% confident)`;
+    } else if (recommendedMode === 'mobius' || recommendedMode === 'together') {
+      recMessage = `Mobius recommends: ${recommendedMode === 'mobius' ? 'Let me handle this' : 'Let\'s work together'} (${agenticConfidence}% confident)`;
+    } else {
+      recMessage = `Mobius recommends: You should review this`;
     }
-    answersRow.appendChild(btn);
+    
+    recRow.innerHTML = `
+      <span class="sidecar-workflow-rec-icon">✦</span>
+      <span class="sidecar-workflow-rec-text">${recMessage}</span>
+    `;
+    container.appendChild(recRow);
   }
   
-  item.appendChild(answersRow);
+  // Workflow mode selector
+  const modeSelector = document.createElement('div');
+  modeSelector.className = 'sidecar-workflow-mode-selector';
   
-  // Mobius tip - informational only, not clickable
-  if (bottleneck.mobius_can_handle) {
-    const mobiusTip = document.createElement('div');
-    mobiusTip.className = 'sidecar-bottleneck-mobius-tip';
-    mobiusTip.innerHTML = `<span class="sidecar-mobius-tip-icon">✦</span> Mobius can handle this for you`;
-    item.appendChild(mobiusTip);
+  const modes: { id: WorkflowMode; label: string; hint: string }[] = [
+    { id: 'mobius', label: 'Mobius handle', hint: 'Fully automated' },
+    { id: 'together', label: 'Do together', hint: 'Collaborative' },
+    { id: 'manual', label: 'I\'ll handle', hint: 'Track my work' },
+  ];
+  
+  for (const mode of modes) {
+    const modeBtn = document.createElement('button');
+    modeBtn.className = 'sidecar-workflow-mode-btn';
+    modeBtn.dataset.mode = mode.id;
+    if (selectedMode === mode.id) {
+      modeBtn.classList.add('sidecar-workflow-mode-btn--selected');
+    }
+    modeBtn.innerHTML = `
+      <span class="sidecar-workflow-mode-radio">${selectedMode === mode.id ? '●' : '○'}</span>
+      <span class="sidecar-workflow-mode-label">${mode.label}</span>
+    `;
+    modeBtn.title = mode.hint;
+    
+    modeBtn.addEventListener('click', () => {
+      selectedMode = mode.id;
+      updateModeSelection();
+      updateContentArea();
+      onWorkflowSelect(mode.id);
+    });
+    
+    modeSelector.appendChild(modeBtn);
   }
   
-  // Inline note input (compact)
+  container.appendChild(modeSelector);
+  
+  // Divider
+  const divider = document.createElement('div');
+  divider.className = 'sidecar-workflow-divider';
+  container.appendChild(divider);
+  
+  // Content area - changes based on mode
+  const contentArea = document.createElement('div');
+  contentArea.className = 'sidecar-workflow-content';
+  container.appendChild(contentArea);
+  
+  // Note input (always visible)
   const noteRow = document.createElement('div');
-  noteRow.className = 'sidecar-bottleneck-note-row';
+  noteRow.className = 'sidecar-workflow-note-row';
+  noteRow.innerHTML = `
+    <div class="sidecar-workflow-note-wrap">
+      <input type="text" class="sidecar-workflow-note-input" placeholder="Add note..." />
+      <button type="button" class="sidecar-workflow-note-send" title="Send note">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+      </button>
+    </div>
+  `;
+  container.appendChild(noteRow);
   
-  const noteWrap = document.createElement('div');
-  noteWrap.className = 'sidecar-bottleneck-note-wrap';
-  
-  const noteInput = document.createElement('input');
-  noteInput.type = 'text';
-  noteInput.className = 'sidecar-bottleneck-note-input';
-  noteInput.placeholder = 'Add note...';
-  
-  const sendBtn = document.createElement('button');
-  sendBtn.className = 'sidecar-bottleneck-note-send';
-  sendBtn.type = 'button';
-  sendBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>';
-  sendBtn.title = 'Send note';
+  // Note send handler
+  const noteInput = noteRow.querySelector<HTMLInputElement>('.sidecar-workflow-note-input');
+  const noteSendBtn = noteRow.querySelector<HTMLButtonElement>('.sidecar-workflow-note-send');
   
   const doSendNote = () => {
-    const note = noteInput.value.trim();
-    if (note) {
-      onAddNote(bottleneck.id, note);
-      noteInput.value = '';
+    const note = noteInput?.value.trim();
+    if (note && bottlenecks[0]) {
+      onAddNote(bottlenecks[0].id, note);
+      if (noteInput) noteInput.value = '';
     }
   };
   
-  sendBtn.addEventListener('click', doSendNote);
-  noteInput.addEventListener('keydown', (e) => {
+  noteSendBtn?.addEventListener('click', doSendNote);
+  noteInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       doSendNote();
     }
   });
   
-  noteWrap.appendChild(noteInput);
-  noteWrap.appendChild(sendBtn);
-  noteRow.appendChild(noteWrap);
-  item.appendChild(noteRow);
+  // Update mode selection UI
+  function updateModeSelection(): void {
+    const btns = modeSelector.querySelectorAll<HTMLButtonElement>('.sidecar-workflow-mode-btn');
+    btns.forEach(btn => {
+      const isSelected = btn.dataset.mode === selectedMode;
+      btn.classList.toggle('sidecar-workflow-mode-btn--selected', isSelected);
+      const radio = btn.querySelector('.sidecar-workflow-mode-radio');
+      if (radio) radio.textContent = isSelected ? '●' : '○';
+    });
+  }
   
-  return item;
+  // Collect all answer options from all bottlenecks (consistent across modes)
+  function getAllAnswerOptions(): Array<{ option: AnswerOption; bottleneck: Bottleneck; fullId: string }> {
+    const allOptions: Array<{ option: AnswerOption; bottleneck: Bottleneck; fullId: string }> = [];
+    for (const bottleneck of bottlenecks) {
+      for (const option of bottleneck.answer_options) {
+        allOptions.push({
+          option,
+          bottleneck,
+          fullId: `${bottleneck.id}:${option.id}`
+        });
+      }
+    }
+    return allOptions;
+  }
+
+  // Update content area based on selected mode
+  function updateContentArea(): void {
+    contentArea.innerHTML = '';
+    
+    // Get all options (consistent across all modes)
+    const allOptions = getAllAnswerOptions();
+    
+    if (selectedMode === 'mobius') {
+      // Mobius handle: Show what Mobius will do + only options Mobius can handle
+      const mobiusContent = document.createElement('div');
+      mobiusContent.className = 'sidecar-workflow-mobius-content';
+      
+      if (agenticActions && agenticActions.length > 0) {
+        mobiusContent.innerHTML = `
+          <div class="sidecar-workflow-mobius-message">
+            Mobius will handle this automatically.
+          </div>
+          <div class="sidecar-workflow-mobius-actions">
+            <span class="sidecar-workflow-mobius-actions-label">Planned actions:</span>
+            <ul class="sidecar-workflow-mobius-actions-list">
+              ${agenticActions.map(a => `<li>${formatActionLabel(a)}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      } else {
+        mobiusContent.innerHTML = `
+          <div class="sidecar-workflow-mobius-message">
+            Mobius will handle this automatically. You'll be notified when complete.
+          </div>
+        `;
+      }
+      
+      // Show only options that Mobius can handle (filter by bottleneck.mobius_can_handle)
+      const mobiusOptions = allOptions.filter(item => item.bottleneck.mobius_can_handle);
+      
+      if (mobiusOptions.length > 0) {
+        const optionsSection = document.createElement('div');
+        optionsSection.className = 'sidecar-workflow-mobius-options';
+        optionsSection.innerHTML = `
+          <div class="sidecar-workflow-option-group-header">
+            <span class="sidecar-workflow-option-group-icon">✓</span>
+            <span class="sidecar-workflow-option-group-title">Mobius will resolve:</span>
+          </div>
+        `;
+        
+        const optionsList = document.createElement('div');
+        optionsList.className = 'sidecar-workflow-options-list';
+        
+        for (const { option, fullId } of mobiusOptions) {
+          const optionEl = createOptionCheckbox(
+            { ...option, id: fullId },
+            () => {} // Read-only in Mobius mode
+          );
+          const checkbox = optionEl.querySelector<HTMLInputElement>('input[type="checkbox"]');
+          if (checkbox) {
+            checkbox.disabled = true;
+            checkbox.checked = true; // Show as "will be handled"
+          }
+          optionsList.appendChild(optionEl);
+        }
+        
+        optionsSection.appendChild(optionsList);
+        mobiusContent.appendChild(optionsSection);
+      }
+      
+      contentArea.appendChild(mobiusContent);
+      
+    } else if (selectedMode === 'together') {
+      // Do together: Show ALL options, grouped by Mobius capability (bottleneck-level)
+      const togetherContent = document.createElement('div');
+      togetherContent.className = 'sidecar-workflow-together-content';
+      
+      // Group options by bottleneck's Mobius capability
+      const mobiusOptions: Array<{ option: AnswerOption; bottleneck: Bottleneck; fullId: string }> = [];
+      const manualOptions: Array<{ option: AnswerOption; bottleneck: Bottleneck; fullId: string }> = [];
+      
+      for (const item of allOptions) {
+        if (item.bottleneck.mobius_can_handle) {
+          mobiusOptions.push(item);
+        } else {
+          manualOptions.push(item);
+        }
+      }
+      
+      // Mobius can handle section
+      if (mobiusOptions.length > 0) {
+        const mobiusSection = document.createElement('div');
+        mobiusSection.className = 'sidecar-workflow-option-group';
+        mobiusSection.innerHTML = `
+          <div class="sidecar-workflow-option-group-header">
+            <span class="sidecar-workflow-option-group-icon">✦</span>
+            <span class="sidecar-workflow-option-group-title">Mobius can handle</span>
+          </div>
+        `;
+        
+        const optionsList = document.createElement('div');
+        optionsList.className = 'sidecar-workflow-options-list';
+        
+        for (const { option, fullId } of mobiusOptions) {
+          const optionEl = createOptionCheckbox(
+            { ...option, id: fullId },
+            (checked) => {
+              if (checked) {
+                const [bottleneckId, optionId] = fullId.split(':');
+                onAnswer(bottleneckId, optionId);
+              }
+            }
+          );
+          optionsList.appendChild(optionEl);
+        }
+        
+        mobiusSection.appendChild(optionsList);
+        togetherContent.appendChild(mobiusSection);
+      }
+      
+      // Manual section
+      if (manualOptions.length > 0) {
+        const manualSection = document.createElement('div');
+        manualSection.className = 'sidecar-workflow-option-group';
+        manualSection.innerHTML = `
+          <div class="sidecar-workflow-option-group-header">
+            <span class="sidecar-workflow-option-group-icon">👤</span>
+            <span class="sidecar-workflow-option-group-title">You'll need to handle</span>
+          </div>
+        `;
+        
+        const optionsList = document.createElement('div');
+        optionsList.className = 'sidecar-workflow-options-list';
+        
+        for (const { option, fullId } of manualOptions) {
+          const optionEl = createOptionCheckbox(
+            { ...option, id: fullId },
+            (checked) => {
+              if (checked) {
+                const [bottleneckId, optionId] = fullId.split(':');
+                onAnswer(bottleneckId, optionId);
+              }
+            }
+          );
+          optionsList.appendChild(optionEl);
+        }
+        
+        manualSection.appendChild(optionsList);
+        togetherContent.appendChild(manualSection);
+      }
+      
+      // If no options at all, show message
+      if (allOptions.length === 0) {
+        togetherContent.innerHTML = `
+          <div class="sidecar-workflow-prompt">
+            No options available for this issue.
+          </div>
+        `;
+      }
+      
+      contentArea.appendChild(togetherContent);
+      
+    } else if (selectedMode === 'manual') {
+      // I'll handle: Show top 2 tasks with dropdowns to resolve
+      const manualContent = document.createElement('div');
+      manualContent.className = 'sidecar-workflow-manual-content';
+      
+      manualContent.innerHTML = `
+        <div class="sidecar-workflow-manual-message">
+          Select an option below to resolve each task. Mobius will monitor and remind if needed.
+        </div>
+      `;
+      
+      // Show top 2 bottlenecks (already filtered by backend to highest impact)
+      // Each bottleneck gets its own card with a dropdown
+      const tasksContainer = document.createElement('div');
+      tasksContainer.className = 'sidecar-manual-tasks-container';
+      
+      for (const bottleneck of bottlenecks.slice(0, 2)) {
+        const taskCard = createTaskCardWithDropdown(bottleneck, onAnswer);
+        tasksContainer.appendChild(taskCard);
+      }
+      
+      manualContent.appendChild(tasksContainer);
+      contentArea.appendChild(manualContent);
+      
+    } else {
+      // No mode selected - show prompt
+      contentArea.innerHTML = `
+        <div class="sidecar-workflow-prompt">
+          Select how you'd like to handle this issue above.
+        </div>
+      `;
+    }
+  }
+  
+  // Initial render
+  updateContentArea();
+  
+  return container;
 }
 
 /**
- * Create assignment dropdown
+ * Create an option checkbox
  */
-function createAssignDropdown(
-  bottleneck: Bottleneck,
-  onAssign: (bottleneckId: string, mode: 'agentic' | 'copilot') => void,
-  onOwn: (bottleneckId: string) => void
+function createOptionCheckbox(
+  option: AnswerOption, 
+  onChange: (checked: boolean) => void
 ): HTMLElement {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'sidecar-assign-dropdown';
+  const wrapper = document.createElement('label');
+  wrapper.className = 'sidecar-workflow-option';
   
-  // Dropdown button - more prominent
-  const btn = document.createElement('button');
-  btn.className = 'sidecar-assign-btn';
-  btn.innerHTML = `
-    <span class="sidecar-assign-label">Assign</span>
-    <span class="sidecar-assign-arrow">▾</span>
-  `;
-  btn.title = 'Assign task';
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className = 'sidecar-workflow-option-checkbox';
   
-  // Dropdown menu
-  const menu = document.createElement('div');
-  menu.className = 'sidecar-assign-menu';
-  menu.style.display = 'none';
+  const label = document.createElement('span');
+  label.className = 'sidecar-workflow-option-label';
+  label.textContent = option.label;
   
-  // Option 1: Let Mobius handle (agentic)
-  const mobiusOption = document.createElement('button');
-  mobiusOption.className = 'sidecar-assign-option';
-  mobiusOption.innerHTML = `
-    <span class="sidecar-assign-option-text">Let Mobius handle</span>
-    <span class="sidecar-assign-option-hint">Fully automated</span>
-  `;
-  if (bottleneck.mobius_action) {
-    mobiusOption.title = bottleneck.mobius_action;
+  checkbox.addEventListener('change', () => {
+    onChange(checkbox.checked);
+  });
+  
+  wrapper.appendChild(checkbox);
+  wrapper.appendChild(label);
+  
+  if (option.description) {
+    wrapper.title = option.description;
   }
-  mobiusOption.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menu.style.display = 'none';
-    btn.querySelector('.sidecar-assign-label')!.textContent = 'Mobius';
-    btn.classList.add('sidecar-assign-btn--assigned');
-    onAssign(bottleneck.id, 'agentic');
-  });
-  menu.appendChild(mobiusOption);
-  
-  // Option 2: Watch Mobius do it (copilot)
-  const copilotOption = document.createElement('button');
-  copilotOption.className = 'sidecar-assign-option';
-  copilotOption.innerHTML = `
-    <span class="sidecar-assign-option-text">Watch Mobius do it</span>
-    <span class="sidecar-assign-option-hint">You review each step</span>
-  `;
-  copilotOption.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menu.style.display = 'none';
-    btn.querySelector('.sidecar-assign-label')!.textContent = 'Copilot';
-    btn.classList.add('sidecar-assign-btn--assigned');
-    onAssign(bottleneck.id, 'copilot');
-  });
-  menu.appendChild(copilotOption);
-  
-  // Divider
-  const divider = document.createElement('div');
-  divider.className = 'sidecar-assign-divider';
-  menu.appendChild(divider);
-  
-  // Option 3: I'll do it
-  const userOption = document.createElement('button');
-  userOption.className = 'sidecar-assign-option';
-  userOption.innerHTML = `
-    <span class="sidecar-assign-option-text">I'll do it myself</span>
-    <span class="sidecar-assign-option-hint">Manual resolution</span>
-  `;
-  userOption.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menu.style.display = 'none';
-    btn.querySelector('.sidecar-assign-label')!.textContent = 'Me';
-    btn.classList.add('sidecar-assign-btn--assigned');
-    onOwn(bottleneck.id);
-  });
-  menu.appendChild(userOption);
-  
-  // Toggle menu
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const isOpen = menu.style.display !== 'none';
-    menu.style.display = isOpen ? 'none' : 'block';
-  });
-  
-  // Close on outside click
-  document.addEventListener('click', () => {
-    menu.style.display = 'none';
-  });
-  
-  wrapper.appendChild(btn);
-  wrapper.appendChild(menu);
   
   return wrapper;
 }
 
 /**
- * Create an answer button
+ * Create a task card with dropdown for "I'll handle" mode
  */
-function createAnswerButton(option: AnswerOption, onClick: () => void): HTMLElement {
-  const btn = document.createElement('button');
-  btn.className = 'sidecar-answer-btn';
-  btn.textContent = option.label;
-  if (option.description) {
-    btn.title = option.description;
+function createTaskCardWithDropdown(
+  bottleneck: Bottleneck,
+  onAnswer: (bottleneckId: string, answerId: string) => void
+): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'sidecar-manual-task-card';
+  
+  // Task question
+  const questionEl = document.createElement('div');
+  questionEl.className = 'sidecar-manual-task-question';
+  questionEl.textContent = bottleneck.question_text;
+  card.appendChild(questionEl);
+  
+  // Dropdown for options
+  const dropdownWrap = document.createElement('div');
+  dropdownWrap.className = 'sidecar-manual-task-dropdown-wrap';
+  
+  const select = document.createElement('select');
+  select.className = 'sidecar-manual-task-dropdown';
+  select.innerHTML = '<option value="">Select an option...</option>';
+  
+  // Add options
+  for (const option of bottleneck.answer_options) {
+    const optionEl = document.createElement('option');
+    optionEl.value = option.id;
+    optionEl.textContent = option.label;
+    if (bottleneck.selected_answer === option.id) {
+      optionEl.selected = true;
+    }
+    select.appendChild(optionEl);
   }
-  btn.addEventListener('click', () => {
-    selectAnswerButton(btn);
-    onClick();
+  
+  // Handle selection - answers the question (does NOT resolve the task)
+  // The bottleneck may still exist, it just means the task is answered/confirmed
+  select.addEventListener('change', (e) => {
+    const selectedValue = (e.target as HTMLSelectElement).value;
+    if (selectedValue) {
+      onAnswer(bottleneck.id, selectedValue);
+      // Mark as answered (not resolved) - task card stays visible, dropdown stays enabled
+      select.classList.add('sidecar-manual-task-dropdown--answered');
+      card.classList.add('sidecar-manual-task-card--answered');
+    }
   });
-  return btn;
+  
+  dropdownWrap.appendChild(select);
+  card.appendChild(dropdownWrap);
+  
+  // Show selected answer if already answered (but task is still active, not resolved)
+  if (bottleneck.selected_answer) {
+    select.value = bottleneck.selected_answer;
+    select.classList.add('sidecar-manual-task-dropdown--answered');
+    card.classList.add('sidecar-manual-task-card--answered');
+  }
+  
+  // Only disable if status is actually "resolved" (not just "answered")
+  if (bottleneck.status === 'resolved') {
+    select.disabled = true;
+    select.classList.add('sidecar-manual-task-dropdown--resolved');
+    card.classList.add('sidecar-manual-task-card--resolved');
+  }
+  
+  return card;
 }
 
-function selectAnswerButton(btn: HTMLButtonElement): void {
-  const container = btn.closest('.sidecar-bottleneck-answers');
-  if (!container) {
-    console.log('[BottleneckCard] Container not found for button');
-    return;
-  }
-  // Remove selected class from all buttons in this container
-  const allBtns = container.querySelectorAll('.sidecar-answer-btn');
-  allBtns.forEach(el => {
-    el.classList.remove('sidecar-answer-btn--selected');
+/**
+ * Format action label for display
+ */
+function formatActionLabel(action: string): string {
+  const labels: Record<string, string> = {
+    'search_history': 'Search patient history for prior coverage',
+    'check_medicaid': 'Check Medicaid/Medicare eligibility',
+    'send_portal': 'Send portal message to patient',
+    'send_sms': 'Send SMS request',
+    'run_eligibility_check': 'Run 270/271 eligibility check',
+    'check_portal_uploads': 'Check portal for recent uploads',
+    'send_card_request': 'Send insurance card request',
+    'run_verification': 'Run eligibility verification',
+    'check_benefits': 'Check benefit details',
+    'send_sms_reminder': 'Send SMS reminder',
+    'book_medicaid_transport': 'Book Medicaid transportation',
+    'check_transport_status': 'Check transport booking status',
+    'send_scheduling_link': 'Send scheduling link',
+    'submit_auth': 'Submit authorization request',
+    'review_docs': 'Review clinical documentation',
+    'check_portal_status': 'Check payer portal status',
+    'compile_docs': 'Compile documentation package',
+    'submit_renewal': 'Submit renewal request',
+    'verify_coverage': 'Verify coverage status',
+    'send_confirmation': 'Send confirmation request',
+  };
+  
+  return labels[action] || action.replace(/_/g, ' ');
+}
+
+/**
+ * Create status dropdown (same as Mini - Resolved/Unresolved options)
+ */
+function createStatusDropdown(
+  anchorRect: DOMRect,
+  currentStatus: 'resolved' | 'unresolved' | null | undefined,
+  onSelect: (status: 'resolved' | 'unresolved') => void
+): HTMLElement {
+  const dropdown = document.createElement('div');
+  dropdown.className = 'sidecar-status-dropdown';
+  const dropdownWidth = 200;
+  const dropdownHeight = 100;
+  
+  // Position dropdown above or below button
+  const spaceAbove = anchorRect.top;
+  const spaceBelow = window.innerHeight - anchorRect.bottom;
+  const preferAbove = spaceAbove > spaceBelow;
+  const top = preferAbove 
+    ? anchorRect.top - dropdownHeight - 4
+    : anchorRect.bottom + 4;
+  
+  dropdown.style.cssText = `
+    position: fixed;
+    top: ${top}px;
+    left: ${anchorRect.left}px;
+    width: ${dropdownWidth}px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    z-index: 2147483647;
+    padding: 4px 0;
+  `;
+  
+  // Status options (same as Mini)
+  const options = [
+    { status: 'resolved' as const, label: 'Resolved', icon: '✓', description: 'Problem fixed, no further action' },
+    { status: 'unresolved' as const, label: 'Unresolved', icon: '✗', description: 'Issue remains unresolved' },
+  ];
+  
+  options.forEach((opt) => {
+    const isSelected = currentStatus === opt.status;
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1px;
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      background: ${isSelected ? '#f1f5f9' : 'transparent'};
+      cursor: pointer;
+      text-align: left;
+    `;
+    item.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:#1e293b;">
+        <span>${opt.icon}</span>
+        <span>${opt.label}</span>
+      </div>
+      <div style="font-size:9px;color:#64748b;padding-left:18px;">${opt.description}</div>
+    `;
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onSelect(opt.status);
+      dropdown.remove();
+    });
+    item.addEventListener('mouseenter', () => {
+      item.style.background = '#f1f5f9';
+    });
+    item.addEventListener('mouseleave', () => {
+      item.style.background = isSelected ? '#f1f5f9' : 'transparent';
+    });
+    dropdown.appendChild(item);
   });
-  // Add selected class to clicked button
-  btn.classList.add('sidecar-answer-btn--selected');
-  console.log('[BottleneckCard] Selected button:', btn.textContent, 'Classes:', btn.className);
+  
+  // Close dropdown when clicking outside
+  const closeOnOutsideClick = (e: MouseEvent) => {
+    if (!dropdown.contains(e.target as Node)) {
+      dropdown.remove();
+      document.removeEventListener('click', closeOnOutsideClick);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeOnOutsideClick), 0);
+  
+  return dropdown;
 }
 
 /**

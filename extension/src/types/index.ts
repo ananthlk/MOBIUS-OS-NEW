@@ -398,10 +398,128 @@ export interface ResolutionPlan {
   }>;
   current_step?: ResolutionPlanStep;
   actions_for_user: number;
+  // Factor workflow modes (e.g., { eligibility: 'mobius' })
+  factor_modes?: Record<string, WorkflowMode>;
   // Resolved plan fields
   resolution_type?: string;
   resolution_notes?: string;
   resolved_at?: string;
+}
+
+/**
+ * Workflow mode - how the user wants to handle a bottleneck
+ */
+export type WorkflowMode = 'mobius' | 'together' | 'manual';
+
+// =============================================================================
+// Sidecar Factor Types (NEW - Simplified Sidecar)
+// =============================================================================
+
+/**
+ * Factor status in the care journey
+ */
+export type FactorStatus = 'resolved' | 'blocked' | 'waiting';
+
+/**
+ * Step status within a factor
+ */
+export type StepDisplayStatus = 'done' | 'current' | 'answered' | 'pending' | 'skipped';
+
+/**
+ * Assignee type for a step
+ */
+export type AssigneeType = 'mobius' | 'user';
+
+/**
+ * Mode recommendation from batch job
+ */
+export interface ModeRecommendation {
+  mode: WorkflowMode;
+  confidence: number;
+  reason: string;
+}
+
+/**
+ * A step within a factor
+ */
+export interface StepAnswerOption {
+  code: string;
+  label: string;
+}
+
+export interface FactorStep {
+  step_id: string;
+  label: string;
+  status: StepDisplayStatus;
+  can_system_handle: boolean;
+  assignee_type: AssigneeType;
+  assignee_icon: string;  // "🤖" or "👤"
+  is_user_turn: boolean;
+  rationale?: string;
+  answer_options?: StepAnswerOption[];  // For result capture when completing
+  selected_answer?: string;  // The answer code user selected
+  selected_answer_label?: string;  // Human-readable label of the selected answer
+}
+
+/**
+ * A user-added remedy (not from predefined steps)
+ */
+export interface UserRemedy {
+  remedy_id: string;
+  remedy_text: string;
+  outcome: 'worked' | 'partial' | 'failed';
+  outcome_notes?: string;
+  created_at: string;
+}
+
+/**
+ * A factor in the care journey (L2)
+ */
+export interface Factor {
+  factor_type: string;
+  label: string;
+  order: number;
+  status: FactorStatus;
+  status_label: string;
+  is_focus: boolean;
+  focus_for_roles?: string[];
+  recommendation: ModeRecommendation;
+  mode: WorkflowMode | null;
+  steps: FactorStep[];
+  evidence_count: number;
+  user_override?: 'resolved' | 'unresolved' | null;  // User override status for this factor
+  remedies?: UserRemedy[];  // User-added remedies for this factor
+}
+
+/**
+ * Sidecar state response (new factor-based)
+ */
+export interface SidecarStateResponse {
+  ok: boolean;
+  session_id: string;
+  surface: string;
+  record: {
+    type: string;
+    id: string;
+    displayName: string;
+    shortName: string;
+    possessive: string;
+  };
+  care_readiness: {
+    position: number;
+    direction: string;
+    factors: Record<string, { status: string }>;
+  };
+  factors: Factor[];
+  bottlenecks: unknown[];  // Legacy
+  resolved_steps: unknown[];
+  milestones: unknown[];
+  knowledge_context: unknown;
+  alerts: unknown[];
+  user_owned_tasks: unknown[];
+  attention_status?: string;
+  resolved_until?: string;
+  computed_at: string;
 }
 
 export interface MiniStatusResponse {
@@ -448,4 +566,10 @@ export interface MiniStatusResponse {
   actions_for_user: number;
   mode?: string;
   computed_at: string;
+  
+  // Batch job recommendation (Workflow Mode UI)
+  agentic_confidence?: number;           // 0-100, how confident Mobius is
+  recommended_mode?: WorkflowMode;       // "mobius" | "together" | "manual"
+  recommendation_reason?: string;        // Why batch recommends this mode
+  agentic_actions?: string[];            // What Mobius would do if delegated
 }

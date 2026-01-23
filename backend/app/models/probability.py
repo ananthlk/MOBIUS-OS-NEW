@@ -62,6 +62,13 @@ class PaymentProbability(Base):
     computed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     batch_job_id = Column(String(100), nullable=True)
     
+    # Batch job recommendation for workflow mode
+    # These fields help Mini show the batch recommendation and allow one-click accept
+    agentic_confidence = Column(Float, nullable=True)      # 0.0-1.0, how confident Mobius is
+    recommended_mode = Column(String(20), nullable=True)   # "mobius" | "together" | "manual"
+    recommendation_reason = Column(Text, nullable=True)    # Why batch recommends this mode
+    agentic_actions = Column(JSONB, nullable=True)         # What Mobius would do: ["search_history", "check_medicaid"]
+    
     # Relationship
     patient_context = relationship("PatientContext")
 

@@ -35,6 +35,14 @@ from .resolution import (
     StepAnswer,
     PlanNote,
     PlanModification,
+    UserRemedy,
+)
+from .evidence import (
+    RawData,
+    SourceDocument,
+    Evidence,
+    FactSourceLink,
+    PlanStepFactLink,
 )
 from .sidecar import (
     UserAlert,
@@ -122,6 +130,13 @@ __all__ = [
     "StepAnswer",
     "PlanNote",
     "PlanModification",
+    "UserRemedy",
+    # Evidence (Layers 4-6)
+    "RawData",
+    "SourceDocument",
+    "Evidence",
+    "FactSourceLink",
+    "PlanStepFactLink",
     # Sidecar
     "UserAlert",
     "UserOwnedTask",

@@ -80,6 +80,13 @@ class AnswerMode:
     USER_DRIVEN = "user_driven"  # User provided manually
 
 
+class WorkflowMode:
+    """Workflow mode - how user wants to handle a bottleneck."""
+    MOBIUS = "mobius"       # Full delegation - Mobius handles autonomously
+    TOGETHER = "together"   # Collaborative - user and Mobius work together
+    MANUAL = "manual"       # User handles - Mobius just tracks
+
+
 # =============================================================================
 # Resolution Plan Models
 # =============================================================================
@@ -136,6 +143,15 @@ class ResolutionPlan(Base):
     # Batch job metadata
     batch_job_id = Column(String(100), nullable=True)
     
+    # User's workflow mode choice (set when user accepts recommendation or overrides)
+    workflow_mode = Column(String(20), nullable=True)  # "mobius" | "together" | "manual"
+    workflow_mode_set_at = Column(DateTime, nullable=True)
+    workflow_mode_set_by = Column(UUID(as_uuid=True), ForeignKey("app_user.user_id"), nullable=True)
+    
+    # Per-factor workflow mode (allows different modes per factor)
+    # Example: {"eligibility": "mobius", "coverage": "together", "attendance": "manual"}
+    factor_modes = Column(JSONB, default={})
+    
     # Relationships
     patient_context = relationship("PatientContext")
     tenant = relationship("Tenant")
@@ -144,6 +160,7 @@ class ResolutionPlan(Base):
     modifications = relationship("PlanModification", back_populates="plan", order_by="PlanModification.created_at.desc()")
     resolved_by_user = relationship("AppUser", foreign_keys=[resolved_by])
     escalated_to_user = relationship("AppUser", foreign_keys=[escalated_to])
+    workflow_mode_set_by_user = relationship("AppUser", foreign_keys=[workflow_mode_set_by])
     
     def to_dict(self) -> dict:
         """Convert to dictionary for API responses."""
@@ -153,6 +170,8 @@ class ResolutionPlan(Base):
             "gap_types": self.gap_types,
             "status": self.status,
             "current_step_id": str(self.current_step_id) if self.current_step_id else None,
+            "workflow_mode": self.workflow_mode,
+            "factor_modes": self.factor_modes or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
@@ -235,6 +254,10 @@ class PlanStep(Base):
     # Factor type (for grouping in UI)
     factor_type = Column(String(20), nullable=True)  # "eligibility", "coverage", "attendance"
     
+    # Assignee type - who is responsible for this step (shown as icon in UI)
+    # "mobius" = 🤖, "user" = 👤, null = not yet assigned
+    assignee_type = Column(String(20), nullable=True)  # "mobius" | "user" | null
+    
     # Branching support
     parent_step_id = Column(
         UUID(as_uuid=True),
@@ -242,6 +265,11 @@ class PlanStep(Base):
         nullable=True
     )
     is_branch = Column(Boolean, default=False, nullable=False)
+    
+    # Evidence linkage (Layer 3 → Layer 4)
+    # Explains WHY this step is needed based on evidence/facts
+    rationale = Column(Text, nullable=True)  # Human-readable: "Last check was 45 days ago (stale)"
+    evidence_ids = Column(JSONB, nullable=True)  # List of evidence_id UUIDs that justify this step
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -274,6 +302,9 @@ class PlanStep(Base):
             "status": self.status,
             "factor_type": self.factor_type,
             "is_branch": self.is_branch,
+            "rationale": self.rationale,
+            "evidence_ids": self.evidence_ids,
+            "assignee_type": self.assignee_type,
         }
 
 
@@ -409,5 +440,80 @@ class PlanModification(Base):
             "user_name": self.user.display_name if self.user else None,
             "action": self.action,
             "details": self.details,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class RemedyOutcome:
+    """Outcome values for user remedies."""
+    WORKED = "worked"           # Remedy resolved the issue
+    PARTIAL = "partial"         # Partially helped
+    FAILED = "failed"           # Did not help
+
+
+class UserRemedy(Base):
+    """
+    User-reported remedies that weren't in the predefined steps.
+    
+    Captures what users tried and outcomes for learning:
+    - Feed back to batch job to improve future recommendations
+    - Build knowledge base of effective remedies by factor type
+    - Track user innovation and problem-solving patterns
+    """
+    
+    __tablename__ = "user_remedy"
+    
+    remedy_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Link to patient context (which patient this remedy was for)
+    patient_context_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("patient_context.patient_context_id"),
+        nullable=False
+    )
+    
+    # Link to resolution plan (optional - might be added outside a plan)
+    plan_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("resolution_plan.plan_id"),
+        nullable=True
+    )
+    
+    # Which factor this remedy addresses
+    factor_type = Column(String(20), nullable=False)  # "eligibility", "coverage", etc.
+    
+    # What the user tried (free text)
+    remedy_text = Column(Text, nullable=False)
+    
+    # Outcome
+    outcome = Column(String(20), nullable=False)  # "worked", "partial", "failed"
+    outcome_notes = Column(Text, nullable=True)  # Optional details about outcome
+    
+    # Who added this
+    created_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("app_user.user_id"),
+        nullable=True
+    )
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    patient_context = relationship("PatientContext")
+    plan = relationship("ResolutionPlan")
+    created_by_user = relationship("AppUser")
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for API responses."""
+        return {
+            "remedy_id": str(self.remedy_id),
+            "patient_context_id": str(self.patient_context_id),
+            "plan_id": str(self.plan_id) if self.plan_id else None,
+            "factor_type": self.factor_type,
+            "remedy_text": self.remedy_text,
+            "outcome": self.outcome,
+            "outcome_notes": self.outcome_notes,
+            "created_by": str(self.created_by) if self.created_by else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

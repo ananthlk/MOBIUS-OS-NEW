@@ -6,7 +6,7 @@
 import './styles/sidebar.css';
 import { API_BASE_URL } from './config';
 import { getOrCreateSessionId } from './utils/session';
-import { fetchMiniStatus, searchMiniPatients, sendChatMessage, submitMiniNote, submitAttentionStatus, reportIssue, AttentionStatus, resolvePatientContext, fetchDetectionConfig } from './services/api';
+import { fetchMiniStatus, searchMiniPatients, sendChatMessage, submitMiniNote, submitAttentionStatus, reportIssue, AttentionStatus, resolvePatientContext, fetchDetectionConfig, setFactorMode } from './services/api';
 import { getUiDefaultsForMode } from './utils/uiDefaults';
 import { getLayoutForMode } from './utils/modeLayout';
 import { renderSection } from './utils/uiLayout';
@@ -28,6 +28,7 @@ import {
   // Sidecar components
   StatusBar,
   BottleneckCard,
+  FactorList,
   AllClearCard,
   ContextExpander,
   QuickChat,
@@ -66,7 +67,7 @@ let agentMode: AgentMode = 'Agentic';
 let tasks: Task[] = [];
 let sidebarContainer: HTMLElement | null = null;
 
-type MiniColor = 'green' | 'yellow' | 'grey' | 'blue' | 'red';
+type MiniColor = 'green' | 'yellow' | 'grey' | 'blue' | 'red' | 'purple';
 type ExecutionMode = 'agentic' | 'copilot' | 'user_driven';
 type MiniLine = { 
   color: MiniColor; 
@@ -152,6 +153,12 @@ let taskCount = 0;
 let resolutionPlan: MiniStatusResponseType['resolution_plan'] | null = null;
 let actionsForUser = 0;
 
+// Batch recommendation state (Workflow Mode UI)
+let agenticConfidence: number | null = null;  // 0-100
+let recommendedMode: 'mobius' | 'together' | 'manual' | null = null;
+let recommendationReason: string | null = null;
+let agenticActions: string[] | null = null;
+
 // Sidecar state
 let sidecarState: SidecarStateResponse | null = null;
 let sidecarPrivacyMode = false;
@@ -211,62 +218,32 @@ function updateStepPreviewGlobal(): void {
   
   if (!questionEl) return;
   
-  // Get color from backend (based on payment probability)
+  // Layer 1: Always show problem statement from payment probability table (critical bottleneck)
+  // This is the most critical bottleneck - updated by batch job
+  // If user has overridden, use purple color and show "Resolved" or "Unresolved" status
   const backendColor = needsAttention.color || 'grey';
+  const isUserOverride = needsAttention.userStatus === 'resolved' || needsAttention.userStatus === 'unresolved';
+  const displayColor = isUserOverride ? 'purple' : backendColor;
   
-  // Check if we have a resolution plan
-  if (resolutionPlan) {
-    // Resolved plan - show "No issues detected"
-    if (resolutionPlan.status === 'resolved') {
-      questionEl.textContent = 'No issues detected';
-      questionEl.title = resolutionPlan.resolution_notes || 'All checks passed';
-      if (badgeText) badgeText.textContent = 'Resolved ✓';
-      // Use green for resolved, regardless of probability
-      if (dot) dot.className = 'mobius-mini-dot dot-green';
-      return;
+  questionEl.textContent = needsAttention.problemStatement || 'No issues detected';
+  questionEl.title = needsAttention.problemStatement || '';
+  
+  if (badgeText) {
+    if (needsAttention.userStatus === 'resolved') {
+      badgeText.textContent = 'Resolved ▾';
+    } else if (needsAttention.userStatus === 'unresolved') {
+      badgeText.textContent = 'Unresolved ▾';
+    } else {
+      badgeText.textContent = 'Set status ▾';
     }
-    
-    // Active plan with current step that matches user's role - show question
-    if (resolutionPlan.current_step) {
-      const step = resolutionPlan.current_step;
-      const maxLen = 50;
-      const text = step.question_text || 'Action required';
-      questionEl.textContent = text.length > maxLen ? text.slice(0, maxLen) + '...' : text;
-      questionEl.title = step.question_text || '';
-      if (badgeText) badgeText.textContent = 'Set status ▾';
-      // Use backend color (from payment probability)
-      if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(backendColor as MiniColor)}`;
-      return;
-    }
-    
-    // Active plan but NO current step for this user's role
-    // Check if there are tasks for other roles
-    const otherRoleTasks = (resolutionPlan as { other_role_tasks?: number }).other_role_tasks || 0;
-    if (otherRoleTasks > 0) {
-      questionEl.textContent = 'Waiting on another team member';
-      questionEl.title = `${otherRoleTasks} task(s) assigned to other roles`;
-      if (badgeText) badgeText.textContent = 'Pending';
-      // Use backend color
-      if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(backendColor as MiniColor)}`;
-      return;
-    }
-    
-    // Active plan, all steps complete for everyone
-    questionEl.textContent = 'All steps completed';
-    if (badgeText) badgeText.textContent = 'Complete ✓';
-    if (dot) dot.className = 'mobius-mini-dot dot-green';
-    return;
   }
   
-  // No resolution plan - fallback to legacy behavior
-  questionEl.textContent = needsAttention.problemStatement || 'No issues detected';
-  if (badgeText) badgeText.textContent = 'Set status';
-  // Use backend color
-  if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(backendColor as MiniColor)}`;
+  if (dot) dot.className = `mobius-mini-dot ${colorToCssClass(displayColor as MiniColor)}`;
 }
 
 /**
  * Update the task count badge in Mini (global function).
+ * Now shows batch recommendation with accept/review buttons.
  */
 function updateTaskCountGlobal(): void {
   const mini = document.getElementById(MINI_IDS.root);
@@ -275,13 +252,83 @@ function updateTaskCountGlobal(): void {
   const taskBadgeRow = mini.querySelector<HTMLElement>('.mobius-mini-task-badge-row');
   if (!taskBadgeRow) return;
   
-  const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
-  const labelEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-label');
   const count = actionsForUser > 0 ? actionsForUser : taskCount;
+  const messageEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-rec-message');
+  const confidenceEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-rec-confidence');
+  const acceptBtn = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-accept-btn');
   
-  if (countEl) countEl.textContent = String(count);
-  if (labelEl) labelEl.textContent = count === 1 ? 'item remaining' : 'items remaining';
-  taskBadgeRow.style.display = count > 0 ? '' : 'none';
+  // Show recommendation row if:
+  // 1. There are actions (count > 0), OR
+  // 2. There's a problem statement AND recommendation data exists
+  const hasRecommendation = recommendedMode && agenticConfidence !== null;
+  const hasProblem = needsAttention.problemStatement && needsAttention.problemStatement !== 'No issues detected';
+  const shouldShow = count > 0 || (hasProblem && hasRecommendation);
+  
+  if (!shouldShow) {
+    taskBadgeRow.style.display = 'none';
+    return;
+  }
+  taskBadgeRow.style.display = '';
+  
+  // Check if the current bottleneck factor is already delegated to Mobius
+  const currentFactorType = resolutionPlan?.current_step?.factor_type;
+  const factorModes = resolutionPlan?.factor_modes;
+  const isAlreadyDelegated = currentFactorType && factorModes && factorModes[currentFactorType] === 'mobius';
+  
+    // Build recommendation message based on mode and confidence
+    if (hasRecommendation && agenticConfidence !== null) {
+      const confidence: number = agenticConfidence; // TypeScript now knows it's not null
+      
+      // Update confidence display (confidence is 0-1, convert to 0-100 for display)
+      if (confidenceEl) {
+        confidenceEl.textContent = `(${Math.round(confidence * 100)}%)`;
+      }
+      
+      // Update message and button based on mode
+      // Only "mobius" mode can be accepted from Mini (quick signoff)
+      // "together" and "manual" modes require Sidecar review
+      const reviewBtn = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-review-btn');
+      if (messageEl && acceptBtn && reviewBtn && recommendedMode) {
+        // Check if already delegated - show green check state
+        if (isAlreadyDelegated) {
+          messageEl.textContent = 'Mobius: "I\'m handling this"';
+          acceptBtn.classList.add('delegated');
+          acceptBtn.classList.remove('mobius-mini-btn-active');
+          acceptBtn.textContent = 'Delegated to Mobius';
+          acceptBtn.style.display = '';
+          reviewBtn.style.display = '';
+        } else if (recommendedMode === 'mobius' && confidence >= 80) {
+          messageEl.textContent = 'Mobius: "I can handle this"';
+          acceptBtn.classList.remove('delegated');
+          acceptBtn.textContent = 'Let Mobius Handle';
+          acceptBtn.style.display = '';
+          reviewBtn.style.display = '';
+        } else if (recommendedMode === 'mobius') {
+          messageEl.textContent = 'Mobius: "I can help with this"';
+          acceptBtn.classList.remove('delegated');
+          acceptBtn.textContent = 'Let Mobius Handle';
+          acceptBtn.style.display = '';
+          reviewBtn.style.display = '';
+        } else if (recommendedMode === 'together') {
+          messageEl.textContent = 'Mobius: "Let\'s work together"';
+          acceptBtn.style.display = 'none'; // Cannot accept from Mini - must review in Sidecar
+          reviewBtn.style.display = '';
+        } else if (recommendedMode === 'manual') {
+          messageEl.textContent = 'Mobius: "You should review this"';
+          acceptBtn.style.display = 'none'; // Cannot accept from Mini - must review in Sidecar
+          reviewBtn.style.display = '';
+        } else {
+          messageEl.textContent = 'Mobius: "You should review this"';
+          acceptBtn.style.display = 'none';
+          reviewBtn.style.display = '';
+        }
+      }
+  } else {
+    // Fallback to legacy display
+    if (messageEl) messageEl.textContent = `${count} ${count === 1 ? 'item' : 'items'} remaining`;
+    if (confidenceEl) confidenceEl.textContent = '';
+    if (acceptBtn) acceptBtn.style.display = 'none';
+  }
 }
 
 // User Awareness state
@@ -305,23 +352,35 @@ function startStatusPolling(): void {
     if (!patientKey) return;
     
     try {
-      const status = await fetchMiniStatus(sessionId, patientKey);
+      const status: MiniStatusResponseType = await fetchMiniStatus(sessionId, patientKey);
       
       // Check if attention status changed
       const newUserStatus = status.needs_attention?.user_status || null;
+      console.log('[Mobius] Polling status check:', {
+        current: needsAttention.userStatus,
+        new: newUserStatus,
+        fullResponse: status.needs_attention
+      });
+      
       if (newUserStatus !== needsAttention.userStatus) {
         console.log('[Mobius] Status changed via polling:', newUserStatus);
         
         // Update state
         if (status.needs_attention) {
           needsAttention = {
-            color: status.needs_attention.color,
-            problemStatement: status.needs_attention.problem_statement,
-            userStatus: status.needs_attention.user_status,
+            color: status.needs_attention.color as MiniColor,
+            problemStatement: status.needs_attention.problem_statement ?? null,
+            userStatus: (status.needs_attention.user_status ?? null) as AttentionStatus,
           };
         }
         
         // Update UI
+        const mini = document.getElementById(MINI_IDS.root);
+        if (mini) {
+          updateAttentionUI(mini);
+        }
+      } else if (newUserStatus === 'resolved' && needsAttention.userStatus === 'resolved') {
+        // Even if status hasn't changed, ensure UI reflects resolved state (purple)
         const mini = document.getElementById(MINI_IDS.root);
         if (mini) {
           updateAttentionUI(mini);
@@ -352,9 +411,10 @@ function stopStatusPolling(): void {
  */
 function updateAttentionUI(mini: HTMLElement): void {
   let effectiveColor = needsAttention.color;
-  if (needsAttention.userStatus === 'resolved') effectiveColor = 'green';
-  else if (needsAttention.userStatus === 'confirmed_unresolved') effectiveColor = 'yellow';
-  else if (needsAttention.userStatus === 'unable_to_confirm') effectiveColor = 'grey';
+  // User override (resolved or unresolved) should show purple to indicate forced override
+  if (needsAttention.userStatus === 'resolved' || needsAttention.userStatus === 'unresolved') {
+    effectiveColor = 'purple';
+  }
   
   const attentionRow = mini.querySelector<HTMLElement>('.mobius-mini-attention-row');
   if (attentionRow) {
@@ -366,9 +426,8 @@ function updateAttentionUI(mini: HTMLElement): void {
       dot.className = `mobius-mini-dot ${colorToCssClass(effectiveColor)}`;
     }
     if (text) {
-      if (needsAttention.userStatus === 'resolved') {
-        text.textContent = 'No issues detected';
-      } else if (needsAttention.problemStatement) {
+      // Always show problem statement from payment probability (Layer 1)
+      if (needsAttention.problemStatement) {
         text.textContent = needsAttention.problemStatement;
       } else {
         text.textContent = 'No issues detected';
@@ -378,6 +437,9 @@ function updateAttentionUI(mini: HTMLElement): void {
       if (needsAttention.userStatus === 'resolved') {
         statusBtn.textContent = 'Resolved ▾';
         statusBtn.className = 'mobius-mini-status-btn resolved';
+      } else if (needsAttention.userStatus === 'unresolved') {
+        statusBtn.textContent = 'Unresolved ▾';
+        statusBtn.className = 'mobius-mini-status-btn unresolved';
       } else {
         statusBtn.textContent = 'Set status ▾';
         statusBtn.className = 'mobius-mini-status-btn';
@@ -644,8 +706,8 @@ async function handleAutoDetectedPatient(detected: DetectedPatient | null): Prom
     autoDetectedPatient = resolved;
     console.log('[Mobius] Patient resolved:', resolved);
     
-    // Auto-detection takes precedence - clear any stale manual override
-    // This ensures the sidebar always shows the patient currently visible in the EMR
+    // System successfully found patient - clear override (new page = new context)
+    // Override is only for corrections when system can't determine patient
     if (patientOverride) {
       console.log('[Mobius] Clearing patient override in favor of auto-detected patient');
       patientOverride = null;
@@ -656,7 +718,8 @@ async function handleAutoDetectedPatient(detected: DetectedPatient | null): Prom
     await updateMiniWithResolvedPatient(resolved);
   } else {
     console.log('[Mobius] Patient not found in system:', detected);
-    // Keep the detection info even if not found (might be useful)
+    // System detected patient on page but couldn't resolve it in backend
+    // Keep override if user set it (user's correction is still valid for this page)
     autoDetectedPatient = resolved;
   }
 }
@@ -682,32 +745,68 @@ async function updateMiniWithResolvedPatient(resolved: ResolvedPatientContext): 
   // Fetch updated status for the detected patient
   if (resolved.patient_key) {
     try {
-      const status = await fetchMiniStatus(sessionId, resolved.patient_key);
+      const status: MiniStatusResponseType = await fetchMiniStatus(sessionId, resolved.patient_key);
       
       // Update proceed/tasking state
-      miniProceed = status.proceed;
+      miniProceed = {
+        color: status.proceed.color as MiniColor,
+        text: status.proceed.text,
+      };
       if (status.tasking) {
-        miniTasking = status.tasking;
+        miniTasking = {
+          color: status.tasking.color as MiniColor,
+          text: status.tasking.text,
+          mode: status.tasking.mode as ExecutionMode | undefined,
+          mode_text: status.tasking.mode_text,
+        };
       }
       
       // Update needs_attention
       if (status.needs_attention) {
+        console.log('[Mobius] Loading status - needs_attention:', status.needs_attention);
         needsAttention = {
-          color: status.needs_attention.color,
-          problemStatement: status.needs_attention.problem_statement,
-          userStatus: status.needs_attention.user_status,
+          color: status.needs_attention.color as MiniColor,
+          problemStatement: status.needs_attention.problem_statement ?? null,
+          userStatus: (status.needs_attention.user_status ?? null) as AttentionStatus,
         };
+        console.log('[Mobius] Updated needsAttention.userStatus to:', needsAttention.userStatus);
+      } else {
+        console.warn('[Mobius] No needs_attention in status response:', status);
       }
       taskCount = status.task_count || 0;
       resolutionPlan = (status.resolution_plan as MiniStatusResponseType['resolution_plan']) || null;
       actionsForUser = status.actions_for_user || 0;
       
+      // Batch recommendation (Workflow Mode UI)
+      // Convert agentic_confidence from 0-100 to 0-1 for internal use
+      if (status.agentic_confidence !== null && status.agentic_confidence !== undefined) {
+        const rawValue = status.agentic_confidence;
+        agenticConfidence = rawValue > 1 ? rawValue / 100 : rawValue;
+      } else {
+        agenticConfidence = null;
+      }
+      recommendedMode = status.recommended_mode ?? null;
+      recommendationReason = status.recommendation_reason ?? null;
+      agenticActions = status.agentic_actions ?? null;
+      
+      // Debug logging
+      console.log('[Mobius] Recommendation data:', {
+        agenticConfidence,
+        recommendedMode,
+        recommendationReason,
+        agenticActions,
+        actionsForUser,
+        taskCount,
+        problemStatement: needsAttention.problemStatement,
+      });
+      
       // Re-render Mini attention UI
       const attentionRow = mini.querySelector<HTMLElement>('.mobius-mini-attention-row');
       let effectiveColor = needsAttention.color;
-      if (needsAttention.userStatus === 'resolved') effectiveColor = 'green';
-      else if (needsAttention.userStatus === 'confirmed_unresolved') effectiveColor = 'yellow';
-      else if (needsAttention.userStatus === 'unable_to_confirm') effectiveColor = 'grey';
+      // User override (resolved or unresolved) should show purple to indicate forced override
+      if (needsAttention.userStatus === 'resolved' || needsAttention.userStatus === 'unresolved') {
+        effectiveColor = 'purple';
+      }
       
       if (attentionRow) {
         const dot = attentionRow.querySelector<HTMLElement>('.mobius-mini-dot');
@@ -1523,17 +1622,22 @@ function createMini(): HTMLElement {
   `;
   root.appendChild(attentionRow);
 
-  // Plan badge row - shows count and links to full checklist
+  // Plan badge row - shows batch recommendation with accept/review buttons
   const taskBadgeRow = document.createElement('div');
   taskBadgeRow.className = 'mobius-mini-row mobius-mini-task-badge-row';
   taskBadgeRow.style.display = 'none'; // Hidden when no actions
   taskBadgeRow.innerHTML = `
     <div class="mobius-mini-row-label">PLAN</div>
-    <button class="mobius-mini-task-badge" type="button" aria-label="Open plan in Sidecar">
-      <span class="mobius-mini-task-count">0</span>
-      <span class="mobius-mini-task-label">items remaining</span>
-      <span style="margin-left: 4px;">→</span>
-    </button>
+    <div class="mobius-mini-recommendation">
+      <div class="mobius-mini-recommendation-text">
+        <span class="mobius-mini-rec-message">Loading...</span>
+        <span class="mobius-mini-rec-confidence"></span>
+      </div>
+      <div class="mobius-mini-recommendation-actions">
+        <button class="mobius-mini-accept-btn" type="button">Accept</button>
+        <button class="mobius-mini-review-btn" type="button">Review →</button>
+      </div>
+    </div>
   `;
   root.appendChild(taskBadgeRow);
 
@@ -1601,9 +1705,10 @@ function createMini(): HTMLElement {
     
     // Calculate effective color based on status
     let effectiveColor = needsAttention.color;
-    if (needsAttention.userStatus === 'resolved') effectiveColor = 'green';
-    else if (needsAttention.userStatus === 'confirmed_unresolved') effectiveColor = 'yellow';
-    else if (needsAttention.userStatus === 'unable_to_confirm') effectiveColor = 'grey';
+    // User override (resolved or unresolved) should show purple to indicate forced override
+    if (needsAttention.userStatus === 'resolved' || needsAttention.userStatus === 'unresolved') {
+      effectiveColor = 'purple';
+    }
     
     // Dot color reflects status
     if (dot) {
@@ -1626,12 +1731,9 @@ function createMini(): HTMLElement {
       if (needsAttention.userStatus === 'resolved') {
         badgeText.textContent = 'Resolved';
         badge.className = 'mobius-mini-status-badge status-resolved';
-      } else if (needsAttention.userStatus === 'confirmed_unresolved') {
+      } else if (needsAttention.userStatus === 'unresolved') {
         badgeText.textContent = 'Unresolved';
         badge.className = 'mobius-mini-status-badge status-unresolved';
-      } else if (needsAttention.userStatus === 'unable_to_confirm') {
-        badgeText.textContent = 'Unconfirmed';
-        badge.className = 'mobius-mini-status-badge status-unconfirmed';
       } else {
         badgeText.textContent = 'Set status';
         badge.className = 'mobius-mini-status-badge';
@@ -1639,15 +1741,98 @@ function createMini(): HTMLElement {
     }
   };
 
-  // Apply task count (action-centric: uses actionsForUser)
+  // Apply task count and batch recommendation (Workflow Mode UI)
   const applyTaskCount = () => {
-    const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
-    const labelEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-label');
-    // Prefer actionsForUser from resolution plan, fall back to taskCount
     const count = actionsForUser > 0 ? actionsForUser : taskCount;
-    if (countEl) countEl.textContent = String(count);
-    if (labelEl) labelEl.textContent = count === 1 ? 'item remaining' : 'items remaining';
-    taskBadgeRow.style.display = count > 0 ? '' : 'none';
+    const messageEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-rec-message');
+    const confidenceEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-rec-confidence');
+    const acceptBtn = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-accept-btn');
+    const reviewBtn = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-review-btn');
+    
+    console.log('[Mobius] applyTaskCount:', {
+      count,
+      actionsForUser,
+      taskCount,
+      recommendedMode,
+      agenticConfidence,
+      hasProblem: !!needsAttention.problemStatement,
+      hasMessageEl: !!messageEl,
+    });
+    
+    // Show recommendation row if:
+    // 1. There are actions (count > 0), OR
+    // 2. There's a problem statement AND recommendation data exists
+    const hasRecommendation = recommendedMode && agenticConfidence !== null;
+    const hasProblem = needsAttention.problemStatement && needsAttention.problemStatement !== 'No issues detected';
+    const shouldShow = count > 0 || (hasProblem && hasRecommendation);
+    
+    if (!shouldShow) {
+      console.log('[Mobius] Hiding recommendation row - no actions and no recommendation');
+      taskBadgeRow.style.display = 'none';
+      return;
+    }
+    taskBadgeRow.style.display = '';
+    
+    // Check if the current bottleneck factor is already delegated to Mobius
+    const currentFactorType = resolutionPlan?.current_step?.factor_type;
+    const factorModes = resolutionPlan?.factor_modes;
+    const isAlreadyDelegated = currentFactorType && factorModes && factorModes[currentFactorType] === 'mobius';
+    
+    // Build recommendation message based on mode and confidence
+    if (hasRecommendation && agenticConfidence !== null) {
+      console.log('[Mobius] Showing recommendation:', { recommendedMode, agenticConfidence, isAlreadyDelegated });
+      const confidence: number = agenticConfidence; // TypeScript now knows it's not null
+      
+      // Update confidence display (confidence is 0-1, convert to 0-100 for display)
+      if (confidenceEl) {
+        confidenceEl.textContent = `(${Math.round(confidence * 100)}%)`;
+      }
+      
+      // Update message and button based on mode
+      // Only "mobius" mode can be accepted from Mini (quick signoff)
+      // "together" and "manual" modes require Sidecar review
+      const reviewBtn = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-review-btn');
+      if (messageEl && acceptBtn && reviewBtn && recommendedMode) {
+        // Check if already delegated - show green check state
+        if (isAlreadyDelegated) {
+          messageEl.textContent = 'Mobius: "I\'m handling this"';
+          acceptBtn.classList.add('delegated');
+          acceptBtn.classList.remove('mobius-mini-btn-active');
+          acceptBtn.textContent = 'Delegated to Mobius';
+          acceptBtn.style.display = '';
+          reviewBtn.style.display = '';
+        } else if (recommendedMode === 'mobius' && confidence >= 80) {
+          messageEl.textContent = 'Mobius: "I can handle this"';
+          acceptBtn.classList.remove('delegated');
+          acceptBtn.textContent = 'Let Mobius Handle';
+          acceptBtn.style.display = '';
+          reviewBtn.style.display = '';
+        } else if (recommendedMode === 'mobius') {
+          messageEl.textContent = 'Mobius: "I can help with this"';
+          acceptBtn.classList.remove('delegated');
+          acceptBtn.textContent = 'Let Mobius Handle';
+          acceptBtn.style.display = '';
+          reviewBtn.style.display = '';
+        } else if (recommendedMode === 'together') {
+          messageEl.textContent = 'Mobius: "Let\'s work together"';
+          acceptBtn.style.display = 'none'; // Cannot accept from Mini - must review in Sidecar
+          reviewBtn.style.display = '';
+        } else if (recommendedMode === 'manual') {
+          messageEl.textContent = 'Mobius: "You should review this"';
+          acceptBtn.style.display = 'none'; // Cannot accept from Mini - must review in Sidecar
+          reviewBtn.style.display = '';
+        } else {
+          messageEl.textContent = 'Mobius: "You should review this"';
+          acceptBtn.style.display = 'none';
+          reviewBtn.style.display = '';
+        }
+      }
+    } else {
+      // Fallback to legacy display
+      if (messageEl) messageEl.textContent = `${count} ${count === 1 ? 'item' : 'items'} remaining`;
+      if (confidenceEl) confidenceEl.textContent = '';
+      if (acceptBtn) acceptBtn.style.display = 'none';
+    }
   };
 
   // Apply step preview - now uses global function
@@ -1667,9 +1852,10 @@ function createMini(): HTMLElement {
     // Attention dot color
     if (dot) {
       let color = needsAttention.color;
-      if (needsAttention.userStatus === 'resolved') color = 'green';
-      else if (needsAttention.userStatus === 'confirmed_unresolved') color = 'yellow';
-      else if (needsAttention.userStatus === 'unable_to_confirm') color = 'grey';
+      // User override (resolved or unresolved) should show purple to indicate forced override
+      if (needsAttention.userStatus === 'resolved' || needsAttention.userStatus === 'unresolved') {
+        color = 'purple';
+      }
       dot.className = `mobius-mini-dot ${colorToCssClass(color)}`;
     }
   };
@@ -1683,11 +1869,10 @@ function createMini(): HTMLElement {
   applyStatus(proceedRow, miniProceed);
   applyStatus(taskingRow, miniTasking, true);
 
-  // Attention workflow dropdown options
+  // Attention workflow dropdown options - simplified to Resolved/Unresolved
   const ATTENTION_OPTIONS: Array<{ status: AttentionStatus | 'new_issue'; label: string; icon: string; description: string }> = [
     { status: 'resolved', label: 'Resolved', icon: '✓', description: 'Problem fixed, no further action' },
-    { status: 'confirmed_unresolved', label: 'Confirmed, unresolved', icon: '⚠', description: 'Issue verified, tasks remain' },
-    { status: 'unable_to_confirm', label: 'Unable to confirm', icon: '?', description: 'Needs investigation' },
+    { status: 'unresolved', label: 'Unresolved', icon: '✗', description: 'Issue remains unresolved' },
   ];
 
   // Create issue report modal
@@ -1847,6 +2032,7 @@ function createMini(): HTMLElement {
       `;
       item.addEventListener('click', (e) => {
         e.stopPropagation();
+        console.log('[Mobius DEBUG] Dropdown item clicked:', opt.status);
         onSelect(opt.status as AttentionStatus);
         dropdown.remove();
       });
@@ -1996,7 +2182,7 @@ function createMini(): HTMLElement {
     return dropdown;
   };
 
-  // Click handler for status badge - shows answer options or status options
+  // Click handler for status badge - always shows status override options (Resolved/Unresolved)
   const statusBadge = attentionRow.querySelector<HTMLButtonElement>('.mobius-mini-status-badge');
   statusBadge?.addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -2006,43 +2192,44 @@ function createMini(): HTMLElement {
     // Get button position to anchor dropdown
     const btnRect = statusBadge.getBoundingClientRect();
     
-    // If resolution plan is resolved, just show a toast (nothing to do)
-    if (resolutionPlan?.status === 'resolved') {
-      showToast('All checks passed - no action needed');
-      return;
-    }
-    
-    // If we have a resolution plan with current step, show answer dropdown
-    if (resolutionPlan?.current_step) {
-      const dropdown = createAnswerDropdown(resolutionPlan.current_step, btnRect);
-      document.body.appendChild(dropdown);
-      return;
-    }
-    
-    // Active plan but no tasks for this user's role
-    if (resolutionPlan?.status === 'active') {
-      const otherRoleTasks = (resolutionPlan as { other_role_tasks?: number }).other_role_tasks || 0;
-      if (otherRoleTasks > 0) {
-        showToast(`${otherRoleTasks} task(s) waiting on other team members`);
-        return;
-      }
-    }
-    
-    // Otherwise show the status dropdown (fallback for when no resolution plan)
+    // Always show the status dropdown (user override options - Resolved/Unresolved)
     const dropdown = createAttentionDropdown(
       needsAttention.userStatus,
       // onSelect callback for status changes
       async (status) => {
-        // Update local state
-        needsAttention.userStatus = status;
-        applyAttention();
-        
-        // Submit to backend
+        console.log('[Mobius DEBUG] onSelect called with status:', status);
+        // Submit to backend first (no optimistic update - wait for database)
         const patientId = getPatientDisplay().id;
+        console.log('[Mobius DEBUG] patientId from getPatientDisplay():', patientId);
+        console.log('[Mobius DEBUG] autoDetectedPatient:', autoDetectedPatient);
+        console.log('[Mobius DEBUG] patientOverride:', patientOverride);
         if (patientId) {
           try {
+            console.log('[Mobius DEBUG] Calling submitAttentionStatus with:', { sessionId, patientId, status });
+            // Step 1: Submit update to backend - this commits to PostgreSQL
             const response = await submitAttentionStatus(sessionId, patientId, status);
-            showToast(status === 'resolved' ? 'Marked as resolved' : 'Status updated');
+            console.log('[Mobius DEBUG] submitAttentionStatus response:', response);
+            
+            // Step 2: Force refresh from database immediately after update
+            const refreshedStatus = await fetchMiniStatus(sessionId, patientId);
+            
+            // Step 3: Update UI with fresh data from database
+            if (refreshedStatus.needs_attention) {
+              needsAttention = {
+                color: refreshedStatus.needs_attention.color as MiniColor,
+                problemStatement: refreshedStatus.needs_attention.problem_statement ?? null,
+                userStatus: (refreshedStatus.needs_attention.user_status ?? null) as AttentionStatus,
+              };
+              
+              const mini = document.getElementById(MINI_IDS.root);
+              if (mini) {
+                updateAttentionUI(mini);
+                updateStepPreviewGlobal(); // Refresh problem statement display
+              }
+              
+              console.log('[Mobius] Status updated and refreshed from database:', refreshedStatus.needs_attention.user_status);
+              showToast(status === 'resolved' ? 'Marked as resolved' : status === 'unresolved' ? 'Marked as unresolved' : 'Status updated');
+            }
             
             // Open sidecar if indicated
             if (response.open_sidecar) {
@@ -2051,7 +2238,30 @@ function createMini(): HTMLElement {
           } catch (err) {
             console.error('[Mobius] Failed to update attention status:', err);
             showToast('Failed to update status');
+            
+            // On error, refresh from database to show current state
+            if (patientId) {
+              try {
+                const status = await fetchMiniStatus(sessionId, patientId);
+                if (status.needs_attention) {
+                  needsAttention = {
+                    color: status.needs_attention.color as MiniColor,
+                    problemStatement: status.needs_attention.problem_statement ?? null,
+                    userStatus: (status.needs_attention.user_status ?? null) as AttentionStatus,
+                  };
+                  const mini = document.getElementById(MINI_IDS.root);
+                  if (mini) {
+                    updateAttentionUI(mini);
+                    updateStepPreviewGlobal();
+                  }
+                }
+              } catch (refreshErr) {
+                console.error('[Mobius] Failed to refresh status on error:', refreshErr);
+              }
+            }
           }
+        } else {
+          console.log('[Mobius DEBUG] No patientId found - status update skipped!');
         }
       },
       // onReportIssue callback
@@ -2077,9 +2287,106 @@ function createMini(): HTMLElement {
     document.body.appendChild(dropdown);
   });
 
-  // Click handler for task badge (opens sidecar)
-  const taskBadge = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-task-badge');
-  taskBadge?.addEventListener('click', async () => {
+  // Click handler for accept button (accepts batch recommendation)
+  // Only works for "mobius" mode - other modes require Sidecar review
+  const acceptBtn = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-accept-btn');
+  acceptBtn?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    
+    // If already delegated, do nothing
+    if (acceptBtn.classList.contains('delegated')) {
+      return;
+    }
+    
+    if (!recommendedMode || recommendedMode !== 'mobius') {
+      // Should not happen if UI is correct, but safety check
+      showToast('Please review in Sidecar');
+      return;
+    }
+    
+    // Get the bottleneck factor type from resolution plan
+    const factorType = resolutionPlan?.current_step?.factor_type;
+    if (!factorType) {
+      showToast('No bottleneck factor found');
+      return;
+    }
+    
+    // Add visual feedback
+    acceptBtn.classList.add('mobius-mini-btn-active');
+    acceptBtn.disabled = true;
+    
+    const patientKey = getCurrentPatientKey();
+    if (!patientKey) {
+      acceptBtn.classList.remove('mobius-mini-btn-active');
+      acceptBtn.disabled = false;
+      showToast('No patient selected');
+      return;
+    }
+    
+    try {
+      // Call setFactorMode API to update factor_modes in resolution plan (Layer 2)
+      // This properly delegates the bottleneck factor to Mobius
+      const result = await setFactorMode(patientKey, factorType, 'mobius');
+      
+      if (result.ok) {
+        showToast(`Delegated ${factorType} to Mobius`);
+        
+        // Show delegated state with green check
+        acceptBtn.classList.remove('mobius-mini-btn-active');
+        acceptBtn.classList.add('delegated');
+        acceptBtn.textContent = 'Delegated to Mobius';
+        acceptBtn.disabled = false; // Re-enable but clicking does nothing
+        
+        // Refresh status to get updated factor_modes
+        const patientKey = getCurrentPatientKey();
+        if (patientKey) {
+          await fetchMiniStatus(sessionId, patientKey).then(status => {
+            // Update state with new status
+            if (status.needs_attention) {
+              needsAttention = {
+                color: status.needs_attention.color as MiniColor,
+                problemStatement: status.needs_attention.problem_statement ?? null,
+                userStatus: (status.needs_attention.user_status ?? null) as AttentionStatus,
+              };
+            }
+            taskCount = status.task_count || 0;
+            resolutionPlan = (status.resolution_plan as MiniStatusResponseType['resolution_plan']) || null;
+            actionsForUser = status.actions_for_user || 0;
+            // Convert agentic_confidence from 0-100 to 0-1 for internal use
+      if (status.agentic_confidence !== null && status.agentic_confidence !== undefined) {
+        const rawValue = status.agentic_confidence;
+        agenticConfidence = rawValue > 1 ? rawValue / 100 : rawValue;
+      } else {
+        agenticConfidence = null;
+      }
+            recommendedMode = status.recommended_mode ?? null;
+            recommendationReason = status.recommendation_reason ?? null;
+            agenticActions = status.agentic_actions ?? null;
+            updateTaskCountGlobal();
+          });
+        }
+      } else {
+        acceptBtn.classList.remove('mobius-mini-btn-active');
+        acceptBtn.disabled = false;
+        showToast('Failed to delegate');
+      }
+    } catch (err) {
+      console.error('[Mobius] Failed to set factor mode:', err);
+      acceptBtn.classList.remove('mobius-mini-btn-active');
+      acceptBtn.disabled = false;
+      showToast('Failed to delegate');
+    }
+  });
+  
+  // Click handler for review button (opens sidecar)
+  const reviewBtn = taskBadgeRow.querySelector<HTMLButtonElement>('.mobius-mini-review-btn');
+  reviewBtn?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    // Add visual feedback
+    reviewBtn.classList.add('mobius-mini-btn-active');
+    setTimeout(() => {
+      reviewBtn.classList.remove('mobius-mini-btn-active');
+    }, 200);
     // Open sidecar - expand to full sidebar
     await expandToSidebar();
   });
@@ -2101,12 +2408,20 @@ function createMini(): HTMLElement {
     // Fetch new status for the selected patient
     if (p.id) {
       try {
-        const status = await fetchMiniStatus(sessionId, p.id);
+        const status: MiniStatusResponseType = await fetchMiniStatus(sessionId, p.id);
         
         // Update legacy proceed/tasking (hidden)
-        miniProceed = status.proceed;
+        miniProceed = {
+          color: status.proceed.color as MiniColor,
+          text: status.proceed.text,
+        };
         if (status.tasking) {
-          miniTasking = status.tasking;
+          miniTasking = {
+            color: status.tasking.color as MiniColor,
+            text: status.tasking.text,
+            mode: status.tasking.mode as ExecutionMode | undefined,
+            mode_text: status.tasking.mode_text,
+          };
         }
         applyStatus(proceedRow, miniProceed);
         applyStatus(taskingRow, miniTasking, true);
@@ -2114,15 +2429,15 @@ function createMini(): HTMLElement {
         // Update needs_attention (new UI)
         if (status.needs_attention) {
           needsAttention = {
-            color: status.needs_attention.color,
-            problemStatement: status.needs_attention.problem_statement,
-            userStatus: status.needs_attention.user_status,
+            color: status.needs_attention.color as MiniColor,
+            problemStatement: status.needs_attention.problem_statement ?? null,
+            userStatus: (status.needs_attention.user_status ?? null) as AttentionStatus,
           };
         } else {
           // Fallback to proceed data
           needsAttention = {
-            color: status.proceed.color,
-            problemStatement: status.proceed.text,
+            color: status.proceed.color as MiniColor,
+            problemStatement: status.proceed.text ?? null,
             userStatus: null,
           };
         }
@@ -2132,6 +2447,30 @@ function createMini(): HTMLElement {
         taskCount = status.task_count || 0;
         resolutionPlan = (status.resolution_plan as MiniStatusResponseType['resolution_plan']) || null;
         actionsForUser = status.actions_for_user || 0;
+        
+        // Batch recommendation (Workflow Mode UI)
+        // Convert agentic_confidence from 0-100 to 0-1 for internal use
+      if (status.agentic_confidence !== null && status.agentic_confidence !== undefined) {
+        const rawValue = status.agentic_confidence;
+        agenticConfidence = rawValue > 1 ? rawValue / 100 : rawValue;
+      } else {
+        agenticConfidence = null;
+      }
+        recommendedMode = status.recommended_mode ?? null;
+        recommendationReason = status.recommendation_reason ?? null;
+        agenticActions = status.agentic_actions ?? null;
+        
+        // Debug logging
+        console.log('[Mobius] Recommendation data:', {
+          agenticConfidence,
+          recommendedMode,
+          recommendationReason,
+          agenticActions,
+          actionsForUser,
+          taskCount,
+          problemStatement: needsAttention.problemStatement,
+        });
+        
         applyTaskCount();
         applyStepPreview();
         
@@ -2415,6 +2754,22 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   }
   
   // Menu
+  const PREF_KEY_MENU = 'mobius_sidecar_view_pref';
+  const getViewPrefForMenu = (): 'focus' | 'all' => {
+    try {
+      return (localStorage.getItem(PREF_KEY_MENU) as 'focus' | 'all') || 'focus';
+    } catch {
+      return 'focus';
+    }
+  };
+  const setViewPrefForMenu = (pref: 'focus' | 'all') => {
+    try {
+      localStorage.setItem(PREF_KEY_MENU, pref);
+    } catch {
+      // Ignore storage errors
+    }
+  };
+  
   const menu = SidecarMenu({
     onCollapse: () => void collapseToMini(),
     onHistoryClick: () => showToast('History coming soon'),
@@ -2428,6 +2783,12 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     },
     onNotificationsChange: (enabled) => {
       console.log('[Mobius] Notifications:', enabled);
+    },
+    currentView: getViewPrefForMenu(),
+    onViewChange: async (view) => {
+      setViewPrefForMenu(view);
+      // Refresh sidecar with new preference
+      await refreshSidecarState(miniState);
     },
   });
   headerRight.appendChild(menu);
@@ -2445,15 +2806,15 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     sidebarContainer.appendChild(statusBar);
   }
   
-  // === MAIN CONTENT (scrollable) ===
+  // === MAIN CONTENT (flex container, not scrollable) ===
   const mainContent = document.createElement('div');
   mainContent.className = 'sidecar-main-content';
-  mainContent.setAttribute('style', 'flex: 1; overflow-y: auto; display: flex; flex-direction: column;');
+  mainContent.setAttribute('style', 'flex: 1; min-height: 0; display: flex; flex-direction: column;');
   
-  // === CARDS CONTAINER (bottlenecks, patient context) ===
+  // === CARDS CONTAINER (bottlenecks, patient context - takes remaining space, scrollable) ===
   const cardsContainer = document.createElement('div');
   cardsContainer.className = 'sidecar-cards-container';
-  cardsContainer.setAttribute('style', 'padding: 8px 10px; flex-shrink: 0;');
+  cardsContainer.setAttribute('style', 'flex: 1; min-height: 0; overflow-y: auto; padding: 6px 10px;');
   
   // === MOBIUS GREETING ===
   const greeting = document.createElement('div');
@@ -2523,119 +2884,284 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     cardsContainer.appendChild(patientSection);
   }
   
-  // === BOTTLENECK CARD ===
-  const bottlenecks = sidecarState?.bottlenecks || [];
-  const bottleneckCard = BottleneckCard({
-    bottlenecks,
-    privacyContext,
-    onAnswer: async (bottleneckId, answerId) => {
-      console.log('[Mobius] Answer:', bottleneckId, answerId);
-      try {
-        await fetch(`${API_BASE_URL}/api/v1/sidecar/answer`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(await getAuthHeader()),
-          },
-          body: JSON.stringify({
-            session_id: sessionId,
-            patient_key: patient?.id,
-            bottleneck_id: bottleneckId,
-            answer_id: answerId,
-          }),
-        });
-        showToast('Answer recorded');
-        // Don't refresh UI immediately - let selection persist
-        // State will refresh on next poll cycle
-      } catch (error) {
-        console.error('[Mobius] Failed to submit answer:', error);
-        showToast('Failed to submit answer');
-      }
-    },
-    onAssign: async (bottleneckId, mode) => {
-      console.log('[Mobius] Assign to Mobius:', bottleneckId, mode);
-      try {
-        await fetch(`${API_BASE_URL}/api/v1/sidecar/assign`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(await getAuthHeader()),
-          },
-          body: JSON.stringify({
-            session_id: sessionId,
-            patient_key: patient?.id,
-            bottleneck_id: bottleneckId,
-            mode,
-          }),
-        });
-        showToast('Mobius is working on it...');
-      } catch (error) {
-        console.error('[Mobius] Failed to assign:', error);
-        showToast('Failed to assign');
-      }
-    },
-    onOwn: async (bottleneckId) => {
-      console.log('[Mobius] User taking ownership:', bottleneckId);
-      try {
-        await fetch(`${API_BASE_URL}/api/v1/sidecar/own`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(await getAuthHeader()),
-          },
-          body: JSON.stringify({
-            session_id: sessionId,
-            patient_key: patient?.id,
-            bottleneck_id: bottleneckId,
-          }),
-        });
-        showToast("Got it - you're on it");
-      } catch (error) {
-        console.error('[Mobius] Failed to take ownership:', error);
-      }
-    },
-    onAddNote: async (bottleneckId, noteText) => {
-      try {
-        await fetch(`${API_BASE_URL}/api/v1/sidecar/note`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(await getAuthHeader()),
-          },
-          body: JSON.stringify({
-            session_id: sessionId,
-            patient_key: patient?.id,
-            bottleneck_id: bottleneckId,
-            note_text: noteText,
-          }),
-        });
-        showToast('Note added');
-      } catch (error) {
-        console.error('[Mobius] Failed to add note:', error);
-      }
-    },
-    onBulkAssign: async (bottleneckIds) => {
-      console.log('[Mobius] Bulk assign:', bottleneckIds);
-      try {
-        await fetch(`${API_BASE_URL}/api/v1/sidecar/assign-bulk`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(await getAuthHeader()),
-          },
-          body: JSON.stringify({
-            session_id: sessionId,
-            patient_key: patient?.id,
-            bottleneck_ids: bottleneckIds,
-          }),
-        });
-        showToast(`Assigned ${bottleneckIds.length} items to Mobius`);
-      } catch (error) {
-        console.error('[Mobius] Failed to bulk assign:', error);
-      }
-    },
-  });
-  cardsContainer.appendChild(bottleneckCard);
+  // === VIEW PREFERENCE (stored in localStorage, controlled from menu) ===
+  const PREF_KEY = 'mobius_sidecar_view_pref';
+  const getViewPref = (): 'focus' | 'all' => {
+    try {
+      return (localStorage.getItem(PREF_KEY) as 'focus' | 'all') || 'focus';
+    } catch {
+      return 'focus';
+    }
+  };
+  const currentViewPref = getViewPref();
+  
+  // === FACTOR LIST (Cascading Factor Structure) ===
+  const allFactors = sidecarState?.factors || [];
+  
+  // Filter factors based on preference
+  // "focus" = only show factors where is_focus=true OR status is blocked/waiting
+  // "all" = show all factors
+  const factors = currentViewPref === 'focus'
+    ? allFactors.filter(f => f.is_focus || f.status === 'blocked' || f.status === 'waiting')
+    : allFactors;
+  
+  if (factors.length > 0) {
+    // NEW: Factor-based cascading UI
+    const factorList = FactorList({
+      factors,
+      onModeSelect: async (factorType: string, mode: 'mobius' | 'together' | 'manual') => {
+        console.log('[Mobius] Factor mode selected:', factorType, mode);
+        const patientId = patient?.id || getPatientDisplay().id;
+        if (!patientId) {
+          showToast('No patient selected');
+          return;
+        }
+        
+        try {
+          const response = await setFactorMode(patientId, factorType, mode);
+          const messages: Record<string, string> = {
+            'mobius': 'Mobius is handling this factor.',
+            'together': 'Working together on this.',
+            'manual': 'You\'re handling this.',
+          };
+          showToast(messages[mode] || 'Mode set');
+          // Refresh to show updated assignments
+          await refreshSidecarState(miniState);
+        } catch (error) {
+          console.error('[Mobius] Failed to set factor mode:', error);
+          showToast('Failed to set mode');
+        }
+      },
+      onStepAction: async (stepId: string, action: 'done' | 'skip' | 'delegate', answerCode?: string) => {
+        console.log('[Mobius] Step action:', stepId, action, answerCode);
+        const patientId = patient?.id || getPatientDisplay().id;
+        
+        try {
+          if (action === 'done') {
+            // Mark step as answered with the selected answer code
+            await fetch(`${API_BASE_URL}/api/v1/sidecar/answer`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(await getAuthHeader()),
+              },
+              body: JSON.stringify({
+                session_id: sessionId,
+                patient_key: patientId,
+                bottleneck_id: stepId,
+                answer_id: answerCode || 'done',  // Use selected answer or default
+              }),
+            });
+            showToast('Answer recorded');
+          } else if (action === 'skip') {
+            // Skip the step
+            await fetch(`${API_BASE_URL}/api/v1/sidecar/answer`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(await getAuthHeader()),
+              },
+              body: JSON.stringify({
+                session_id: sessionId,
+                patient_key: patientId,
+                bottleneck_id: stepId,
+                answer_id: 'skip',
+              }),
+            });
+            showToast('Step skipped');
+          } else if (action === 'delegate') {
+            // Delegate to Mobius
+            await fetch(`${API_BASE_URL}/api/v1/sidecar/assign`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(await getAuthHeader()),
+              },
+              body: JSON.stringify({
+                bottleneck_id: stepId,
+                mode: 'agentic',
+              }),
+            });
+            showToast('Delegated to Mobius');
+          }
+          // Refresh to show updated state
+          await refreshSidecarState(miniState);
+        } catch (error) {
+          console.error('[Mobius] Failed step action:', error);
+          showToast('Action failed');
+        }
+      },
+      onEvidenceClick: async (factorType: string) => {
+        console.log('[Mobius] Evidence click:', factorType);
+        // TODO: Show evidence modal or expand evidence section
+        showToast(`Evidence for ${factorType} - coming soon`);
+      },
+      onResolve: async (factorType: string, status: 'resolved' | 'unresolved') => {
+        console.log('[Mobius] Factor resolve:', factorType, status);
+        const patientId = patient?.id || getPatientDisplay().id;
+        if (!patientId) {
+          showToast('No patient selected');
+          return;
+        }
+        
+        try {
+          // Pass factorType for per-factor override (L2 level)
+          await submitAttentionStatus(sessionId, patientId, status, factorType);
+          showToast(status === 'resolved' ? `${factorType} marked as resolved` : `${factorType} reopened`);
+          // Refresh to show updated state
+          await refreshSidecarState(miniState);
+        } catch (error) {
+          console.error('[Mobius] Failed to update status:', error);
+          showToast('Failed to update status');
+        }
+      },
+      onAddRemedy: async (factorType: string, remedyText: string, outcome: 'worked' | 'partial' | 'failed', notes?: string) => {
+        console.log('[Mobius] Add remedy:', factorType, remedyText, outcome);
+        const patientId = patient?.id || getPatientDisplay().id;
+        if (!patientId) {
+          showToast('No patient selected');
+          return;
+        }
+        
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/v1/sidecar/remedy`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(await getAuthHeader()),
+            },
+            body: JSON.stringify({
+              patient_key: patientId,
+              factor_type: factorType,
+              remedy_text: remedyText,
+              outcome: outcome,
+              outcome_notes: notes,
+            }),
+          });
+          
+          const data = await response.json();
+          if (data.ok) {
+            showToast('Thanks! Remedy recorded.');
+            // Refresh to show the new remedy
+            await refreshSidecarState(miniState);
+          } else {
+            showToast(data.error || 'Failed to save remedy');
+          }
+        } catch (error) {
+          console.error('[Mobius] Failed to add remedy:', error);
+          showToast('Failed to save remedy');
+        }
+      },
+    });
+    cardsContainer.appendChild(factorList);
+  } else {
+    // Fallback: Legacy bottleneck card (if no factors available)
+    const bottlenecks = sidecarState?.bottlenecks || [];
+    const bottleneckCard = BottleneckCard({
+      bottlenecks,
+      privacyContext,
+      // Batch recommendation (Workflow Mode UI)
+      recommendedMode: recommendedMode ?? undefined,
+      agenticConfidence: agenticConfidence ?? undefined,
+      recommendationReason: recommendationReason ?? undefined,
+      agenticActions: agenticActions ?? undefined,
+      onWorkflowSelect: async (mode, note) => {
+        console.log('[Mobius] Workflow mode selected:', mode);
+        try {
+          await fetch(`${API_BASE_URL}/api/v1/sidecar/workflow`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(await getAuthHeader()),
+            },
+            body: JSON.stringify({
+              patient_key: patient?.id,
+              mode,
+              note,
+            }),
+          });
+          const messages: Record<string, string> = {
+            'mobius': 'Mobius is on it. You\'ll be notified when complete.',
+            'together': 'Let\'s work on this together.',
+            'manual': 'Got it. Tracking your progress.',
+          };
+          showToast(messages[mode] || 'Workflow mode set');
+        } catch (error) {
+          console.error('[Mobius] Failed to set workflow mode:', error);
+          showToast('Failed to set workflow mode');
+        }
+      },
+      onStatusOverride: async (status: 'resolved' | 'unresolved') => {
+        console.log('[Mobius] Status override:', status);
+        const patientId = patient?.id || getPatientDisplay().id;
+        if (!patientId) {
+          showToast('No patient selected');
+          return;
+        }
+        
+        try {
+          await submitAttentionStatus(sessionId, patientId, status);
+          const refreshedStatus = await fetchMiniStatus(sessionId, patientId);
+          if (refreshedStatus.needs_attention) {
+            needsAttention = {
+              color: refreshedStatus.needs_attention.color as MiniColor,
+              problemStatement: refreshedStatus.needs_attention.problem_statement ?? null,
+              userStatus: (refreshedStatus.needs_attention.user_status ?? null) as AttentionStatus,
+            };
+          }
+          showToast(status === 'resolved' ? 'Marked as resolved' : 'Marked as unresolved');
+          await refreshSidecarState(miniState);
+        } catch (error) {
+          console.error('[Mobius] Failed to update status:', error);
+          showToast('Failed to update status');
+        }
+      },
+      currentStatus: needsAttention.userStatus as 'resolved' | 'unresolved' | null,
+      onAnswer: async (bottleneckId, answerId) => {
+        console.log('[Mobius] Answer:', bottleneckId, answerId);
+        try {
+          await fetch(`${API_BASE_URL}/api/v1/sidecar/answer`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(await getAuthHeader()),
+            },
+            body: JSON.stringify({
+              session_id: sessionId,
+              patient_key: patient?.id,
+              bottleneck_id: bottleneckId,
+              answer_id: answerId,
+            }),
+          });
+          showToast('Answer recorded');
+        } catch (error) {
+          console.error('[Mobius] Failed to submit answer:', error);
+          showToast('Failed to submit answer');
+        }
+      },
+      onAddNote: async (bottleneckId, noteText) => {
+        try {
+          await fetch(`${API_BASE_URL}/api/v1/sidecar/note`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(await getAuthHeader()),
+            },
+            body: JSON.stringify({
+              session_id: sessionId,
+              patient_key: patient?.id,
+              bottleneck_id: bottleneckId,
+              note_text: noteText,
+            }),
+          });
+          showToast('Note added');
+        } catch (error) {
+          console.error('[Mobius] Failed to add note:', error);
+        }
+      },
+    });
+    cardsContainer.appendChild(bottleneckCard);
+  }
   
   // === CONTEXT EXPANDER ===
   if (sidecarState?.milestones && sidecarState?.knowledge_context) {
@@ -2651,15 +3177,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   
   mainContent.appendChild(cardsContainer);
   
-  // === CHAT CONTAINER (separate from cards) ===
-  const chatContainer = document.createElement('div');
-  chatContainer.className = 'sidecar-chat-container';
-  chatContainer.setAttribute('style', 'flex: 1; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid rgba(11, 18, 32, 0.08);');
-  
-  mainContent.appendChild(chatContainer);
-  sidebarContainer.appendChild(mainContent);
-  
-  // === QUICK CHAT ===
+  // === QUICK CHAT (compact, at bottom) ===
   const quickChat = QuickChat({
     record: recordContext,
     knowledgeContext: sidecarState?.knowledge_context || { payer: { name: '' }, policy_excerpts: [], relevant_history: [] },
@@ -2669,7 +3187,8 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       showToast('Chat coming soon');
     },
   });
-  sidebarContainer.appendChild(quickChat);
+  mainContent.appendChild(quickChat);
+  sidebarContainer.appendChild(mainContent);
   
   // Add to DOM
   document.body.appendChild(sidebarContainer);
@@ -2717,6 +3236,7 @@ function createFallbackSidecarState(miniState: MiniState, recordContext: RecordC
         documentation_ready: { status: 'pending' },
       },
     },
+    factors: [],  // Empty in fallback - will use legacy bottlenecks
     bottlenecks,
     resolved_steps: [],  // No resolved steps in fallback
     milestones: [],
@@ -2753,7 +3273,12 @@ async function getAuthHeader(): Promise<Record<string, string>> {
 
 async function collapseToMini(): Promise<void> {
   removeSidebar();
+  // Explicitly refresh state when collapsing from sidecar
+  // This ensures the mini shows the latest data including recommendations
   await renderMiniIfAllowed();
+  // Force update of UI elements after state is loaded
+  updateStepPreviewGlobal();
+  updateTaskCountGlobal();
 }
 
 async function renderMiniIfAllowed(): Promise<void> {
@@ -3540,7 +4065,9 @@ async function renderMiniIfAllowed(): Promise<void> {
 
   // Fetch status from backend
   try {
-    const patientKey = patientOverride?.id || undefined;
+    // Use getCurrentPatientKey() to check both override and auto-detected
+    const patientKey = getCurrentPatientKey();
+    console.log('[Mobius] renderMiniIfAllowed - fetching status for patientKey:', patientKey);
     const status = await fetchMiniStatus(sessionId, patientKey) as MiniStatusResponseType;
     miniProceed = {
       color: (status.proceed.color || 'grey') as MiniColor,
@@ -3605,6 +4132,36 @@ async function renderMiniIfAllowed(): Promise<void> {
     resolutionPlan = status.resolution_plan || null;
     actionsForUser = status.actions_for_user || 0;
     
+    // Batch recommendation (Workflow Mode UI)
+    // agentic_confidence comes as 0-100 integer from backend, convert to 0-1 for internal use
+    // Backend sends: 0-100 (e.g., 78 for 78%)
+    // Frontend stores: 0-1 (e.g., 0.78 for 78%)
+    // Frontend displays: 0-100 (e.g., 78%)
+    if (status.agentic_confidence !== null && status.agentic_confidence !== undefined) {
+      // Backend sends 0-100, convert to 0-1 for internal calculations
+      const rawValue = status.agentic_confidence;
+      // If value is already > 1, it might be in 0-100 scale, divide by 100
+      // If value is <= 1, it's already in 0-1 scale, use as-is
+      if (rawValue > 1) {
+        agenticConfidence = rawValue / 100;
+      } else {
+        agenticConfidence = rawValue;
+      }
+      console.log('[Mobius] agentic_confidence conversion - received:', rawValue, 'converted to:', agenticConfidence);
+    } else {
+      agenticConfidence = null;
+    }
+    recommendedMode = status.recommended_mode ?? null;
+    recommendationReason = status.recommendation_reason ?? null;
+    agenticActions = status.agentic_actions ?? null;
+    
+    console.log('[Mobius] Recommendation state after fetch:', {
+      agenticConfidence,
+      recommendedMode,
+      hasProblem: !!needsAttention.problemStatement,
+      problemStatement: needsAttention.problemStatement
+    });
+    
     // Update patient info from response if available
     if (status.patient?.found && status.patient.display_name) {
       const nameEl = mini.querySelector<HTMLElement>('.mobius-mini-patient-name');
@@ -3621,9 +4178,10 @@ async function renderMiniIfAllowed(): Promise<void> {
 
   // Calculate effective attention color
   let effectiveAttentionColor = needsAttention.color;
-  if (needsAttention.userStatus === 'resolved') effectiveAttentionColor = 'green';
-  else if (needsAttention.userStatus === 'confirmed_unresolved') effectiveAttentionColor = 'yellow';
-  else if (needsAttention.userStatus === 'unable_to_confirm') effectiveAttentionColor = 'grey';
+  // User override (resolved or unresolved) should show purple to indicate forced override
+  if (needsAttention.userStatus === 'resolved' || needsAttention.userStatus === 'unresolved') {
+    effectiveAttentionColor = 'purple';
+  }
 
   // Update Needs Attention UI (new layout: problem text + status badge)
   if (attentionRow) {
@@ -3647,12 +4205,9 @@ async function renderMiniIfAllowed(): Promise<void> {
       if (needsAttention.userStatus === 'resolved') {
         badgeText.textContent = 'Resolved';
         badge.className = 'mobius-mini-status-badge status-resolved';
-      } else if (needsAttention.userStatus === 'confirmed_unresolved') {
+      } else if (needsAttention.userStatus === 'unresolved') {
         badgeText.textContent = 'Unresolved';
         badge.className = 'mobius-mini-status-badge status-unresolved';
-      } else if (needsAttention.userStatus === 'unable_to_confirm') {
-        badgeText.textContent = 'Unconfirmed';
-        badge.className = 'mobius-mini-status-badge status-unconfirmed';
       } else {
         badgeText.textContent = 'Set status';
         badge.className = 'mobius-mini-status-badge';
@@ -3669,12 +4224,9 @@ async function renderMiniIfAllowed(): Promise<void> {
     }
   }
 
-  // Update task badge
-  if (taskBadgeRow) {
-    const countEl = taskBadgeRow.querySelector<HTMLElement>('.mobius-mini-task-count');
-    if (countEl) countEl.textContent = String(taskCount);
-    taskBadgeRow.style.display = taskCount > 0 ? '' : 'none';
-  }
+  // Update UI with latest state (including recommendations)
+  updateStepPreviewGlobal();
+  updateTaskCountGlobal();
 
   // Legacy UI update (hidden rows)
   const rows = mini.querySelectorAll<HTMLElement>('.mobius-mini-row');

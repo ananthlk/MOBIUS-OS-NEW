@@ -36,7 +36,7 @@ export function ContextExpander(props: ContextExpanderProps): HTMLElement {
   header.className = 'sidecar-context-expander-toggle';
   header.innerHTML = `
     <span class="sidecar-context-expander-arrow">${defaultExpanded ? '▾' : '▸'}</span>
-    <span class="sidecar-context-expander-label">More info</span>
+    <span class="sidecar-context-expander-label">Prior Runs</span>
   `;
   
   // Content container
@@ -52,32 +52,66 @@ export function ContextExpander(props: ContextExpanderProps): HTMLElement {
     if (arrow) arrow.textContent = isExpanded ? '▸' : '▾';
   });
   
-  // Resolved Steps section (completed tasks history)
-  if (resolvedSteps && resolvedSteps.length > 0) {
-    const resolvedSection = createResolvedStepsSection(resolvedSteps);
-    content.appendChild(resolvedSection);
-  }
-  
-  // Resolution Plan section (if available)
-  if (resolutionPlan && resolutionPlan.status !== 'resolved') {
-    const planSection = createResolutionPlanSection(resolutionPlan, privacyContext);
-    content.appendChild(planSection);
-  }
-  
-  // Milestones section
-  const milestonesSection = createMilestonesSection(milestones, privacyContext);
-  content.appendChild(milestonesSection);
-  
-  // Payer info section (if available)
-  if (knowledgeContext.payer.name) {
-    const payerSection = createPayerSection(knowledgeContext);
-    content.appendChild(payerSection);
-  }
+  // Prior Runs section (mock historical visit data)
+  const priorRunsSection = createPriorRunsSection();
+  content.appendChild(priorRunsSection);
   
   container.appendChild(header);
   container.appendChild(content);
   
   return container;
+}
+
+/**
+ * Create the Prior Runs section showing historical visit data (mock)
+ */
+function createPriorRunsSection(): HTMLElement {
+  const section = document.createElement('div');
+  section.className = 'sidecar-prior-runs-section';
+  
+  // Mock prior visit data
+  const priorRuns = [
+    {
+      date: 'Jan 8, 2026',
+      type: 'Office Visit',
+      outcome: 'Paid',
+      summary: 'Eligibility issue resolved via phone call to Aetna. Policy confirmed active.',
+    },
+    {
+      date: 'Nov 15, 2025',
+      type: 'Lab Work',
+      outcome: 'Paid',
+      summary: 'Coverage verified automatically. No issues.',
+    },
+    {
+      date: 'Sep 3, 2025',
+      type: 'Office Visit',
+      outcome: 'Paid (delayed)',
+      summary: 'Auth required but not obtained. Resolved with retroactive auth after peer-to-peer.',
+    },
+  ];
+  
+  const list = document.createElement('div');
+  list.className = 'sidecar-prior-runs-list';
+  
+  for (const run of priorRuns) {
+    const item = document.createElement('div');
+    item.className = 'sidecar-prior-run';
+    
+    item.innerHTML = `
+      <div class="sidecar-prior-run-header">
+        <span class="sidecar-prior-run-date">${run.date}</span>
+        <span class="sidecar-prior-run-type">${run.type}</span>
+        <span class="sidecar-prior-run-outcome sidecar-prior-run-outcome--${run.outcome.toLowerCase().includes('paid') ? 'paid' : 'issue'}">${run.outcome}</span>
+      </div>
+      <div class="sidecar-prior-run-summary">${run.summary}</div>
+    `;
+    
+    list.appendChild(item);
+  }
+  
+  section.appendChild(list);
+  return section;
 }
 
 /**

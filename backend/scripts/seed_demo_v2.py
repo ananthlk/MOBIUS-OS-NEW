@@ -44,6 +44,7 @@ from app.models.resolution import (
     AnswerMode,
 )
 from app.models.probability import PaymentProbability, TaskTemplate, TaskInstance
+from app.models.evidence import PlanStepFactLink, Evidence, SourceDocument, RawData, FactSourceLink
 from app.services.auth_service import AuthService
 
 
@@ -78,6 +79,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["eligibility"],
         "status": "active",
         "probability_profile": {"overall": 0.35, "eligibility": 0.20, "coverage": 0.70, "attendance": 0.85, "errors": 0.90},
+        # Batch recommendation
+        "agentic_confidence": 0.82,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "High success rate for insurance lookup, multiple automated options available",
+        "agentic_actions": ["search_history", "check_medicaid", "send_portal"],
         "steps": [
             {
                 "question": "No insurance information on file - how should we proceed?",
@@ -123,6 +129,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["eligibility"],
         "status": "active",
         "probability_profile": {"overall": 0.48, "eligibility": 0.30, "coverage": 0.78, "attendance": 0.88, "errors": 0.92},
+        # Batch recommendation
+        "agentic_confidence": 0.75,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Can verify renewal status via 270/271, high automation potential",
+        "agentic_actions": ["run_eligibility_check"],
         "steps": [
             {
                 "question": "Insurance coverage expired 2 weeks ago - has patient renewed?",
@@ -167,6 +178,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["eligibility"],
         "status": "active",
         "probability_profile": {"overall": 0.55, "eligibility": 0.42, "coverage": 0.80, "attendance": 0.90, "errors": 0.92},
+        # Batch recommendation
+        "agentic_confidence": 0.78,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Can check portal for uploads and send automated card request",
+        "agentic_actions": ["check_portal_uploads", "send_card_request", "run_verification"],
         "steps": [
             {
                 "question": "Insurance card not on file - need current card to verify coverage",
@@ -211,6 +227,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["eligibility"],
         "status": "active",
         "probability_profile": {"overall": 0.52, "eligibility": 0.38, "coverage": 0.75, "attendance": 0.85, "errors": 0.90},
+        # Batch recommendation
+        "agentic_confidence": 0.55,
+        "recommended_mode": "together",
+        "recommendation_reason": "Employment verification may require patient contact, partial automation possible",
+        "agentic_actions": ["run_eligibility_check"],
         "steps": [
             {
                 "question": "8 months since last visit - confirm insurance is still active?",
@@ -255,6 +276,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["eligibility"],
         "status": "active",
         "probability_profile": {"overall": 0.50, "eligibility": 0.35, "coverage": 0.72, "attendance": 0.82, "errors": 0.88},
+        # Batch recommendation
+        "agentic_confidence": 0.85,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Card uploaded, can run full verification automatically",
+        "agentic_actions": ["run_verification", "check_benefits"],
         "steps": [
             {
                 "question": "New patient - verify insurance eligibility before first visit",
@@ -303,6 +329,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["attendance"],
         "status": "active",
         "probability_profile": {"overall": 0.72, "eligibility": 0.92, "coverage": 0.88, "attendance": 0.55, "errors": 0.95},
+        # Batch recommendation
+        "agentic_confidence": 0.88,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Simple reminder, patient prefers SMS, no history of no-shows",
+        "agentic_actions": ["send_sms_reminder"],
         "steps": [
             {
                 "question": "Appointment in 3 days - patient hasn't confirmed yet",
@@ -334,6 +365,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["attendance"],
         "status": "active",
         "probability_profile": {"overall": 0.62, "eligibility": 0.90, "coverage": 0.85, "attendance": 0.40, "errors": 0.92},
+        # Batch recommendation
+        "agentic_confidence": 0.72,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Patient is Medicaid eligible, can book transport automatically",
+        "agentic_actions": ["book_medicaid_transport", "check_transport_status"],
         "steps": [
             {
                 "question": "Patient has transportation barrier - arrange transport?",
@@ -377,6 +413,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["attendance"],
         "status": "active",
         "probability_profile": {"overall": 0.58, "eligibility": 0.88, "coverage": 0.85, "attendance": 0.35, "errors": 0.90},
+        # Batch recommendation
+        "agentic_confidence": 0.35,
+        "recommended_mode": "manual",
+        "recommendation_reason": "High-risk patient requires personal outreach, automated reminders unlikely to help",
+        "agentic_actions": [],
         "steps": [
             {
                 "question": "High no-show risk patient - take proactive steps?",
@@ -420,6 +461,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["attendance"],
         "status": "active",
         "probability_profile": {"overall": 0.68, "eligibility": 0.90, "coverage": 0.88, "attendance": 0.48, "errors": 0.94},
+        # Batch recommendation
+        "agentic_confidence": 0.80,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Can send scheduling link automatically",
+        "agentic_actions": ["send_scheduling_link"],
         "steps": [
             {
                 "question": "Patient requested reschedule - confirm new appointment time",
@@ -456,6 +502,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["coverage"],
         "status": "active",
         "probability_profile": {"overall": 0.55, "eligibility": 0.90, "coverage": 0.32, "attendance": 0.88, "errors": 0.92},
+        # Batch recommendation
+        "agentic_confidence": 0.85,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Clinical docs ready, can auto-submit to Cigna portal",
+        "agentic_actions": ["submit_auth", "review_docs"],
         "steps": [
             {
                 "question": "Prior authorization required for MRI - submit now?",
@@ -500,6 +551,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["coverage"],
         "status": "active",
         "probability_profile": {"overall": 0.62, "eligibility": 0.92, "coverage": 0.45, "attendance": 0.90, "errors": 0.94},
+        # Batch recommendation
+        "agentic_confidence": 0.70,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Can check portal status automatically",
+        "agentic_actions": ["check_portal_status"],
         "steps": [
             {
                 "question": "Authorization pending for 5 days - follow up with payer?",
@@ -532,6 +588,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["coverage"],
         "status": "active",
         "probability_profile": {"overall": 0.45, "eligibility": 0.88, "coverage": 0.25, "attendance": 0.85, "errors": 0.90},
+        # Batch recommendation
+        "agentic_confidence": 0.45,
+        "recommended_mode": "together",
+        "recommendation_reason": "Denial requires clinical judgment for appeal strategy, can compile docs",
+        "agentic_actions": ["compile_docs"],
         "steps": [
             {
                 "question": "Authorization denied - insufficient documentation. Appeal?",
@@ -577,6 +638,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["coverage"],
         "status": "active",
         "probability_profile": {"overall": 0.70, "eligibility": 0.95, "coverage": 0.55, "attendance": 0.92, "errors": 0.94},
+        # Batch recommendation
+        "agentic_confidence": 0.82,
+        "recommended_mode": "mobius",
+        "recommendation_reason": "Renewal is straightforward, can submit to Medicare automatically",
+        "agentic_actions": ["submit_renewal"],
         "steps": [
             {
                 "question": "Authorization expires in 5 days - submit renewal?",
@@ -610,6 +676,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["eligibility", "attendance"],
         "status": "active",
         "probability_profile": {"overall": 0.42, "eligibility": 0.38, "coverage": 0.82, "attendance": 0.45, "errors": 0.90},
+        # Batch recommendation
+        "agentic_confidence": 0.52,
+        "recommended_mode": "together",
+        "recommendation_reason": "Multi-factor case, can verify insurance but attendance needs personal touch",
+        "agentic_actions": ["run_eligibility_check", "send_confirmation"],
         "steps": [
             {
                 "question": "Multiple issues: Insurance unverified + no-show history. Priority?",
@@ -665,6 +736,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["eligibility", "coverage", "attendance"],
         "status": "active",
         "probability_profile": {"overall": 0.32, "eligibility": 0.40, "coverage": 0.30, "attendance": 0.42, "errors": 0.88},
+        # Batch recommendation
+        "agentic_confidence": 0.38,
+        "recommended_mode": "manual",
+        "recommendation_reason": "Complex multi-factor case requires human coordination and judgment",
+        "agentic_actions": ["verify_coverage"],
         "steps": [
             {
                 "question": "Complex case with 3 issues - verify new insurance first",
@@ -721,6 +797,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["eligibility"],
         "status": "resolved",
         "probability_profile": {"overall": 0.92, "eligibility": 0.95, "coverage": 0.90, "attendance": 0.88, "errors": 0.94},
+        # No recommendation needed - already resolved
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
         "steps": [
             {
                 "question": "Insurance eligibility verified - coverage active",
@@ -748,6 +829,11 @@ PATIENT_SCENARIOS = [
         "gap_types": [],
         "status": "resolved",
         "probability_profile": {"overall": 0.95, "eligibility": 0.96, "coverage": 0.94, "attendance": 0.92, "errors": 0.97},
+        # No recommendation needed - already resolved
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
         "steps": [],
     },
     {
@@ -763,6 +849,11 @@ PATIENT_SCENARIOS = [
         "gap_types": ["coverage"],
         "status": "resolved",
         "probability_profile": {"overall": 0.94, "eligibility": 0.92, "coverage": 0.96, "attendance": 0.90, "errors": 0.95},
+        # No recommendation needed - already resolved
+        "agentic_confidence": None,
+        "recommended_mode": None,
+        "recommendation_reason": None,
+        "agentic_actions": None,
         "steps": [
             {
                 "question": "Prior authorization approved",
@@ -865,8 +956,15 @@ def clear_demo_data(session):
     # Clear resolution plan data
     session.query(StepAnswer).delete()
     session.query(PlanNote).delete()
+    session.query(PlanStepFactLink).delete()  # Delete fact links before steps
     session.query(PlanStep).delete()
     session.query(ResolutionPlan).delete()
+    
+    # Clear evidence data
+    session.query(FactSourceLink).delete()
+    session.query(Evidence).delete()
+    session.query(SourceDocument).delete()
+    session.query(RawData).delete()
     
     # Clear probability/task data
     session.query(PaymentProbability).delete()
@@ -984,6 +1082,11 @@ def seed_payment_probabilities(session, patients):
             problem_statement=get_problem_statement(scenario),
             problem_details=get_problem_details(scenario),
             batch_job_id="demo_seed_v2",
+            # Batch recommendation fields
+            agentic_confidence=scenario.get("agentic_confidence"),
+            recommended_mode=scenario.get("recommended_mode"),
+            recommendation_reason=scenario.get("recommendation_reason"),
+            agentic_actions=scenario.get("agentic_actions"),
         )
         session.add(prob)
     

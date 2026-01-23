@@ -2204,13 +2204,13 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding-bottom: 8px;
-  margin-bottom: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
   border-bottom: 1px solid rgba(11, 18, 32, 0.06);
 }
 
 .sidecar-greeting-text {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: #0b1220;
 }
@@ -2225,23 +2225,24 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  margin-bottom: 3px;
 }
 
 .sidecar-bottleneck-card--clear {
-  padding: 6px 0;
+  padding: 4px 0;
 }
 
 .sidecar-bottleneck-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid rgba(11, 18, 32, 0.08);
 }
 
 .sidecar-bottleneck-count {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: #0b1220;
 }
@@ -2255,12 +2256,12 @@
 .sidecar-bottleneck-item {
   background: #ffffff;
   border: 1px solid rgba(11, 18, 32, 0.08);
-  border-radius: 6px;
-  padding: 6px 8px;
+  border-radius: 5px;
+  padding: 5px 7px;
   display: flex;
   box-shadow: none;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .sidecar-bottleneck-question-row {
@@ -2290,10 +2291,10 @@
 
 .sidecar-bottleneck-question {
   flex: 1;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
   color: #0b1220;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .sidecar-source-badge {
@@ -2307,10 +2308,10 @@
 
 .sidecar-bottleneck-answers {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-top: 4px;
-  padding: 4px 0;
+  margin-top: 3px;
+  padding: 3px 0;
   align-items: center;
   border-top: 1px solid rgba(11, 18, 32, 0.04);
 }
@@ -2666,28 +2667,28 @@
 .sidecar-bottleneck-clear {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 6px 10px;
   background: rgba(34, 197, 94, 0.08);
   border: 1px solid rgba(34, 197, 94, 0.15);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .sidecar-bottleneck-clear-icon {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   background: #22c55e;
   color: white;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: bold;
 }
 
 .sidecar-bottleneck-clear-text {
-  font-size: 11px;
+  font-size: 10px;
   color: #166534;
   font-weight: 500;
 }
@@ -2739,9 +2740,10 @@
 
 .sidecar-section-title {
   font-size: 7px;
-  font-weight: 500;
-  color: rgba(91, 102, 122, 0.6);
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.45);
   text-transform: uppercase;
+  letter-spacing: 0.3px;
   letter-spacing: 0.04em;
   margin-bottom: 4px;
 }
@@ -2873,34 +2875,35 @@
   margin-top: 4px;
 }
 
-/* Milestones - matches Mini compact styling */
+/* Milestones - subtle, rationale-style like ChatGPT thinking */
 .sidecar-milestones-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .sidecar-milestone {
-  background: rgba(11, 18, 32, 0.02);
-  border: 1px solid rgba(11, 18, 32, 0.06);
-  border-radius: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .sidecar-milestone-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 4px;
+  padding: 3px 6px;
 }
 
 .sidecar-milestone-icon {
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 8px;
+  opacity: 0.6;
 }
 
 .sidecar-milestone--complete .sidecar-milestone-icon {
@@ -2921,38 +2924,106 @@
 
 .sidecar-milestone-label {
   flex: 1;
-  font-size: 13px;
-  color: #374151;
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.7);
+  font-style: italic;
 }
 
 .sidecar-milestone-arrow {
-  font-size: 10px;
-  color: rgba(91, 102, 122, 0.7);
+  font-size: 8px;
+  color: rgba(91, 102, 122, 0.4);
 }
 
 .sidecar-milestone-details {
-  padding: 8px 12px 12px 40px;
-  border-top: 1px solid #e5e7eb;
+  padding: 4px 8px 6px 20px;
+  border-top: none;
+}
+
+/* Prior Runs - subtle history of previous visits */
+.sidecar-prior-runs-section {
+  padding: 0;
+}
+
+.sidecar-prior-runs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidecar-prior-run {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.04);
+}
+
+.sidecar-prior-run:last-child {
+  border-bottom: none;
+}
+
+.sidecar-prior-run-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.sidecar-prior-run-date {
+  font-size: 8px;
+  font-weight: 500;
+  color: rgba(91, 102, 122, 0.6);
+}
+
+.sidecar-prior-run-type {
+  font-size: 8px;
+  color: rgba(91, 102, 122, 0.5);
+  font-style: italic;
+}
+
+.sidecar-prior-run-outcome {
+  font-size: 7px;
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: auto;
+}
+
+.sidecar-prior-run-outcome--paid {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.sidecar-prior-run-outcome--issue {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.sidecar-prior-run-summary {
+  font-size: 8px;
+  font-style: italic;
+  color: rgba(91, 102, 122, 0.6);
+  line-height: 1.3;
 }
 
 /* Substeps */
 .sidecar-substeps {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
+  gap: 2px;
+  margin-bottom: 4px;
 }
 
 .sidecar-substep {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #6b7280;
+  gap: 4px;
+  font-size: 8px;
+  font-style: italic;
+  color: rgba(91, 102, 122, 0.6);
 }
 
 .sidecar-substep-icon {
-  font-size: 8px;
+  font-size: 6px;
+  opacity: 0.6;
 }
 
 .sidecar-substep--complete .sidecar-substep-icon {
@@ -3105,12 +3176,161 @@
   margin-top: 4px;
 }
 
-/* Quick Chat */
-/* Quick Chat - matches Mini note input styling */
-.sidecar-quick-chat {
-  padding: 10px 10px;
+/* Cards Container - compact and scrollable */
+.sidecar-cards-container {
+  /* Styles applied inline, but ensure smooth scrolling */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(11, 18, 32, 0.2) transparent;
+}
+
+.sidecar-cards-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidecar-cards-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidecar-cards-container::-webkit-scrollbar-thumb {
+  background: rgba(11, 18, 32, 0.2);
+  border-radius: 3px;
+}
+
+.sidecar-cards-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(11, 18, 32, 0.3);
+}
+
+/* Chat Container */
+.sidecar-chat-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   border-top: 1px solid rgba(11, 18, 32, 0.08);
+  background: #fafafa;
+}
+
+.sidecar-chat-header {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(91, 102, 122, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 10px 6px 10px;
+  border-bottom: 1px solid rgba(11, 18, 32, 0.06);
   background: #ffffff;
+}
+
+.sidecar-chat-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+  background: #ffffff;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(11, 18, 32, 0.2) transparent;
+}
+
+.sidecar-chat-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidecar-chat-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidecar-chat-content::-webkit-scrollbar-thumb {
+  background: rgba(11, 18, 32, 0.2);
+  border-radius: 3px;
+}
+
+.sidecar-chat-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(11, 18, 32, 0.3);
+}
+
+/* Quick Chat */
+/* Quick Chat - pinned at bottom, matches Mini note input styling */
+.sidecar-quick-chat {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  background: #ffffff;
+  border-top: 1px solid rgba(11, 18, 32, 0.08);
+  margin-top: auto;  /* Push to bottom of flex container */
+}
+
+/* Chat Messages Container - bounded, scrollable */
+.sidecar-chat-messages {
+  height: 88px;  /* ~5-6 lines at 9px font + padding */
+  overflow-y: auto;
+  border: 1px solid rgba(11, 18, 32, 0.1);
+  border-radius: 6px;
+  background: #fafbfc;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(11, 18, 32, 0.15) transparent;
+}
+
+.sidecar-chat-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidecar-chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidecar-chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(11, 18, 32, 0.15);
+  border-radius: 2px;
+}
+
+.sidecar-chat-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(11, 18, 32, 0.25);
+}
+
+/* Empty state */
+.sidecar-chat-empty {
+  font-size: 9px;
+  color: rgba(91, 102, 122, 0.5);
+  font-style: italic;
+  text-align: center;
+  padding: 20px 8px;
+}
+
+/* Chat messages */
+.sidecar-chat-message {
+  font-size: 9px;
+  line-height: 1.4;
+  padding: 4px 6px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  max-width: 90%;
+}
+
+.sidecar-chat-message:last-child {
+  margin-bottom: 0;
+}
+
+.sidecar-chat-message.user-message {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1e40af;
+  margin-left: auto;
+  text-align: right;
+}
+
+.sidecar-chat-message.system-message {
+  background: rgba(11, 18, 32, 0.04);
+  color: #374151;
+}
+
+.sidecar-chat-message-text {
+  font-weight: 400;
+}
+
+.sidecar-chat-message-source {
+  font-size: 8px;
+  color: rgba(91, 102, 122, 0.6);
+  margin-top: 2px;
 }
 
 .sidecar-quick-chat-wrapper {
@@ -3367,6 +3587,33 @@
   font-weight: 400;
 }
 
+/* View submenu items */
+.sidecar-menu-view-icon {
+  font-size: 10px;
+  color: rgba(91, 102, 122, 0.7);
+}
+
+.sidecar-menu-view-label {
+  font-size: 10px;
+  font-weight: 400;
+  flex: 1;
+}
+
+.sidecar-menu-check {
+  font-size: 10px;
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+.sidecar-menu-submenu-item.active {
+  background: rgba(26, 115, 232, 0.08);
+}
+
+.sidecar-menu-submenu-item.active .sidecar-menu-view-label {
+  color: #1a73e8;
+  font-weight: 500;
+}
+
 /* Toggle switch - matches Mini style */
 .sidecar-menu-toggle {
   position: relative;
@@ -3595,6 +3842,30 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+#mobius-os-sidebar.theme-dark .sidecar-menu-submenu-item {
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-submenu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-submenu-item.active {
+  background: rgba(138, 180, 248, 0.15);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-submenu-item.active .sidecar-menu-view-label {
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-check {
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-menu-view-icon {
+  color: #9ca3af;
+}
+
 #mobius-os-sidebar.theme-dark .sidecar-menu-icon svg {
   fill: rgba(229, 231, 235, 0.6);
 }
@@ -3621,6 +3892,29 @@
 
 #mobius-os-sidebar.theme-dark .sidecar-quick-chat-send svg {
   fill: rgba(229, 231, 235, 0.7);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-chat-messages {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-chat-empty {
+  color: rgba(229, 231, 235, 0.4);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-chat-message.user-message {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-chat-message.system-message {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-chat-message-source {
+  color: rgba(229, 231, 235, 0.5);
 }
 
 #mobius-os-sidebar.theme-dark .sidecar-section-title {
@@ -4069,3 +4363,1768 @@
   fill: #3b82f6;
 }
 
+/* =============================================================================
+ * MINI RECOMMENDATION UI (Workflow Mode)
+ * =============================================================================
+ */
+
+/* Recommendation UI - matches Mini row structure */
+#mobius-os-mini .mobius-mini-task-badge-row .mobius-mini-recommendation {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+#mobius-os-mini .mobius-mini-recommendation-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 500;
+  color: #0b1220;
+  line-height: 1.35;
+}
+
+#mobius-os-mini .mobius-mini-rec-message {
+  font-style: italic;
+  color: #0b1220;
+  font-weight: 500;
+}
+
+#mobius-os-mini .mobius-mini-rec-confidence {
+  font-size: 8px;
+  font-weight: 500;
+  color: rgba(91, 102, 122, 0.85);
+}
+
+#mobius-os-mini .mobius-mini-recommendation-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+#mobius-os-mini .mobius-mini-accept-btn {
+  padding: 3px 8px;
+  font-size: 8px;
+  font-weight: 600;
+  background: #64748b;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+#mobius-os-mini .mobius-mini-accept-btn:hover {
+  background: #475569;
+}
+
+#mobius-os-mini .mobius-mini-accept-btn.mobius-mini-btn-active,
+#mobius-os-mini .mobius-mini-accept-btn:active {
+  background: #475569;
+  transform: scale(0.98);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+#mobius-os-mini .mobius-mini-accept-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Delegated state - shows green check */
+#mobius-os-mini .mobius-mini-accept-btn.delegated {
+  background: #10b981;
+  color: #ffffff;
+  cursor: default;
+}
+
+#mobius-os-mini .mobius-mini-accept-btn.delegated:hover {
+  background: #10b981;
+}
+
+#mobius-os-mini .mobius-mini-accept-btn.delegated::before {
+  content: '✓ ';
+  font-weight: bold;
+}
+
+#mobius-os-mini .mobius-mini-review-btn {
+  padding: 3px 8px;
+  font-size: 8px;
+  font-weight: 500;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid rgba(11, 18, 32, 0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+#mobius-os-mini .mobius-mini-review-btn:hover {
+  background: rgba(11, 18, 32, 0.08);
+  border-color: rgba(11, 18, 32, 0.2);
+}
+
+#mobius-os-mini .mobius-mini-review-btn.mobius-mini-btn-active,
+#mobius-os-mini .mobius-mini-review-btn:active {
+  background: rgba(11, 18, 32, 0.12);
+  border-color: rgba(11, 18, 32, 0.25);
+  transform: scale(0.98);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* =============================================================================
+ * SIDECAR WORKFLOW MODE SELECTOR
+ * =============================================================================
+ */
+
+/* Override row */
+.sidecar-workflow-override-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 0;
+  margin-bottom: 4px;
+}
+
+.sidecar-workflow-override-btn {
+  font-size: 10px;
+  color: #80868b;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.sidecar-workflow-override-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #5f6368;
+}
+
+/* Problem statement */
+.sidecar-workflow-problem {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0b1220;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+/* Recommendation message */
+.sidecar-workflow-recommendation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(26, 115, 232, 0.06);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.sidecar-workflow-rec-icon {
+  color: #1a73e8;
+  font-size: 12px;
+}
+
+.sidecar-workflow-rec-text {
+  font-size: 11px;
+  color: #1a73e8;
+  font-style: italic;
+}
+
+/* Mode selector */
+.sidecar-workflow-mode-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sidecar-workflow-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #5f6368;
+  background: #f8f9fa;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidecar-workflow-mode-btn:hover {
+  background: #f1f3f4;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.sidecar-workflow-mode-btn--selected {
+  background: rgba(26, 115, 232, 0.08);
+  border-color: rgba(26, 115, 232, 0.3);
+  color: #1a73e8;
+}
+
+.sidecar-workflow-mode-radio {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.sidecar-workflow-mode-label {
+  font-size: 11px;
+}
+
+/* Divider */
+.sidecar-workflow-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+  margin: 8px 0;
+}
+
+/* Content area */
+.sidecar-workflow-content {
+  min-height: 60px;
+}
+
+.sidecar-workflow-prompt {
+  padding: 16px;
+  text-align: center;
+  color: #80868b;
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* Mobius handle content */
+.sidecar-workflow-mobius-content {
+  padding: 12px;
+  background: rgba(26, 115, 232, 0.04);
+  border-radius: 6px;
+}
+
+.sidecar-workflow-mobius-message {
+  font-size: 12px;
+  color: #3c4043;
+  margin-bottom: 8px;
+}
+
+.sidecar-workflow-mobius-actions {
+  font-size: 11px;
+  color: #5f6368;
+}
+
+.sidecar-workflow-mobius-actions-label {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sidecar-workflow-mobius-actions-list {
+  margin: 0;
+  padding-left: 16px;
+  list-style-type: disc;
+}
+
+.sidecar-workflow-mobius-actions-list li {
+  margin-bottom: 2px;
+}
+
+/* Together/Manual content */
+.sidecar-workflow-together-content,
+.sidecar-workflow-manual-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidecar-workflow-manual-message {
+  font-size: 11px;
+  color: #5f6368;
+  font-style: italic;
+}
+
+/* Option groups */
+.sidecar-workflow-option-group {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.sidecar-workflow-option-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.sidecar-workflow-option-group-icon {
+  font-size: 11px;
+}
+
+.sidecar-workflow-option-group-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: #3c4043;
+}
+
+/* Options list */
+.sidecar-workflow-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidecar-workflow-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sidecar-workflow-option:hover {
+  background: #f1f3f4;
+}
+
+.sidecar-workflow-option-checkbox {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.sidecar-workflow-option-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.sidecar-workflow-option-checkbox:disabled + .sidecar-workflow-option-label {
+  opacity: 0.7;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.sidecar-workflow-mobius-options {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sidecar-workflow-option-label {
+  font-size: 11px;
+  color: #3c4043;
+}
+
+/* Note row */
+.sidecar-workflow-note-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.sidecar-workflow-note-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidecar-workflow-note-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 11px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.sidecar-workflow-note-input:focus {
+  border-color: rgba(26, 115, 232, 0.4);
+}
+
+.sidecar-workflow-note-input::placeholder {
+  color: #80868b;
+}
+
+.sidecar-workflow-note-send {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.sidecar-workflow-note-send:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.sidecar-workflow-note-send svg {
+  width: 16px;
+  height: 16px;
+  fill: #5f6368;
+}
+
+/* Resolve Override Modal */
+.sidecar-resolve-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidecar-resolve-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.sidecar-resolve-modal-content {
+  position: relative;
+  width: 320px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.sidecar-resolve-modal-header {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0b1220;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.sidecar-resolve-modal-body {
+  padding: 16px;
+}
+
+.sidecar-resolve-modal-body p {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.sidecar-resolve-modal-textarea {
+  width: 100%;
+  padding: 10px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  resize: vertical;
+  outline: none;
+}
+
+.sidecar-resolve-modal-textarea:focus {
+  border-color: rgba(26, 115, 232, 0.5);
+}
+
+.sidecar-resolve-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: #f8f9fa;
+}
+
+.sidecar-resolve-modal-cancel {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5f6368;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sidecar-resolve-modal-cancel:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.sidecar-resolve-modal-confirm {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #ffffff;
+  background: #1a73e8;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sidecar-resolve-modal-confirm:hover {
+  background: #1557b0;
+}
+
+/* =============================================================================
+ * THEME OVERRIDES FOR WORKFLOW MODE
+ * =============================================================================
+ */
+
+/* Dark theme */
+#mobius-os-sidebar.theme-dark .sidecar-workflow-problem {
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-recommendation {
+  background: rgba(138, 180, 248, 0.1);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-rec-icon,
+#mobius-os-sidebar.theme-dark .sidecar-workflow-rec-text {
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-mode-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #9aa0a6;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-mode-btn--selected {
+  background: rgba(138, 180, 248, 0.15);
+  border-color: rgba(138, 180, 248, 0.3);
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-mobius-content {
+  background: rgba(138, 180, 248, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-mobius-message {
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-option-group {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-option {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-option-label {
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-note-input {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-workflow-note-send svg {
+  fill: #9aa0a6;
+}
+
+/* Glass theme */
+#mobius-os-sidebar.theme-glass .sidecar-workflow-mode-btn {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-workflow-mode-btn--selected {
+  background: rgba(26, 115, 232, 0.15);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-workflow-option-group {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+#mobius-os-sidebar.theme-glass .sidecar-workflow-option {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* Blue theme */
+#mobius-os-sidebar.theme-blue .sidecar-workflow-recommendation {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-workflow-rec-icon,
+#mobius-os-sidebar.theme-blue .sidecar-workflow-rec-text {
+  color: #2563eb;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-workflow-mode-btn--selected {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.3);
+  color: #2563eb;
+}
+
+#mobius-os-sidebar.theme-blue .sidecar-workflow-mobius-content {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+/* =============================================================================
+ * MANUAL MODE TASK CARDS WITH DROPDOWNS
+ * ============================================================================= */
+
+.sidecar-manual-tasks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.sidecar-manual-task-card {
+  padding: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.sidecar-manual-task-question {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1e293b;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.sidecar-manual-task-dropdown-wrap {
+  margin-top: 8px;
+}
+
+.sidecar-manual-task-dropdown {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 11px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  background: #ffffff;
+  color: #1e293b;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.sidecar-manual-task-dropdown:hover:not(:disabled) {
+  border-color: rgba(0, 0, 0, 0.25);
+}
+
+.sidecar-manual-task-dropdown:focus {
+  border-color: rgba(26, 115, 232, 0.4);
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+}
+
+.sidecar-manual-task-dropdown--answered {
+  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.sidecar-manual-task-card--answered {
+  border-color: rgba(37, 99, 235, 0.2);
+  background: rgba(37, 99, 235, 0.02);
+}
+
+.sidecar-manual-task-dropdown--answered {
+  border-color: rgba(37, 99, 235, 0.3);
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.sidecar-manual-task-card--answered {
+  border-color: rgba(37, 99, 235, 0.2);
+  background: rgba(37, 99, 235, 0.02);
+}
+
+.sidecar-manual-task-card--resolved {
+  border-color: rgba(22, 163, 74, 0.3);
+  background: rgba(22, 163, 74, 0.05);
+  opacity: 0.8;
+}
+
+.sidecar-manual-task-dropdown:disabled,
+.sidecar-manual-task-dropdown--resolved {
+  background: rgba(22, 163, 74, 0.05);
+  border-color: rgba(22, 163, 74, 0.2);
+  color: #16a34a;
+  cursor: not-allowed;
+}
+
+.sidecar-manual-task-dropdown option {
+  padding: 4px;
+}
+
+/* Dark theme */
+#mobius-os-sidebar.theme-dark .sidecar-manual-task-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-manual-task-question {
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-manual-task-dropdown {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-manual-task-dropdown:focus {
+  border-color: rgba(138, 180, 248, 0.4);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-manual-task-dropdown--answered {
+  border-color: rgba(138, 180, 248, 0.3);
+  background: rgba(138, 180, 248, 0.05);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-manual-task-card--answered {
+  border-color: rgba(138, 180, 248, 0.2);
+  background: rgba(138, 180, 248, 0.03);
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-manual-task-card--resolved {
+  border-color: rgba(22, 163, 74, 0.3);
+  background: rgba(22, 163, 74, 0.1);
+  opacity: 0.8;
+}
+
+#mobius-os-sidebar.theme-dark .sidecar-manual-task-dropdown:disabled {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.3);
+  color: #4ade80;
+}
+
+/* =============================================================================
+   Factor-based Sidecar (NEW - Simplified Design)
+   ============================================================================= */
+
+/* Factor List Container */
+#mobius-os-sidebar .factor-list {
+  padding: 8px 14px;
+}
+
+#mobius-os-sidebar .factor-separator {
+  height: 1px;
+  background: rgba(60, 64, 67, 0.12);
+  margin: 4px 0;
+}
+
+/* Factor Card */
+#mobius-os-sidebar .factor-card {
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin: 3px 0;
+  transition: all 0.2s ease;
+}
+
+#mobius-os-sidebar .factor-card.factor-focus {
+  border: 1px solid #1a73e8;
+  background: rgba(26, 115, 232, 0.04);
+}
+
+#mobius-os-sidebar .factor-card.collapsed {
+  cursor: pointer;
+}
+
+#mobius-os-sidebar .factor-card.collapsed:hover {
+  background: rgba(60, 64, 67, 0.04);
+}
+
+/* Factor Header */
+#mobius-os-sidebar .factor-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+#mobius-os-sidebar .factor-status-icon {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+#mobius-os-sidebar .factor-label {
+  font-weight: 500;
+  font-size: 11px;
+  color: #0b1220;
+}
+
+#mobius-os-sidebar .factor-status-label {
+  font-size: 10px;
+  color: #5f6368;
+}
+
+/* Status label prominence hierarchy */
+#mobius-os-sidebar .factor-status-label.status-needs-help {
+  font-weight: 600;
+  color: #d97706;
+}
+
+#mobius-os-sidebar .factor-status-label.status-almost {
+  font-weight: 500;
+  color: #6b7280;
+}
+
+#mobius-os-sidebar .factor-status-label.status-good {
+  font-weight: 400;
+  color: rgba(91, 102, 122, 0.6);
+}
+
+/* User resolved badge (separate from system confidence) */
+#mobius-os-sidebar .factor-resolved-badge {
+  font-size: 8px;
+  font-weight: 500;
+  color: #9333ea;
+  background: rgba(147, 51, 234, 0.1);
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
+/* User flagged badge (user marked as needing work) */
+#mobius-os-sidebar .factor-flagged-badge {
+  font-size: 8px;
+  font-weight: 500;
+  color: #ea580c;
+  background: rgba(234, 88, 12, 0.1);
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+}
+
+/* User flagged styling for factor card */
+#mobius-os-sidebar .factor-card.factor-user-flagged {
+  border-color: rgba(234, 88, 12, 0.3);
+  background: rgba(234, 88, 12, 0.04);
+}
+
+#mobius-os-sidebar .factor-focus-badge {
+  font-size: 9px;
+  font-weight: 500;
+  color: #1a73e8;
+  margin-left: auto;
+  background: rgba(26, 115, 232, 0.1);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+/* User Override Badge - shows when user manually resolved */
+#mobius-os-sidebar .factor-override-badge {
+  font-size: 9px;
+  font-weight: 500;
+  color: #9333ea;
+  margin-left: auto;
+  background: rgba(147, 51, 234, 0.1);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+/* User Override Factor Card styling */
+#mobius-os-sidebar .factor-card.factor-user-override {
+  border: 1px solid #9333ea;
+  background: rgba(147, 51, 234, 0.04);
+}
+
+#mobius-os-sidebar .factor-card.factor-user-override .factor-status-icon {
+  color: #9333ea;
+}
+
+#mobius-os-sidebar .factor-card.factor-user-override .factor-status-label {
+  color: #9333ea;
+}
+
+#mobius-os-sidebar .factor-mode-indicator {
+  font-size: 10px;
+  margin-left: auto;
+}
+
+/* Status dropdown (Mini-style) in header */
+#mobius-os-sidebar .factor-status-dropdown {
+  position: relative;
+  flex-shrink: 0;
+}
+
+#mobius-os-sidebar .factor-status-dropdown-btn {
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(107, 114, 128, 0.3);
+  background: rgba(107, 114, 128, 0.08);
+  color: #6b7280;
+  font-size: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+#mobius-os-sidebar .factor-status-dropdown-btn:hover {
+  background: rgba(107, 114, 128, 0.15);
+  border-color: rgba(107, 114, 128, 0.5);
+}
+
+#mobius-os-sidebar .factor-status-dropdown-btn.is-resolved {
+  border-color: rgba(147, 51, 234, 0.3);
+  background: rgba(147, 51, 234, 0.08);
+  color: #9333ea;
+}
+
+#mobius-os-sidebar .factor-status-dropdown-btn.is-resolved:hover {
+  background: rgba(147, 51, 234, 0.15);
+  border-color: rgba(147, 51, 234, 0.5);
+}
+
+#mobius-os-sidebar .factor-status-dropdown-btn.is-flagged {
+  border-color: rgba(234, 88, 12, 0.3);
+  background: rgba(234, 88, 12, 0.08);
+  color: #ea580c;
+}
+
+#mobius-os-sidebar .factor-status-dropdown-btn.is-flagged:hover {
+  background: rgba(234, 88, 12, 0.15);
+  border-color: rgba(234, 88, 12, 0.5);
+}
+
+#mobius-os-sidebar .factor-status-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 120px;
+  padding: 4px 0;
+}
+
+#mobius-os-sidebar .factor-status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 11px;
+  color: #374151;
+  transition: background 0.1s;
+}
+
+#mobius-os-sidebar .factor-status-option:hover {
+  background: #f3f4f6;
+}
+
+#mobius-os-sidebar .factor-status-option.selected {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+#mobius-os-sidebar .factor-status-option .opt-icon {
+  font-size: 12px;
+}
+
+#mobius-os-sidebar .factor-status-option .opt-label {
+  font-weight: 500;
+}
+
+#mobius-os-sidebar .factor-expand-icon {
+  font-size: 8px;
+  color: #5f6368;
+  margin-left: auto;
+}
+
+#mobius-os-sidebar .factor-focus .factor-expand-icon {
+  margin-left: 8px;
+}
+
+/* Factor Content (expanded) */
+#mobius-os-sidebar .factor-content {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(60, 64, 67, 0.08);
+}
+
+/* Mode Row - compact recommendation + dropdown */
+#mobius-os-sidebar .factor-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+#mobius-os-sidebar .factor-mode-hint {
+  font-size: 9px;
+  color: rgba(91, 102, 122, 0.85);
+}
+
+#mobius-os-sidebar .factor-mode-hint strong {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Mode Dropdown */
+#mobius-os-sidebar .factor-mode-dropdown {
+  position: relative;
+}
+
+#mobius-os-sidebar .factor-mode-dropdown-btn {
+  padding: 4px 8px;
+  border: 1px solid rgba(60, 64, 67, 0.2);
+  border-radius: 4px;
+  background: white;
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(91, 102, 122, 0.8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#mobius-os-sidebar .factor-mode-dropdown-btn:hover {
+  border-color: #1a73e8;
+  color: #1a73e8;
+}
+
+#mobius-os-sidebar .factor-mode-dropdown-btn.has-selection {
+  background: rgba(26, 115, 232, 0.08);
+  border-color: rgba(26, 115, 232, 0.3);
+  color: #1a73e8;
+}
+
+#mobius-os-sidebar .factor-mode-dropdown-btn .dropdown-arrow {
+  font-size: 8px;
+  opacity: 0.6;
+}
+
+#mobius-os-sidebar .factor-mode-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 2px;
+  background: white;
+  border: 1px solid rgba(60, 64, 67, 0.15);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  min-width: 90px;
+  overflow: hidden;
+}
+
+#mobius-os-sidebar .factor-mode-option {
+  padding: 5px 8px;
+  font-size: 9px;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.1s ease;
+  white-space: nowrap;
+}
+
+#mobius-os-sidebar .factor-mode-option:hover {
+  background: rgba(26, 115, 232, 0.06);
+}
+
+#mobius-os-sidebar .factor-mode-option.selected {
+  background: rgba(26, 115, 232, 0.1);
+  color: #1a73e8;
+  font-weight: 500;
+}
+
+#mobius-os-sidebar .factor-mode-option.recommended::after {
+  content: '★';
+  font-size: 8px;
+  color: #f59e0b;
+  margin-left: auto;
+}
+
+/* Select prompt when no mode chosen */
+#mobius-os-sidebar .factor-select-prompt {
+  font-size: 9px;
+  font-style: italic;
+  color: rgba(91, 102, 122, 0.6);
+  text-align: center;
+  padding: 8px;
+}
+
+/* Override/Resolve row - same pattern as Mini */
+#mobius-os-sidebar .factor-override-row {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(11, 18, 32, 0.06);
+  display: flex;
+  justify-content: flex-end;
+}
+
+#mobius-os-sidebar .factor-override-btn {
+  font-size: 9px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#mobius-os-sidebar .factor-override-resolve {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+#mobius-os-sidebar .factor-override-resolve:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+#mobius-os-sidebar .factor-override-undo {
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+
+#mobius-os-sidebar .factor-override-undo:hover {
+  background: rgba(107, 114, 128, 0.2);
+}
+
+/* Factor Steps - Compact single-line layout */
+#mobius-os-sidebar .factor-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#mobius-os-sidebar .factor-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(60, 64, 67, 0.03);
+  min-height: 24px;
+}
+
+#mobius-os-sidebar .factor-step.step-done {
+  opacity: 0.5;
+}
+
+#mobius-os-sidebar .factor-step.step-current {
+  background: rgba(26, 115, 232, 0.06);
+}
+
+/* Step left side: icon + label */
+#mobius-os-sidebar .step-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#mobius-os-sidebar .step-icon {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+#mobius-os-sidebar .step-label {
+  font-size: 10px;
+  color: #202124;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Step right side: status or buttons */
+#mobius-os-sidebar .step-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+#mobius-os-sidebar .step-status {
+  font-size: 9px;
+  color: #9aa0a6;
+}
+
+#mobius-os-sidebar .step-status-done,
+#mobius-os-sidebar .step-status-answered {
+  color: #16a34a;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#mobius-os-sidebar .step-status-skipped {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Step Action Buttons - compact inline */
+#mobius-os-sidebar .step-btn {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+#mobius-os-sidebar .step-btn.done-btn {
+  background: #1a73e8;
+  color: white;
+}
+
+#mobius-os-sidebar .step-btn.done-btn:hover {
+  background: #1557b0;
+}
+
+#mobius-os-sidebar .step-btn.skip-btn {
+  background: transparent;
+  color: #5f6368;
+  border: 1px solid rgba(60, 64, 67, 0.2);
+}
+
+#mobius-os-sidebar .step-btn.skip-btn:hover {
+  background: rgba(60, 64, 67, 0.08);
+}
+
+#mobius-os-sidebar .step-btn.delegate-btn {
+  background: transparent;
+  color: #1a73e8;
+  border: 1px solid rgba(26, 115, 232, 0.2);
+}
+
+#mobius-os-sidebar .step-btn.delegate-btn:hover {
+  background: rgba(26, 115, 232, 0.08);
+}
+
+/* Step Done dropdown container */
+#mobius-os-sidebar .step-done-container {
+  position: relative;
+}
+
+#mobius-os-sidebar .step-answer-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  min-width: 140px;
+  max-width: 200px;
+  padding: 2px 0;
+}
+
+#mobius-os-sidebar .step-answer-option {
+  padding: 6px 10px;
+  font-size: 10px;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#mobius-os-sidebar .step-answer-option:hover {
+  background: #f3f4f6;
+}
+
+/* Evidence Link */
+#mobius-os-sidebar .factor-evidence-link {
+  margin-top: 12px;
+  font-size: 11px;
+  color: #1a73e8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#mobius-os-sidebar .factor-evidence-link:hover {
+  text-decoration: underline;
+}
+
+#mobius-os-sidebar .evidence-icon {
+  font-size: 12px;
+}
+
+/* User Remedies Section */
+#mobius-os-sidebar .factor-remedies {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+}
+
+#mobius-os-sidebar .remedies-list {
+  margin-bottom: 8px;
+}
+
+#mobius-os-sidebar .remedy-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 10px;
+  color: #6b7280;
+}
+
+#mobius-os-sidebar .remedy-item.remedy-worked .remedy-icon {
+  color: #16a34a;
+}
+
+#mobius-os-sidebar .remedy-item.remedy-partial .remedy-icon {
+  color: #f59e0b;
+}
+
+#mobius-os-sidebar .remedy-item.remedy-failed .remedy-icon {
+  color: #dc2626;
+}
+
+#mobius-os-sidebar .remedy-icon {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+#mobius-os-sidebar .remedy-text {
+  flex: 1;
+}
+
+#mobius-os-sidebar .remedy-notes {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Add Remedy Button */
+#mobius-os-sidebar .remedy-add-row {
+  margin-top: 4px;
+}
+
+#mobius-os-sidebar .remedy-add-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+#mobius-os-sidebar .remedy-add-btn:hover {
+  color: #1a73e8;
+}
+
+/* Remedy Form */
+#mobius-os-sidebar .remedy-form {
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 4px;
+}
+
+#mobius-os-sidebar .remedy-input,
+#mobius-os-sidebar .remedy-notes-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  font-size: 11px;
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+
+#mobius-os-sidebar .remedy-input:focus,
+#mobius-os-sidebar .remedy-notes-input:focus {
+  outline: none;
+  border-color: #1a73e8;
+}
+
+#mobius-os-sidebar .remedy-outcomes {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+#mobius-os-sidebar .outcome-btn {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: white;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+#mobius-os-sidebar .outcome-btn:hover {
+  background: #f3f4f6;
+}
+
+#mobius-os-sidebar .outcome-btn.selected {
+  border-color: #1a73e8;
+  background: rgba(26, 115, 232, 0.08);
+  color: #1a73e8;
+}
+
+#mobius-os-sidebar .outcome-icon {
+  font-size: 10px;
+}
+
+#mobius-os-sidebar .remedy-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+#mobius-os-sidebar .remedy-cancel-btn,
+#mobius-os-sidebar .remedy-submit-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+#mobius-os-sidebar .remedy-cancel-btn {
+  background: white;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+}
+
+#mobius-os-sidebar .remedy-submit-btn {
+  background: #1a73e8;
+  border: none;
+  color: white;
+}
+
+#mobius-os-sidebar .remedy-cancel-btn:hover {
+  background: #f3f4f6;
+}
+
+#mobius-os-sidebar .remedy-submit-btn:hover {
+  background: #1557b0;
+}
+
+/* Mobius Status (when Mobius is handling) */
+#mobius-os-sidebar .factor-mobius-status {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(26, 115, 232, 0.04);
+  border-radius: 8px;
+  text-align: center;
+}
+
+#mobius-os-sidebar .mobius-handling {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+#mobius-os-sidebar .mobius-icon {
+  font-size: 16px;
+}
+
+#mobius-os-sidebar .mobius-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #202124;
+}
+
+#mobius-os-sidebar .mobius-notify {
+  font-size: 11px;
+  color: #5f6368;
+}
+
+/* Dark theme for factors */
+#mobius-os-sidebar.theme-dark .factor-card.factor-focus {
+  border-color: #8ab4f8;
+  background: rgba(138, 180, 248, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .factor-label {
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-label,
+#mobius-os-sidebar.theme-dark .factor-expand-icon {
+  color: #9aa0a6;
+}
+
+#mobius-os-sidebar.theme-dark .factor-focus-badge {
+  background: rgba(138, 180, 248, 0.15);
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .factor-content {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-hint {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-hint strong {
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-dropdown-btn {
+  background: #2d2e30;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #9aa0a6;
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-dropdown-btn:hover {
+  border-color: #8ab4f8;
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-dropdown-btn.has-selection {
+  background: rgba(138, 180, 248, 0.15);
+  border-color: rgba(138, 180, 248, 0.3);
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-dropdown-menu {
+  background: #2d2e30;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-option {
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-option:hover {
+  background: rgba(138, 180, 248, 0.1);
+}
+
+#mobius-os-sidebar.theme-dark .factor-mode-option.selected {
+  background: rgba(138, 180, 248, 0.15);
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .factor-select-prompt {
+  color: rgba(148, 163, 184, 0.6);
+}
+
+/* Dark theme: Status dropdown */
+#mobius-os-sidebar.theme-dark .factor-status-dropdown-btn {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-dropdown-btn.is-resolved {
+  border-color: rgba(168, 85, 247, 0.4);
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-menu {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-option {
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-option:hover {
+  background: #374151;
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-option.selected {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+/* Dark theme: Status label prominence */
+#mobius-os-sidebar.theme-dark .factor-status-label.status-needs-help {
+  color: #fbbf24;
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-label.status-almost {
+  color: #9ca3af;
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-label.status-good {
+  color: rgba(148, 163, 184, 0.5);
+}
+
+#mobius-os-sidebar.theme-dark .factor-resolved-badge {
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.15);
+}
+
+#mobius-os-sidebar.theme-dark .factor-flagged-badge {
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.15);
+}
+
+#mobius-os-sidebar.theme-dark .factor-card.factor-user-flagged {
+  border-color: rgba(251, 146, 60, 0.3);
+  background: rgba(251, 146, 60, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .factor-status-dropdown-btn.is-flagged {
+  border-color: rgba(251, 146, 60, 0.4);
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+#mobius-os-sidebar.theme-dark .factor-step {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+#mobius-os-sidebar.theme-dark .factor-step.step-current {
+  background: rgba(138, 180, 248, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .step-label {
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .step-status {
+  color: #6b7280;
+}
+
+#mobius-os-sidebar.theme-dark .step-answer-menu {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+#mobius-os-sidebar.theme-dark .step-answer-option {
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .step-answer-option:hover {
+  background: #374151;
+}
+
+#mobius-os-sidebar.theme-dark .factor-evidence-link {
+  color: #8ab4f8;
+}
+
+/* Dark theme - User Remedies */
+#mobius-os-sidebar.theme-dark .factor-remedies {
+  border-top-color: #374151;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-item {
+  color: #9ca3af;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-notes {
+  color: #6b7280;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-add-btn {
+  color: #9ca3af;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-add-btn:hover {
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-form {
+  background: #1f2937;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-input,
+#mobius-os-sidebar.theme-dark .remedy-notes-input {
+  background: #111827;
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-input:focus,
+#mobius-os-sidebar.theme-dark .remedy-notes-input:focus {
+  border-color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .outcome-btn {
+  background: #111827;
+  border-color: #374151;
+  color: #9ca3af;
+}
+
+#mobius-os-sidebar.theme-dark .outcome-btn:hover {
+  background: #1f2937;
+}
+
+#mobius-os-sidebar.theme-dark .outcome-btn.selected {
+  border-color: #8ab4f8;
+  background: rgba(138, 180, 248, 0.15);
+  color: #8ab4f8;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-cancel-btn {
+  background: #111827;
+  border-color: #374151;
+  color: #9ca3af;
+}
+
+#mobius-os-sidebar.theme-dark .remedy-cancel-btn:hover {
+  background: #1f2937;
+}
+
+#mobius-os-sidebar.theme-dark .factor-mobius-status {
+  background: rgba(138, 180, 248, 0.08);
+}
+
+#mobius-os-sidebar.theme-dark .mobius-text {
+  color: #e8eaed;
+}
+
+#mobius-os-sidebar.theme-dark .mobius-notify {
+  color: #9aa0a6;
+}

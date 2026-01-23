@@ -63,6 +63,20 @@ class PatientContext(Base):
         nullable=True,
     )
     
+    # Time-bound suppression period for resolved patients
+    # When attention_status = "resolved", tasks/bottlenecks are suppressed until this date
+    resolved_until = Column(DateTime, nullable=True)
+    
+    # User override color (from Mini dropdown)
+    # Stores the actual color value: "purple" | "green" | "yellow" | "red" | "blue" | "grey" | null
+    # When user overrides attention_status, we store the color directly instead of deriving it
+    override_color = Column(String(20), nullable=True)
+    
+    # Per-factor user overrides (L2 bottleneck level)
+    # Format: {"eligibility": "resolved", "errors": "unresolved", ...}
+    # Values per factor: "resolved" | "unresolved" | null
+    factor_overrides = Column(JSONB, nullable=True, default={})
+    
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

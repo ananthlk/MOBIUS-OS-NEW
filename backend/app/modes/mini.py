@@ -14,7 +14,7 @@ User Awareness Sprint:
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from flask import Blueprint, request, jsonify
 
@@ -26,6 +26,7 @@ from app.services.projection import ProjectionService
 from app.services.auth_service import get_auth_service
 from app.services.user_context import get_user_context_service, UserProfile
 from app.services.personalization import get_personalization_service
+from app.services.bottleneck_cascade import cascade_bottleneck_override
 from app.db.postgres import get_db_session
 from app.models.probability import PaymentProbability, TaskInstance, TaskTemplate, UserPreference
 from app.models.patient import PatientContext
@@ -123,6 +124,11 @@ def _get_payment_probability(patient_context_id: uuid.UUID) -> dict | None:
             # LLM-generated problem statement
             "problem_statement": prob.problem_statement,
             "problem_details": prob.problem_details,
+            # Batch recommendation fields (Workflow Mode UI)
+            "agentic_confidence": prob.agentic_confidence,
+            "recommended_mode": prob.recommended_mode,
+            "recommendation_reason": prob.recommendation_reason,
+            "agentic_actions": prob.agentic_actions,
         }
     except Exception as e:
         print(f"[mini] Error loading payment probability: {e}")
@@ -143,6 +149,60 @@ def _get_task_count(patient_context_id: uuid.UUID) -> int:
         return 0
 
 
+
+
+def _map_factor_to_activities(factor_type: str) -> list:
+    """Map factor type to activity codes that can handle it.
+    
+    This handles both explicit assignable_activities and legacy handle_* codes.
+    """
+    factor_activity_map = {
+        "eligibility": ["verify_eligibility", "check_in_patients"],
+        "coverage": ["prior_authorization"],
+        "attendance": ["schedule_appointments", "patient_outreach", "check_in_patients"],
+        "errors": ["submit_claims", "rework_denials"],
+    }
+    return factor_activity_map.get(factor_type, [])
+
+
+def _step_matches_user_activities(step, user_activities: list) -> bool:
+    """Check if a step matches user's activities.
+    
+    Matches if:
+    1. Step's assignable_activities overlap with user_activities, OR
+    2. Step's factor_type maps to activities that user has
+    """
+    if not user_activities or len(user_activities) == 0:
+        return False
+    
+    step_activities = step.assignable_activities or []
+    
+    # Direct match: step activities overlap with user activities
+    if step_activities:
+        overlap = [a for a in step_activities if a in user_activities]
+        if overlap:
+            return True
+    
+    # Factor-based match: map factor_type to activities
+    if step.factor_type:
+        factor_activities = _map_factor_to_activities(step.factor_type)
+        overlap = [a for a in factor_activities if a in user_activities]
+        if overlap:
+            return True
+    
+    # Handle legacy handle_* codes (map to factor activities)
+    if step_activities:
+        for activity in step_activities:
+            if activity.startswith("handle_"):
+                factor = activity.replace("handle_", "")
+                factor_activities = _map_factor_to_activities(factor)
+                overlap = [a for a in factor_activities if a in user_activities]
+                if overlap:
+                    return True
+    
+    return False
+
+
 def _get_resolution_plan(patient_context_id: uuid.UUID, user_activities: list = None) -> dict | None:
     """Load resolution plan for Mini display (active OR resolved).
     
@@ -152,6 +212,8 @@ def _get_resolution_plan(patient_context_id: uuid.UUID, user_activities: list = 
     - progress: completion status per factor
     - actions_for_user: count of steps user can act on
     - status: 'active' or 'resolved'
+    
+    Any user with matching activities will see the task - no role check needed.
     """
     try:
         db = get_db_session()
@@ -177,6 +239,7 @@ def _get_resolution_plan(patient_context_id: uuid.UUID, user_activities: list = 
                 "factors": {},
                 "current_step": None,
                 "actions_for_user": 0,
+                "factor_modes": plan.factor_modes or {},
                 "resolution_type": plan.resolution_type,
                 "resolution_notes": plan.resolution_notes,
                 "resolved_at": plan.resolved_at.isoformat() if plan.resolved_at else None,
@@ -201,52 +264,41 @@ def _get_resolution_plan(patient_context_id: uuid.UUID, user_activities: list = 
             
             if step.status in [StepStatus.COMPLETED, StepStatus.SKIPPED]:
                 factors[factor]["done"] += 1
-            elif step.status == StepStatus.CURRENT:
-                factors[factor]["status"] = "needs_action"
+            elif step.status in [StepStatus.CURRENT, StepStatus.PENDING]:
+                if step.status == StepStatus.CURRENT:
+                    factors[factor]["status"] = "needs_action"
                 total_pending_steps += 1
                 
-                # Format step data
-                step_data = {
-                    "step_id": str(step.step_id),
-                    "step_code": step.step_code,
-                    "question_text": step.question_text,
-                    "step_type": step.step_type,
-                    "input_type": step.input_type,
-                    "answer_options": step.answer_options,
-                    "system_suggestion": step.system_suggestion,
-                    "factor_type": step.factor_type,
-                    "assignable_activities": step.assignable_activities,
-                }
+                # Format step data (only for CURRENT steps to show in UI)
+                if step.status == StepStatus.CURRENT:
+                    step_data = {
+                        "step_id": str(step.step_id),
+                        "step_code": step.step_code,
+                        "question_text": step.question_text,
+                        "step_type": step.step_type,
+                        "input_type": step.input_type,
+                        "answer_options": step.answer_options,
+                        "system_suggestion": step.system_suggestion,
+                        "factor_type": step.factor_type,
+                        "assignable_activities": step.assignable_activities,
+                    }
                 
-                # Check if this step matches user's activities
-                step_matches_user = False
-                print(f"[mini] DEBUG: Step {step.step_code} - user_activities={user_activities}, assignable={step.assignable_activities}")
-                if user_activities and step.assignable_activities:
-                    overlap = [a for a in step.assignable_activities if a in user_activities]
-                    print(f"[mini] DEBUG: Step {step.step_code} - overlap={overlap}")
-                    if overlap:
-                        step_matches_user = True
-                        actions_for_user += 1
-                        # Prefer showing steps that match user's role
-                        if not matching_step_data:
-                            matching_step_data = step_data
-                            print(f"[mini] DEBUG: Setting matching_step_data to {step.step_code}")
-                elif not user_activities:
-                    # No user activities = show ALL steps (unauthenticated or empty activities)
-                    step_matches_user = True
+                # Check if this step matches user's activities (for both CURRENT and PENDING)
+                # Any user with matching activities can see the task
+                step_matches = _step_matches_user_activities(step, user_activities)
+                print(f"[mini] DEBUG: Step {step.step_code} (status={step.status}) - user_activities={user_activities}, assignable={step.assignable_activities}, factor={step.factor_type}, matches={step_matches}")
+                
+                if step_matches:
                     actions_for_user += 1
-                    if not matching_step_data:
-                        matching_step_data = step_data  # FIX: Also set step for unauthenticated users
-                    print(f"[mini] DEBUG: No user auth, marking step as match, matching_step={step.step_code}")
+                    if step.status == StepStatus.CURRENT and not matching_step_data:
+                        matching_step_data = step_data
+                        print(f"[mini] DEBUG: Setting matching_step_data to {step.step_code}")
                 
                 # Track first current step as fallback info
-                if not current_step_data:
+                if step.status == StepStatus.CURRENT and not current_step_data:
                     current_step_data = step_data
-            elif step.status == StepStatus.PENDING:
-                total_pending_steps += 1
         
-        # ONLY show steps that match user's role
-        # If no matching steps, return None for current_step (user has no actionable tasks)
+        # Show steps that match user's activities
         display_step = matching_step_data
         
         # Determine factor status
@@ -259,10 +311,13 @@ def _get_resolution_plan(patient_context_id: uuid.UUID, user_activities: list = 
             "gap_types": plan.gap_types,
             "status": "active",
             "factors": factors,
-            "current_step": display_step,  # Only shows steps matching user's role (None if no match)
+            "current_step": display_step,  # Shows steps matching user's activities
             "actions_for_user": actions_for_user,
             "total_pending": total_pending_steps,  # Total pending for all users
-            "other_role_tasks": total_pending_steps - actions_for_user if user_activities else 0,
+            # Show "other_role_tasks" if user has activities but no matching tasks
+            "other_role_tasks": (total_pending_steps - actions_for_user) if (user_activities and len(user_activities) > 0 and actions_for_user < total_pending_steps) else 0,
+            # Factor workflow modes (e.g., { "eligibility": "mobius" })
+            "factor_modes": plan.factor_modes or {},
         }
     except Exception as e:
         print(f"[mini] Error loading resolution plan: {e}")
@@ -283,6 +338,8 @@ def _get_user_activities(user_id: uuid.UUID) -> list:
         return [ua.activity.activity_code for ua in activities if ua.activity]
     except Exception:
         return []
+
+
 
 
 def _get_task_instances(patient_context_id: uuid.UUID) -> list:
@@ -470,13 +527,86 @@ def status():
                 problem_statement = action
     
     # Get attention status from patient context
+    # Refresh to ensure we get fresh data from database (not cached)
     attention_status = None
+    resolved_until = None
+    is_resolved = False
     if patient_context:
+        db = get_db_session()
+        db.refresh(patient_context)  # Force refresh from database
         attention_status = patient_context.attention_status
+        resolved_until = patient_context.resolved_until
+        
+        # If system determines patient is resolved (GREEN >= 85%), automatically set attention_status
+        # This ensures system-resolved patients also show purple and persist
+        if computed_response.proceed_indicator.value == "green" and not attention_status:
+            # System determined it's resolved - set attention_status automatically
+            try:
+                patient_context.attention_status = "resolved"
+                # Set resolved_until to target_date + 30 days (or now + 30 days)
+                target_date = None
+                if payment_probability and payment_probability.get("target_date"):
+                    try:
+                        target_date_str = payment_probability["target_date"]
+                        if "T" in target_date_str:
+                            target_date = datetime.fromisoformat(target_date_str.replace("Z", "+00:00")).date()
+                        else:
+                            target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+                    except (ValueError, AttributeError, TypeError):
+                        pass
+                
+                if target_date:
+                    resolved_until = datetime.combine(target_date, datetime.max.time()) + timedelta(days=30)
+                else:
+                    resolved_until = datetime.utcnow() + timedelta(days=30)
+                
+                patient_context.resolved_until = resolved_until
+                patient_context.attention_status_at = datetime.utcnow()
+                patient_context.attention_status_by_id = user_id
+                patient_context.override_color = "purple"  # System-resolved also gets purple color
+                db.commit()
+                attention_status = "resolved"
+                print(f"[mini/status] Auto-set attention_status='resolved' for system-resolved patient {patient_key}")
+            except Exception as e:
+                print(f"[mini/status] Error auto-setting resolved status: {e}")
+                db.rollback()
+        elif attention_status == "resolved" and resolved_until:
+            # User or system previously marked as resolved - check if still valid
+            is_resolved = datetime.utcnow() < resolved_until
+            if not is_resolved:
+                # Suppression period expired - clear resolved status
+                try:
+                    patient_context.attention_status = None
+                    patient_context.resolved_until = None
+                    patient_context.override_color = None  # Clear override color when status expires
+                    db.commit()
+                    attention_status = None
+                    print(f"[mini/status] Cleared expired resolved status for patient {patient_key}")
+                except Exception as e:
+                    print(f"[mini/status] Error clearing expired status: {e}")
+                    db.rollback()
+        elif attention_status == "resolved":
+            # Resolved but no resolved_until set (legacy data) - still show as resolved
+            is_resolved = True
+        
+        print(f"[mini/status] Patient {patient_key}: attention_status={attention_status}, resolved_until={resolved_until}, is_resolved={is_resolved}, proceed_indicator={computed_response.proceed_indicator.value}")
+    
+    # Get override_color if user has overridden
+    override_color = None
+    if patient_context:
+        override_color = patient_context.override_color
+        print(f"[mini/status] override_color={override_color}, proceed_indicator_color={proceed_data['color']}")
+    
+    # Determine final color: override_color takes precedence, otherwise use decision agent color
+    final_color = override_color if override_color else proceed_data["color"]
+    
+    # Update proceed_data to use final_color for backwards compatibility
+    proceed_data["color"] = final_color
     
     # Get task count for badge (legacy)
+    # Suppress tasks if patient is resolved
     task_count = 0
-    if patient_context:
+    if patient_context and not is_resolved:
         task_count = _get_task_count(patient_context.patient_context_id)
     
     # User Awareness Sprint: Load user profile and personalization
@@ -484,12 +614,22 @@ def status():
     personalization_service = get_personalization_service()
     
     # Resolution Plan: Load active plan for action-centric UI
+    # Suppress active steps if patient is resolved, but keep plan structure for history
     resolution_plan = None
     if patient_context:
+        # Get user's activities from UserActivity table (their preferences)
         user_activities = _get_user_activities(user_profile.user_id) if user_profile else []
         print(f"[mini] DEBUG: user_profile={user_profile.user_id if user_profile else None}, user_activities={user_activities}")
         resolution_plan = _get_resolution_plan(patient_context.patient_context_id, user_activities)
         print(f"[mini] DEBUG: resolution_plan={resolution_plan}")
+        
+        # If resolved, suppress active steps but keep plan structure
+        if is_resolved and resolution_plan:
+            # Set actions_for_user to 0 and clear current_step
+            resolution_plan["actions_for_user"] = 0
+            resolution_plan["current_step"] = None
+            resolution_plan["total_pending"] = 0
+            resolution_plan["other_role_tasks"] = 0
     
     # Build personalization payload if user is authenticated
     user_data = None
@@ -509,6 +649,25 @@ def status():
             max_quick_actions=5
         )
     
+    # Calculate agentic_confidence value (fix for 7800% bug)
+    # agentic_confidence is stored as 0.0-1.0 in DB (Float), send as 0-100 integer for frontend
+    agentic_conf = payment_probability.get("agentic_confidence") if payment_probability else None
+    agentic_confidence_value = None
+    if agentic_conf is not None:
+        # Convert 0.0-1.0 to 0-100 integer
+        # If value is > 1.0, it's already 0-100 scale (edge case), use as-is
+        # Otherwise, convert 0.0-1.0 to 0-100
+        if agentic_conf > 1.0:
+            # Already 0-100 scale (edge case - shouldn't happen but handle it)
+            agentic_confidence_value = int(agentic_conf)
+        elif agentic_conf <= 1.0 and agentic_conf >= 0.0:
+            # Normal case: 0.0-1.0 -> 0-100
+            agentic_confidence_value = int(agentic_conf * 100)
+        else:
+            # Invalid value, set to None
+            agentic_confidence_value = None
+        print(f"[mini] DEBUG: agentic_confidence conversion - DB value: {agentic_conf}, converted: {agentic_confidence_value}")
+    
     return jsonify({
         "ok": True,
         "session_id": session_id,
@@ -525,9 +684,10 @@ def status():
         } if patient_key else None,
         # New "needs_attention" format (replaces "proceed")
         "needs_attention": {
-            "color": proceed_data["color"],
+            "color": final_color,  # Use override_color if set, otherwise decision agent color
             "problem_statement": problem_statement,
-            "user_status": attention_status,  # "resolved" | "confirmed_unresolved" | "unable_to_confirm" | null
+            "user_status": attention_status,  # "resolved" | "unresolved" | null
+            "resolved_until": resolved_until.isoformat() if resolved_until else None,  # Include for frontend display
         },
         # Keep "proceed" for backwards compatibility
         "proceed": proceed_data,
@@ -540,6 +700,11 @@ def status():
         # Mode info (for future sidecar)
         "mode": mini_payload.get("mode"),
         "computed_at": mini_payload["computed_at"],
+        # Batch job recommendation for workflow mode (Workflow Mode UI)
+        "agentic_confidence": agentic_confidence_value,
+        "recommended_mode": payment_probability.get("recommended_mode") if payment_probability else None,
+        "recommendation_reason": payment_probability.get("recommendation_reason") if payment_probability else None,
+        "agentic_actions": payment_probability.get("agentic_actions") if payment_probability else None,
     })
 
 
@@ -552,11 +717,13 @@ def submit_ack():
     Persists submission, logs event, and updates Firestore.
     
     Now also handles attention_status updates:
-    - "resolved" -> user resolved the issue
-    - "confirmed_unresolved" -> issue confirmed but needs sidecar
-    - "unable_to_confirm" -> needs investigation in sidecar
+    - "resolved" -> user says it's resolved (even if system says there are issues)
+    - "unresolved" -> user says it's unresolved (even if system says no issues)
+    - Both are user overrides and display in purple color
     """
     data = request.json or {}
+    print(f"[mini/ack DEBUG] Received request data: {data}")
+    
     session_id = (data.get("session_id") or "").strip()
     tenant_id = _get_tenant_id(data)
     user_id = _get_user_id(data)
@@ -572,10 +739,16 @@ def submit_ack():
     plan_step_id_str = data.get("plan_step_id")
     
     # New: attention_status for "Needs Attention" workflow
-    attention_status = data.get("attention_status")  # "resolved" | "confirmed_unresolved" | "unable_to_confirm"
+    attention_status = data.get("attention_status")  # "resolved" | "unresolved" | null
+    
+    # Per-factor override support (L2 bottleneck level)
+    factor_type = data.get("factor_type")  # "eligibility" | "errors" | "coverage" | "attendance" | null
+    
+    print(f"[mini/ack DEBUG] Parsed: session_id={session_id}, patient_key={patient_key}, attention_status={attention_status}, factor_type={factor_type}")
     
     # Determine if we should signal frontend to open sidecar
-    open_sidecar = attention_status in ("confirmed_unresolved", "unable_to_confirm")
+    # For now, don't auto-open sidecar - user can open manually if needed
+    open_sidecar = False
 
     if not session_id:
         return jsonify({"error": "session_id is required"}), 400
@@ -590,14 +763,33 @@ def submit_ack():
     # Get patient context for persistence
     patient_context = None
     patient_context_obj = None
+    db = get_db_session()  # Get session once - scoped_session returns same object per thread
+    
     if patient_key:
-        patient_context = _patient_agent.get_patient_context(tenant_id, patient_key)
-        # Also get the actual ORM object to update attention_status
-        if patient_context:
-            db = get_db_session()
-            patient_context_obj = db.query(PatientContext).filter(
-                PatientContext.patient_context_id == patient_context.patient_context_id
-            ).first()
+        print(f"[mini/ack DEBUG] Looking up patient_key={patient_key} in tenant_id={tenant_id}")
+        # Get patient_context directly from current session to avoid detached instance issues
+        patient_context_obj = db.query(PatientContext).filter(
+            PatientContext.tenant_id == tenant_id,
+            PatientContext.patient_key == patient_key
+        ).first()
+        print(f"[mini/ack DEBUG] Direct lookup result: patient_context_obj={patient_context_obj is not None}")
+        
+        # Also get via agent for other uses (but this will be expired, so use patient_context_obj for updates)
+        if patient_context_obj:
+            patient_context = patient_context_obj  # Use the same object
+            print(f"[mini/ack DEBUG] Found patient via direct lookup: patient_context_id={patient_context_obj.patient_context_id}")
+        else:
+            # Fallback: try via agent (for MRN resolution)
+            print(f"[mini/ack DEBUG] Trying fallback via patient agent...")
+            patient_context = _patient_agent.get_patient_context(tenant_id, patient_key)
+            if patient_context:
+                print(f"[mini/ack DEBUG] Found via agent, re-querying...")
+                # Re-query in current session
+                patient_context_obj = db.query(PatientContext).filter(
+                    PatientContext.patient_context_id == patient_context.patient_context_id
+                ).first()
+            else:
+                print(f"[mini/ack DEBUG] Patient NOT FOUND via agent either!")
 
     # Parse system_response_id if provided
     system_response_id = None
@@ -614,16 +806,109 @@ def submit_ack():
             system_response_id = latest.system_response_id
     
     # Update attention_status on patient_context if provided
+    print(f"[mini/ack DEBUG] Checking attention_status update: attention_status={attention_status}, factor_type={factor_type}, patient_context_obj={patient_context_obj is not None}")
     if attention_status and patient_context_obj:
+        print(f"[mini/ack DEBUG] Updating attention_status to '{attention_status}' for patient_context_id={patient_context_obj.patient_context_id}")
         try:
-            db = get_db_session()
-            patient_context_obj.attention_status = attention_status
-            patient_context_obj.attention_status_at = submitted_at
-            patient_context_obj.attention_status_by_id = user_id
+            # Per-factor override (L2 level) - store in factor_overrides JSONB
+            if factor_type:
+                # Update factor_overrides for specific factor
+                factor_overrides = dict(patient_context_obj.factor_overrides or {})
+                # Store both resolved AND unresolved as user overrides
+                # "resolved" = user says this is fine (even if system says it's not)
+                # "unresolved" = user says this needs work (even if system says it's fine)
+                factor_overrides[factor_type] = attention_status
+                patient_context_obj.factor_overrides = factor_overrides
+                print(f"[mini/ack] Updated factor_overrides[{factor_type}] to '{attention_status}' for patient {patient_key}")
+                print(f"[mini/ack] Full factor_overrides: {factor_overrides}")
+                
+                # Cascade to resolution plan for this factor
+                cascade_bottleneck_override(
+                    db=db,
+                    patient_context_id=patient_context.patient_context_id,
+                    bottleneck_factor=factor_type,
+                    status=attention_status,
+                    user_id=user_id,
+                    submitted_at=submitted_at,
+                    source_layer="layer2"
+                )
+            else:
+                # Legacy patient-level override (from Mini without factor_type)
+                # Use the same session - object is already attached
+                patient_context_obj.attention_status = attention_status
+                patient_context_obj.attention_status_at = submitted_at
+                patient_context_obj.attention_status_by_id = user_id
+                
+                # Map attention_status to color and store override_color
+                # resolved -> purple (user override), unresolved -> purple (user override)
+                # Both resolved and unresolved are user overrides, so both get purple color
+                if attention_status == "resolved":
+                    patient_context_obj.override_color = "purple"
+                elif attention_status == "unresolved":
+                    patient_context_obj.override_color = "purple"  # User override - show purple
+                else:
+                    # Clear override if status is cleared
+                    patient_context_obj.override_color = None
+                
+                # If resolved, set resolved_until date (time-bound suppression period)
+                if attention_status == "resolved":
+                    # Get target_date from latest payment_probability (visit/appointment date)
+                    target_date = None
+                    if patient_context:
+                        payment_probability = _get_payment_probability(patient_context.patient_context_id)
+                        if payment_probability and payment_probability.get("target_date"):
+                            try:
+                                # target_date is ISO format string from _get_payment_probability
+                                target_date_str = payment_probability["target_date"]
+                                # Parse ISO date string (e.g., "2026-02-15" or "2026-02-15T00:00:00")
+                                if "T" in target_date_str:
+                                    target_date = datetime.fromisoformat(target_date_str.replace("Z", "+00:00")).date()
+                                else:
+                                    target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+                            except (ValueError, AttributeError, TypeError) as e:
+                                print(f"[mini/ack] Error parsing target_date: {e}")
+                                pass
+                    
+                    # Calculate resolved_until: target_date + 30 days, or now() + 30 days if no target_date
+                    if target_date:
+                        resolved_until = datetime.combine(target_date, datetime.max.time()) + timedelta(days=30)
+                    else:
+                        resolved_until = submitted_at + timedelta(days=30)
+                    
+                    patient_context_obj.resolved_until = resolved_until
+                    print(f"[mini/ack] Set resolved_until to {resolved_until} for patient {patient_key}")
+                else:
+                    # If not resolved, clear resolved_until
+                    patient_context_obj.resolved_until = None
+                
+                # Cascade update: Propagate user override to resolution_plan (Layer 2)
+                if patient_context and attention_status in ("resolved", "unresolved"):
+                    # Get latest payment_probability to identify bottleneck factor
+                    latest_prob = db.query(PaymentProbability).filter(
+                        PaymentProbability.patient_context_id == patient_context.patient_context_id
+                    ).order_by(PaymentProbability.computed_at.desc()).first()
+                    
+                    if latest_prob and latest_prob.lowest_factor:
+                        cascade_bottleneck_override(
+                            db=db,
+                            patient_context_id=patient_context.patient_context_id,
+                            bottleneck_factor=latest_prob.lowest_factor,
+                            status=attention_status,
+                            user_id=user_id,
+                            submitted_at=submitted_at,
+                            source_layer="layer1"
+                        )
+                
+                print(f"[mini/ack] Updated patient-level attention_status to '{attention_status}' for patient {patient_key}")
+                print(f"[mini/ack] Verified: attention_status={patient_context_obj.attention_status}, resolved_until={patient_context_obj.resolved_until}, override_color={patient_context_obj.override_color}")
+            
             db.commit()
-            print(f"[mini/ack] Updated attention_status to '{attention_status}' for patient {patient_key}")
+            # Verify the update was saved
+            db.refresh(patient_context_obj)
         except Exception as e:
             print(f"[mini/ack] Error updating attention_status: {e}")
+            import traceback
+            traceback.print_exc()
             db.rollback()
 
     # Persist submission to PostgreSQL (if we have note_text)

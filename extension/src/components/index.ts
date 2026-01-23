@@ -50,3 +50,5 @@ export { ContextExpander } from './sidecar/ContextExpander';
 export { QuickChat, setQuickChatLoading, showQuickChatResponse, clearQuickChatResponse } from './sidecar/QuickChat';
 export { SidecarMenu, CollapseButton } from './sidecar/SidecarMenu';
 export { AlertIndicator, updateAlertIndicator, NotificationDot } from './sidecar/AlertIndicator';
+export { FactorCard } from './sidecar/FactorCard';
+export { FactorList } from './sidecar/FactorList';

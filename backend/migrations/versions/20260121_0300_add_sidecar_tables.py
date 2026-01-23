@@ -15,8 +15,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 # revision identifiers, used by Alembic.
-revision = 'a1b2c3d4e5f6'
-down_revision = '20260121_0200_add_plan_context_to_mini_submission'
+revision = 's1i2d3e4c5a6r'  # Changed from a1b2c3d4e5f6 (was duplicate)
+down_revision = 'p1l2a3n4c5t6'  # Points to 20260121_0200_add_plan_context_to_mini_submission
 branch_labels = None
 depends_on = None
 
