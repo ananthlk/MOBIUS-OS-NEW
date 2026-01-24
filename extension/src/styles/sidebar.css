@@ -1907,53 +1907,53 @@
 
 .mobius-mini-modal-header {
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+  border-bottom: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.08));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--mobius-space-sm, 10px);
 }
 
 .mobius-mini-modal-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--mobius-font-base, 12px);
+  font-weight: 500;
 }
 
 .mobius-mini-modal-close {
-  width: 28px;
-  height: 28px;
-  border-radius: 10px;
-  border: 1px solid rgba(11, 18, 32, 0.12);
-  background: rgba(11, 18, 32, 0.03);
+  width: var(--mobius-button-height, 28px);
+  height: var(--mobius-button-height, 28px);
+  border-radius: var(--mobius-radius-base, 10px);
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
   cursor: pointer;
   display: grid;
   place-items: center;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .mobius-mini-modal-close:hover {
-  background: rgba(11, 18, 32, 0.06);
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.06));
 }
 
 .mobius-mini-modal-body {
-  padding: 14px 16px 12px;
+  padding: var(--mobius-space-md, 14px) var(--mobius-space-lg, 16px) var(--mobius-space-md, 12px);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--mobius-space-md, 12px);
 }
 
 .mobius-mini-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--mobius-space-sm, 6px);
 }
 
 .mobius-mini-field-label {
-  font-size: 9px;
+  font-size: var(--mobius-font-xs, 9px);
   letter-spacing: 0.10em;
   text-transform: uppercase;
-  color: rgba(91,102,122,0.95);
-  font-weight: 600;
+  color: var(--mobius-text-secondary, rgba(91,102,122,0.95));
+  font-weight: 500;
   margin-bottom: 0;
 }
 
@@ -1965,9 +1965,9 @@
 
 .mobius-mini-search-icon {
   position: absolute;
-  left: 10px;
-  width: 16px;
-  height: 16px;
+  left: var(--mobius-space-sm, 10px);
+  width: var(--mobius-icon-base, 16px);
+  height: var(--mobius-icon-base, 16px);
   display: grid;
   place-items: center;
   opacity: 0.75;
@@ -1975,9 +1975,9 @@
 }
 
 .mobius-mini-search-icon svg {
-  width: 16px;
-  height: 16px;
-  fill: rgba(91, 102, 122, 0.95);
+  width: var(--mobius-icon-base, 16px);
+  height: var(--mobius-icon-base, 16px);
+  fill: var(--mobius-text-secondary, rgba(91, 102, 122, 0.95));
 }
 
 .mobius-mini-input.mobius-mini-input-with-icon {
@@ -1987,30 +1987,30 @@
 .mobius-mini-input {
   width: 100%;
   height: 34px;
-  border-radius: 12px;
-  border: 1px solid rgba(11, 18, 32, 0.14);
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 500;
+  border-radius: var(--mobius-radius-lg, 12px);
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.14));
+  padding: 0 var(--mobius-space-sm, 10px);
+  font-size: var(--mobius-font-base, 12px);
+  font-weight: 400;
   outline: none;
 }
 
 .mobius-mini-input:focus {
-  border-color: rgba(37, 99, 235, 0.55);
+  border-color: color-mix(in srgb, var(--mobius-accent, #2563eb) 55%, transparent);
 }
 
 .mobius-mini-field-hint {
-  font-size: 12px;
-  color: rgba(91,102,122,0.95);
+  font-size: var(--mobius-font-base, 12px);
+  color: var(--mobius-text-secondary, rgba(91,102,122,0.95));
 }
 
 .mobius-mini-suggestions {
   display: none;
   border: 1px solid rgba(11, 18, 32, 0.12);
-  border-radius: 12px;
-  background: #fff;
+  border-radius: var(--mobius-radius-lg, 12px);
+  background: var(--mobius-bg-primary, #fff);
   overflow: hidden;
-  box-shadow: 0 12px 24px rgba(2,6,23,0.12);
+  box-shadow: 0 12px 24px var(--mobius-shadow-strong, rgba(2,6,23,0.12));
 }
 
 .mobius-mini-suggestion {
@@ -2018,26 +2018,26 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: var(--mobius-space-sm, 10px);
+  padding: var(--mobius-space-sm, 10px) var(--mobius-space-md, 12px);
   border: none;
-  background: #fff;
+  background: var(--mobius-bg-primary, #fff);
   cursor: pointer;
   font: inherit;
 }
 
 .mobius-mini-suggestion:hover {
-  background: rgba(11, 18, 32, 0.04);
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.04));
 }
 
 .mobius-mini-suggestion.active {
-  background: rgba(37, 99, 235, 0.10);
+  background: color-mix(in srgb, var(--mobius-accent, #2563eb) 10%, transparent);
 }
 
 .mobius-mini-suggestion .name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #0b1220;
+  font-size: var(--mobius-font-base, 12px);
+  font-weight: 500;
+  color: var(--mobius-text-primary, #0b1220);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2045,64 +2045,64 @@
 }
 
 .mobius-mini-suggestion .id {
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(91,102,122,0.95);
+  font-size: var(--mobius-font-sm, 11px);
+  font-weight: 400;
+  color: var(--mobius-text-secondary, rgba(91,102,122,0.95));
   white-space: nowrap;
   flex: 0 0 auto;
 }
 
 .mobius-mini-modal-actions {
-  padding: 10px 12px;
-  border-top: 1px solid rgba(11, 18, 32, 0.08);
+  padding: var(--mobius-space-sm, 10px) var(--mobius-space-md, 12px);
+  border-top: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.08));
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--mobius-space-sm, 8px);
 }
 
 .mobius-mini-btn-secondary,
 .mobius-mini-btn-primary {
   height: 34px;
-  border-radius: 12px;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: var(--mobius-radius-lg, 12px);
+  padding: 0 var(--mobius-space-md, 12px);
+  font-size: var(--mobius-font-base, 12px);
+  font-weight: 500;
   cursor: pointer;
 }
 
 .mobius-mini-btn-secondary {
-  border: 1px solid rgba(11, 18, 32, 0.12);
-  background: rgba(11, 18, 32, 0.03);
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
 }
 
 .mobius-mini-btn-secondary:hover {
-  background: rgba(11, 18, 32, 0.06);
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.06));
 }
 
 .mobius-mini-btn-primary {
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  background: rgba(37, 99, 235, 0.12);
-  color: #1e40af;
+  border: 1px solid color-mix(in srgb, var(--mobius-accent, #2563eb) 22%, transparent);
+  background: color-mix(in srgb, var(--mobius-accent, #2563eb) 12%, transparent);
+  color: var(--mobius-accent, #1e40af);
 }
 
 .mobius-mini-btn-primary:hover {
-  background: rgba(37, 99, 235, 0.16);
+  background: color-mix(in srgb, var(--mobius-accent, #2563eb) 16%, transparent);
 }
 
 /* Mini toast */
 .mobius-mini-toast {
   position: fixed;
   left: 50%;
-  top: 16px;
+  top: var(--mobius-space-lg, 16px);
   transform: translateX(-50%);
-  background: rgba(15,23,42,0.92);
-  color: #fff;
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
+  background: var(--mobius-text-primary, rgba(15,23,42,0.92));
+  color: var(--mobius-bg-primary, #fff);
+  padding: var(--mobius-space-sm, 10px) var(--mobius-space-md, 12px);
+  border-radius: var(--mobius-radius-lg, 12px);
+  font-size: var(--mobius-font-base, 12px);
+  font-weight: 500;
   z-index: 2147483647;
-  box-shadow: 0 14px 28px rgba(2,6,23,0.22);
+  box-shadow: 0 14px 28px var(--mobius-shadow-strong, rgba(2,6,23,0.22));
 }
 
 /* =============================================================================
