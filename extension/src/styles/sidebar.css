@@ -2112,40 +2112,40 @@
 
 /* Status Bar - Modern minimal design */
 .sidecar-status-bar {
-  padding: 6px 12px;
-  background: #ffffff;
-  border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+  padding: var(--mobius-space-sm, 6px) var(--mobius-space-md, 12px);
+  background: var(--mobius-bg-primary, #ffffff);
+  border-bottom: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.08));
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--mobius-space-xs, 4px);
 }
 
 .sidecar-status-bar-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--mobius-space-sm, 8px);
 }
 
 .sidecar-status-bar-title {
-  font-size: 7px;
-  font-weight: 600;
-  color: rgba(91, 102, 122, 0.95);
+  font-size: var(--mobius-font-xs, 7px);
+  font-weight: 500;
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.95));
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .sidecar-status-bar-context {
-  font-size: 8px;
+  font-size: var(--mobius-font-xs, 8px);
   font-weight: 400;
-  color: rgba(91, 102, 122, 0.8);
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.8));
   white-space: nowrap;
 }
 
 .sidecar-status-bar-progress-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mobius-space-sm, 6px);
 }
 
 .sidecar-status-bar-track-wrapper {
@@ -2156,12 +2156,12 @@
 .sidecar-status-bar-track {
   position: relative;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--mobius-radius-sm, 2px);
   /* Mono grey gradient - subtle, modern */
   background: linear-gradient(90deg, 
-    rgba(11, 18, 32, 0.08) 0%, 
-    rgba(11, 18, 32, 0.12) 50%,
-    rgba(11, 18, 32, 0.06) 100%
+    var(--mobius-border-light, rgba(11, 18, 32, 0.08)) 0%, 
+    var(--mobius-border, rgba(11, 18, 32, 0.12)) 50%,
+    var(--mobius-border-light, rgba(11, 18, 32, 0.06)) 100%
   );
 }
 
@@ -2171,8 +2171,8 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: rgba(11, 18, 32, 0.35);
-  border-radius: 2px;
+  background: var(--mobius-text-secondary, rgba(11, 18, 32, 0.35));
+  border-radius: var(--mobius-radius-sm, 2px);
   transition: width 0.3s ease;
 }
 
@@ -2184,17 +2184,17 @@
   height: 9px;
   border-radius: 50%;
   transform: translateX(-50%);
-  background: #0b1220;
-  border: 2px solid #ffffff;
-  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.2);
+  background: var(--mobius-text-primary, #0b1220);
+  border: 2px solid var(--mobius-bg-primary, #ffffff);
+  box-shadow: 0 1px 3px var(--mobius-shadow, rgba(2, 6, 23, 0.2));
   z-index: 2;
 }
 
 /* Percentage label */
 .sidecar-status-bar-percent {
-  font-size: 9px;
-  font-weight: 600;
-  color: #0b1220;
+  font-size: var(--mobius-font-xs, 9px);
+  font-weight: 500;
+  color: var(--mobius-text-primary, #0b1220);
   white-space: nowrap;
 }
 
@@ -2203,61 +2203,61 @@
 .sidecar-greeting {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding-bottom: 6px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid rgba(11, 18, 32, 0.06);
+  gap: var(--mobius-space-xs, 2px);
+  padding-bottom: var(--mobius-space-sm, 6px);
+  margin-bottom: var(--mobius-space-xs, 4px);
+  border-bottom: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.06));
 }
 
 .sidecar-greeting-text {
-  font-size: 11px;
-  font-weight: 500;
-  color: #0b1220;
+  font-size: var(--mobius-font-sm, 11px);
+  font-weight: 400;
+  color: var(--mobius-text-primary, #0b1220);
 }
 
 .sidecar-greeting-subtext {
-  font-size: 10px;
+  font-size: var(--mobius-font-sm, 10px);
   font-weight: 400;
-  color: rgba(91, 102, 122, 0.6);
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
 
 .sidecar-bottleneck-card {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 3px;
+  gap: var(--mobius-space-xs, 4px);
+  margin-bottom: var(--mobius-space-xs, 3px);
 }
 
 .sidecar-bottleneck-card--clear {
-  padding: 4px 0;
+  padding: var(--mobius-space-xs, 4px) 0;
 }
 
 .sidecar-bottleneck-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(11, 18, 32, 0.08);
+  padding-bottom: var(--mobius-space-xs, 4px);
+  border-bottom: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.08));
 }
 
 .sidecar-bottleneck-count {
-  font-size: 10px;
-  font-weight: 500;
-  color: #0b1220;
+  font-size: var(--mobius-font-sm, 10px);
+  font-weight: 400;
+  color: var(--mobius-text-primary, #0b1220);
 }
 
 .sidecar-bottleneck-hint {
-  font-size: 9px;
+  font-size: var(--mobius-font-xs, 9px);
   font-weight: 400;
-  color: rgba(91, 102, 122, 0.6);
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
 
 .sidecar-bottleneck-item {
-  background: #ffffff;
-  border: 1px solid rgba(11, 18, 32, 0.08);
-  border-radius: 5px;
-  padding: 5px 7px;
+  background: var(--mobius-bg-primary, #ffffff);
+  border: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.08));
+  border-radius: var(--mobius-radius-sm, 5px);
+  padding: var(--mobius-space-xs, 5px) var(--mobius-space-sm, 7px);
   display: flex;
   box-shadow: none;
   flex-direction: column;
@@ -2267,7 +2267,7 @@
 .sidecar-bottleneck-question-row {
   display: flex;
   align-items: flex-start;
-  gap: 4px;
+  gap: var(--mobius-space-xs, 4px);
 }
 
 .sidecar-bottleneck-question-row::before {
@@ -2276,44 +2276,44 @@
   width: 4px;
   height: 4px;
   min-width: 4px;
-  background: #3b82f6;
+  background: var(--mobius-accent, #3b82f6);
   border-radius: 50%;
-  margin-top: 4px;
+  margin-top: var(--mobius-space-xs, 4px);
   flex-shrink: 0;
 }
 
 .sidecar-bottleneck-checkbox {
-  width: 14px;
-  height: 14px;
+  width: var(--mobius-icon-sm, 14px);
+  height: var(--mobius-icon-sm, 14px);
   cursor: pointer;
   margin-top: 1px;
 }
 
 .sidecar-bottleneck-question {
   flex: 1;
-  font-size: 9px;
-  font-weight: 500;
-  color: #0b1220;
+  font-size: var(--mobius-font-xs, 9px);
+  font-weight: 400;
+  color: var(--mobius-text-primary, #0b1220);
   line-height: 1.3;
 }
 
 .sidecar-source-badge {
-  font-size: 10px;
+  font-size: var(--mobius-font-sm, 10px);
   opacity: 0.7;
 }
 
 .sidecar-conflict-badge {
-  font-size: 12px;
+  font-size: var(--mobius-font-base, 12px);
 }
 
 .sidecar-bottleneck-answers {
   display: flex;
-  gap: 6px;
+  gap: var(--mobius-space-sm, 6px);
   flex-wrap: wrap;
-  margin-top: 3px;
-  padding: 3px 0;
+  margin-top: var(--mobius-space-xs, 3px);
+  padding: var(--mobius-space-xs, 3px) 0;
   align-items: center;
-  border-top: 1px solid rgba(11, 18, 32, 0.04);
+  border-top: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.04));
 }
 
 #mobius-os-sidebar .sidecar-bottleneck-answers button.sidecar-answer-btn,
@@ -2323,16 +2323,16 @@
   box-sizing: border-box !important;
   /* Apply our styles - pill buttons with grey background */
   display: inline-block !important;
-  padding: 3px 8px !important;
+  padding: var(--mobius-space-xs, 3px) var(--mobius-space-sm, 8px) !important;
   margin: 0 !important;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  font-size: 9px !important;
+  font-size: var(--mobius-font-xs, 9px) !important;
   font-weight: 400 !important;
-  background: rgba(11, 18, 32, 0.06) !important;
-  background-color: rgba(11, 18, 32, 0.06) !important;
-  border: 1px solid rgba(11, 18, 32, 0.08) !important;
-  border-radius: 4px !important;
-  color: rgba(91, 102, 122, 0.85) !important;
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.06)) !important;
+  background-color: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.06)) !important;
+  border: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.08)) !important;
+  border-radius: var(--mobius-radius-sm, 4px) !important;
+  color: var(--mobius-text-secondary, rgba(91, 102, 122, 0.85)) !important;
   cursor: pointer !important;
   transition: all 0.15s ease !important;
   text-decoration: none !important;
@@ -2344,10 +2344,10 @@
 
 #mobius-os-sidebar .sidecar-bottleneck-answers button.sidecar-answer-btn:hover,
 .sidecar-answer-btn:hover {
-  background: rgba(11, 18, 32, 0.1) !important;
-  background-color: rgba(11, 18, 32, 0.1) !important;
-  border-color: rgba(11, 18, 32, 0.15) !important;
-  color: #0b1220 !important;
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.1)) !important;
+  background-color: var(--mobius-bg-hover, rgba(11, 18, 32, 0.1)) !important;
+  border-color: var(--mobius-border, rgba(11, 18, 32, 0.15)) !important;
+  color: var(--mobius-text-primary, #0b1220) !important;
 }
 
 #mobius-os-sidebar .sidecar-bottleneck-answers button.sidecar-answer-btn.sidecar-answer-btn--selected,
@@ -2355,11 +2355,11 @@
 .sidecar-bottleneck-answers .sidecar-answer-btn.sidecar-answer-btn--selected,
 .sidecar-answer-btn.sidecar-answer-btn--selected,
 .sidecar-answer-btn--selected {
-  background: rgba(37, 99, 235, 0.15) !important;
-  background-color: rgba(37, 99, 235, 0.15) !important;
-  border: 1px solid rgba(37, 99, 235, 0.35) !important;
-  border-color: rgba(37, 99, 235, 0.35) !important;
-  color: #2563eb !important;
+  background: color-mix(in srgb, var(--mobius-accent, #2563eb) 15%, transparent) !important;
+  background-color: color-mix(in srgb, var(--mobius-accent, #2563eb) 15%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--mobius-accent, #2563eb) 35%, transparent) !important;
+  border-color: color-mix(in srgb, var(--mobius-accent, #2563eb) 35%, transparent) !important;
+  color: var(--mobius-accent, #2563eb) !important;
   font-weight: 500 !important;
 }
 
@@ -2373,35 +2373,35 @@
 .sidecar-assign-btn {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 3px 6px;
-  font-size: 9px;
+  gap: var(--mobius-space-xs, 3px);
+  padding: var(--mobius-space-xs, 3px) var(--mobius-space-sm, 6px);
+  font-size: var(--mobius-font-xs, 9px);
   font-weight: 400;
-  color: rgba(37, 99, 235, 0.9);
-  background: rgba(37, 99, 235, 0.06);
-  border: 1px solid rgba(37, 99, 235, 0.15);
-  border-radius: 6px;
+  color: var(--mobius-accent, rgba(37, 99, 235, 0.9));
+  background: color-mix(in srgb, var(--mobius-accent, #2563eb) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mobius-accent, #2563eb) 15%, transparent);
+  border-radius: var(--mobius-radius-sm, 6px);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .sidecar-assign-btn:hover {
-  background: rgba(37, 99, 235, 0.12);
-  border-color: rgba(37, 99, 235, 0.25);
+  background: color-mix(in srgb, var(--mobius-accent, #2563eb) 12%, transparent);
+  border-color: color-mix(in srgb, var(--mobius-accent, #2563eb) 25%, transparent);
 }
 
 .sidecar-assign-btn--assigned {
-  background: rgba(34, 197, 94, 0.08);
-  border-color: rgba(34, 197, 94, 0.25);
-  color: rgba(34, 197, 94, 0.9);
+  background: color-mix(in srgb, var(--mobius-success, #22c55e) 8%, transparent);
+  border-color: color-mix(in srgb, var(--mobius-success, #22c55e) 25%, transparent);
+  color: var(--mobius-success, rgba(34, 197, 94, 0.9));
 }
 
 .sidecar-assign-label {
-  font-size: 9px;
+  font-size: var(--mobius-font-xs, 9px);
 }
 
 .sidecar-assign-arrow {
-  font-size: 8px;
+  font-size: var(--mobius-font-xs, 8px);
   opacity: 0.6;
 }
 
@@ -2409,15 +2409,15 @@
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 4px;
+  margin-top: var(--mobius-space-xs, 4px);
   min-width: 140px;
-  background: #ffffff;
-  border: 1px solid rgba(11, 18, 32, 0.10);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(2, 6, 23, 0.10);
+  background: var(--mobius-bg-primary, #ffffff);
+  border: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.10));
+  border-radius: var(--mobius-radius-sm, 8px);
+  box-shadow: 0 4px 16px var(--mobius-shadow, rgba(2, 6, 23, 0.10));
   z-index: 100;
   overflow: hidden;
-  padding: 4px 0;
+  padding: var(--mobius-space-xs, 4px) 0;
 }
 
 .sidecar-assign-option {
@@ -2426,10 +2426,10 @@
   align-items: flex-start;
   gap: 1px;
   width: 100%;
-  padding: 6px 10px;
-  font-size: 9px;
+  padding: var(--mobius-space-sm, 6px) var(--mobius-space-sm, 10px);
+  font-size: var(--mobius-font-xs, 9px);
   font-weight: 400;
-  color: #0b1220;
+  color: var(--mobius-text-primary, #0b1220);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -2437,25 +2437,25 @@
 }
 
 .sidecar-assign-option:hover {
-  background: rgba(37, 99, 235, 0.06);
+  background: color-mix(in srgb, var(--mobius-accent, #2563eb) 6%, transparent);
 }
 
 .sidecar-assign-option-text {
-  font-size: 10px;
+  font-size: var(--mobius-font-sm, 10px);
   font-weight: 400;
-  color: #0b1220;
+  color: var(--mobius-text-primary, #0b1220);
 }
 
 .sidecar-assign-option-hint {
-  font-size: 8px;
+  font-size: var(--mobius-font-xs, 8px);
   font-weight: 400;
-  color: rgba(91, 102, 122, 0.6);
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
 
 .sidecar-assign-divider {
   height: 1px;
-  background: rgba(11, 18, 32, 0.08);
-  margin: 4px 0;
+  background: var(--mobius-border-light, rgba(11, 18, 32, 0.08));
+  margin: var(--mobius-space-xs, 4px) 0;
 }
 
 /* Legacy delegate row - hidden but kept for compatibility */
