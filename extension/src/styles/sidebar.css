@@ -2618,9 +2618,9 @@
 .sidecar-icon-btn {
   width: 22px;
   height: 22px;
-  border-radius: 8px;
-  border: 1px solid rgba(11, 18, 32, 0.12);
-  background: rgba(11, 18, 32, 0.03);
+  border-radius: var(--mobius-radius-sm, 8px);
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -2628,35 +2628,35 @@
 }
 
 .sidecar-icon-btn:hover {
-  background: rgba(11, 18, 32, 0.06);
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.06));
 }
 
 .sidecar-icon-btn svg {
-  width: 12px;
-  height: 12px;
-  fill: rgba(11, 18, 32, 0.80);
+  width: var(--mobius-icon-sm, 12px);
+  height: var(--mobius-icon-sm, 12px);
+  fill: var(--mobius-text-secondary, rgba(11, 18, 32, 0.80));
 }
 
 .sidecar-bottleneck-bulk {
-  padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  padding-top: var(--mobius-space-md, 12px);
+  border-top: 1px solid var(--mobius-border, #e5e7eb);
 }
 
 .sidecar-bottleneck-bulk-btn {
   width: 100%;
-  padding: 8px 12px;
-  font-size: 10px;
-  font-weight: 600;
-  background: rgba(11, 18, 32, 0.03);
-  color: #0b1220;
-  border: 1px solid rgba(11, 18, 32, 0.12);
-  border-radius: 10px;
+  padding: var(--mobius-space-sm, 8px) var(--mobius-space-md, 12px);
+  font-size: var(--mobius-font-sm, 10px);
+  font-weight: 500;
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
+  color: var(--mobius-text-primary, #0b1220);
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
+  border-radius: var(--mobius-radius-base, 10px);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .sidecar-bottleneck-bulk-btn:hover:not(:disabled) {
-  background: rgba(11, 18, 32, 0.06);
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.06));
 }
 
 .sidecar-bottleneck-bulk-btn:disabled {
@@ -3252,9 +3252,9 @@
 /* Quick Chat - pinned at bottom, matches Mini note input styling */
 .sidecar-quick-chat {
   flex-shrink: 0;
-  padding: 8px 10px;
-  background: #ffffff;
-  border-top: 1px solid rgba(11, 18, 32, 0.08);
+  padding: var(--mobius-space-sm, 8px) var(--mobius-space-sm, 10px);
+  background: var(--mobius-bg-primary, #ffffff);
+  border-top: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.08));
   margin-top: auto;  /* Push to bottom of flex container */
 }
 
@@ -3262,13 +3262,13 @@
 .sidecar-chat-messages {
   height: 88px;  /* ~5-6 lines at 9px font + padding */
   overflow-y: auto;
-  border: 1px solid rgba(11, 18, 32, 0.1);
-  border-radius: 6px;
-  background: #fafbfc;
-  margin-bottom: 8px;
-  padding: 6px 8px;
+  border: 1px solid var(--mobius-border-light, rgba(11, 18, 32, 0.1));
+  border-radius: var(--mobius-radius-sm, 6px);
+  background: var(--mobius-bg-secondary, #fafbfc);
+  margin-bottom: var(--mobius-space-sm, 8px);
+  padding: var(--mobius-space-sm, 6px) var(--mobius-space-sm, 8px);
   scrollbar-width: thin;
-  scrollbar-color: rgba(11, 18, 32, 0.15) transparent;
+  scrollbar-color: var(--mobius-border, rgba(11, 18, 32, 0.15)) transparent;
 }
 
 .sidecar-chat-messages::-webkit-scrollbar {
@@ -3280,30 +3280,30 @@
 }
 
 .sidecar-chat-messages::-webkit-scrollbar-thumb {
-  background: rgba(11, 18, 32, 0.15);
-  border-radius: 2px;
+  background: var(--mobius-border, rgba(11, 18, 32, 0.15));
+  border-radius: var(--mobius-radius-sm, 2px);
 }
 
 .sidecar-chat-messages::-webkit-scrollbar-thumb:hover {
-  background: rgba(11, 18, 32, 0.25);
+  background: var(--mobius-text-muted, rgba(11, 18, 32, 0.25));
 }
 
 /* Empty state */
 .sidecar-chat-empty {
-  font-size: 9px;
-  color: rgba(91, 102, 122, 0.5);
+  font-size: var(--mobius-font-xs, 9px);
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.5));
   font-style: italic;
   text-align: center;
-  padding: 20px 8px;
+  padding: var(--mobius-space-lg, 20px) var(--mobius-space-sm, 8px);
 }
 
 /* Chat messages */
 .sidecar-chat-message {
-  font-size: 9px;
+  font-size: var(--mobius-font-xs, 9px);
   line-height: 1.4;
-  padding: 4px 6px;
-  border-radius: 4px;
-  margin-bottom: 4px;
+  padding: var(--mobius-space-xs, 4px) var(--mobius-space-sm, 6px);
+  border-radius: var(--mobius-radius-sm, 4px);
+  margin-bottom: var(--mobius-space-xs, 4px);
   max-width: 90%;
 }
 
@@ -3312,15 +3312,15 @@
 }
 
 .sidecar-chat-message.user-message {
-  background: rgba(37, 99, 235, 0.1);
-  color: #1e40af;
+  background: color-mix(in srgb, var(--mobius-accent, #2563eb) 10%, transparent);
+  color: var(--mobius-accent, #1e40af);
   margin-left: auto;
   text-align: right;
 }
 
 .sidecar-chat-message.system-message {
-  background: rgba(11, 18, 32, 0.04);
-  color: #374151;
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.04));
+  color: var(--mobius-text-secondary, #374151);
 }
 
 .sidecar-chat-message-text {
@@ -3328,9 +3328,9 @@
 }
 
 .sidecar-chat-message-source {
-  font-size: 8px;
-  color: rgba(91, 102, 122, 0.6);
-  margin-top: 2px;
+  font-size: var(--mobius-font-xs, 8px);
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
+  margin-top: var(--mobius-space-xs, 2px);
 }
 
 .sidecar-quick-chat-wrapper {
@@ -3341,39 +3341,39 @@
 
 .sidecar-quick-chat-input {
   flex: 1;
-  height: 28px;
-  padding: 0 32px 0 8px;
-  font-size: 9px;
+  height: var(--mobius-button-height, 28px);
+  padding: 0 32px 0 var(--mobius-space-sm, 8px);
+  font-size: var(--mobius-font-xs, 9px);
   font-weight: 400;
-  border: 1px solid rgba(11, 18, 32, 0.12);
-  border-radius: 6px;
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
+  border-radius: var(--mobius-radius-sm, 6px);
   outline: none;
-  color: #0b1220;
-  background: #fff;
+  color: var(--mobius-text-primary, #0b1220);
+  background: var(--mobius-bg-primary, #fff);
 }
 
 .sidecar-quick-chat-input::placeholder {
-  color: rgba(91, 102, 122, 0.5);
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.5));
   font-weight: 400;
 }
 
 .sidecar-quick-chat-input:focus {
-  border-color: rgba(37, 99, 235, 0.35);
+  border-color: color-mix(in srgb, var(--mobius-accent, #2563eb) 35%, transparent);
 }
 
 .sidecar-quick-chat-input:disabled {
-  background: rgba(11, 18, 32, 0.02);
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.02));
 }
 
 .sidecar-quick-chat-send {
   position: absolute;
   right: 0;
-  width: 28px;
-  height: 28px;
+  width: var(--mobius-button-height, 28px);
+  height: var(--mobius-button-height, 28px);
   background: transparent;
   border: none;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--mobius-radius-sm, 6px);
+  font-size: var(--mobius-font-base, 12px);
   cursor: pointer;
   transition: background 0.15s ease;
   display: grid;
@@ -3381,7 +3381,7 @@
 }
 
 .sidecar-quick-chat-send:hover:not(:disabled) {
-  background: rgba(11, 18, 32, 0.04);
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.04));
 }
 
 .sidecar-quick-chat-send:disabled {
@@ -3389,46 +3389,46 @@
 }
 
 .sidecar-quick-chat-send svg {
-  width: 14px;
-  height: 14px;
+  width: var(--mobius-icon-sm, 14px);
+  height: var(--mobius-icon-sm, 14px);
   display: block;
-  fill: rgba(91, 102, 122, 0.6);
+  fill: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
 
 .sidecar-quick-chat-send:hover:not(:disabled) svg {
-  fill: rgba(91, 102, 122, 0.9);
+  fill: var(--mobius-text-secondary, rgba(91, 102, 122, 0.9));
 }
 
 .sidecar-quick-chat-send:disabled svg {
-  fill: rgba(11, 18, 32, 0.2);
+  fill: var(--mobius-border, rgba(11, 18, 32, 0.2));
 }
 
 .sidecar-quick-chat-hint {
-  font-size: 9px;
+  font-size: var(--mobius-font-xs, 9px);
   font-weight: 400;
-  color: rgba(91, 102, 122, 0.5);
-  margin-top: 6px;
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.5));
+  margin-top: var(--mobius-space-sm, 6px);
 }
 
 .sidecar-quick-chat-response {
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
+  background: var(--mobius-bg-secondary, #f0f9ff);
+  border: 1px solid var(--mobius-border, #bae6fd);
+  border-radius: var(--mobius-radius-sm, 8px);
+  padding: var(--mobius-space-md, 12px);
+  margin-bottom: var(--mobius-space-sm, 8px);
   position: relative;
 }
 
 .sidecar-quick-chat-response-text {
-  font-size: 13px;
-  color: #1e3a5f;
+  font-size: var(--mobius-font-base, 13px);
+  color: var(--mobius-text-primary, #1e3a5f);
   line-height: 1.4;
 }
 
 .sidecar-quick-chat-response-source {
-  font-size: 11px;
-  color: #6b7280;
-  margin-top: 6px;
+  font-size: var(--mobius-font-sm, 11px);
+  color: var(--mobius-text-secondary, #6b7280);
+  margin-top: var(--mobius-space-sm, 6px);
 }
 
 .sidecar-quick-chat-response-dismiss {
