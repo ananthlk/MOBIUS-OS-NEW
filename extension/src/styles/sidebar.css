@@ -500,22 +500,22 @@
   line-height: 1.4;
   -webkit-appearance: none;
   appearance: none;
-  color: #0b1220;
+  color: var(--mobius-text-primary, #0b1220);
 }
 
 #mobius-os-sidebar .chat-input::placeholder {
-  color: rgba(91, 102, 122, 0.7);
+  color: var(--mobius-text-muted, rgba(91, 102, 122, 0.7));
 }
 
 #mobius-os-sidebar .chat-input:focus {
-  border-color: #2563eb;
+  border-color: var(--mobius-accent, #2563eb);
 }
 
 /* Message-level tools (system messages) */
 #mobius-os-sidebar .message-header {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 6px;
+  margin-bottom: var(--mobius-space-sm, 6px);
 }
 
 #mobius-os-sidebar .message-tools {
@@ -525,9 +525,9 @@
 #mobius-os-sidebar .message-tools-btn {
   width: 22px;
   height: 22px;
-  border: 1px solid rgba(11, 18, 32, 0.12);
-  background: rgba(11, 18, 32, 0.03);
-  border-radius: 6px;
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
+  border-radius: var(--mobius-radius-sm, 6px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -536,18 +536,18 @@
 }
 
 #mobius-os-sidebar .message-tools-btn:hover {
-  background: rgba(11, 18, 32, 0.06);
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.06));
 }
 
 #mobius-os-sidebar .message-tools-dropdown {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 6px;
-  background: #fff;
-  border: 1px solid rgba(11, 18, 32, 0.12);
-  border-radius: 12px;
-  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.18);
+  margin-top: var(--mobius-space-sm, 6px);
+  background: var(--mobius-bg-primary, #fff);
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
+  border-radius: var(--mobius-radius-lg, 12px);
+  box-shadow: 0 14px 28px var(--mobius-shadow-strong, rgba(2, 6, 23, 0.18));
   display: none;
   flex-direction: column;
   min-width: 140px;
@@ -559,32 +559,32 @@
 }
 
 #mobius-os-sidebar .message-tools-item {
-  padding: 10px 12px;
+  padding: var(--mobius-space-sm, 10px) var(--mobius-space-md, 12px);
   border: none;
-  background: white;
+  background: var(--mobius-bg-primary, white);
   text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  color: #0b1220;
+  font-size: var(--mobius-font-base, 12px);
+  font-weight: 500;
+  color: var(--mobius-text-primary, #0b1220);
 }
 
 #mobius-os-sidebar .message-tools-item:hover {
-  background: rgba(11, 18, 32, 0.04);
+  background: var(--mobius-bg-hover, rgba(11, 18, 32, 0.04));
 }
 
 /* Chat tools (make compact, not stacked) */
 #mobius-os-sidebar .chat-tools {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mobius-space-sm, 6px);
 }
 
 #mobius-os-sidebar .chat-tool-btn {
   width: 22px;
   height: 22px;
-  border: 1px solid rgba(11, 18, 32, 0.12);
-  background: rgba(11, 18, 32, 0.03);
-  border-radius: 6px;
+  border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
+  background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
+  border-radius: var(--mobius-radius-sm, 6px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -592,7 +592,7 @@
 }
 
 #mobius-os-sidebar .chat-tool-btn:hover {
-  background: rgba(60, 64, 67, 0.06);
+  background: var(--mobius-bg-hover, rgba(60, 64, 67, 0.06));
 }
 
 #mobius-os-sidebar .tools-menu {
@@ -603,11 +603,11 @@
   position: absolute;
   bottom: 100%;
   right: 0;
-  margin-bottom: 6px;
-  background: white;
-  border: 1px solid rgba(60, 64, 67, 0.18);
-  border-radius: 10px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+  margin-bottom: var(--mobius-space-sm, 6px);
+  background: var(--mobius-bg-primary, white);
+  border: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.18));
+  border-radius: var(--mobius-radius-base, 10px);
+  box-shadow: 0 10px 24px var(--mobius-shadow-strong, rgba(0,0,0,0.10));
   display: none;
   flex-direction: column;
   min-width: 140px;
@@ -619,83 +619,83 @@
 }
 
 #mobius-os-sidebar .tools-dropdown button {
-  padding: 10px 12px;
+  padding: var(--mobius-space-sm, 10px) var(--mobius-space-md, 12px);
   border: none;
-  background: white;
+  background: var(--mobius-bg-primary, white);
   text-align: left;
-  font-size: 12px;
+  font-size: var(--mobius-font-base, 12px);
 }
 
 #mobius-os-sidebar .tools-dropdown button:hover {
-  background: rgba(60, 64, 67, 0.06);
+  background: var(--mobius-bg-hover, rgba(60, 64, 67, 0.06));
 }
 
 /* Record ID Input */
 #mobius-os-sidebar .record-id-input {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  border-top: 1px solid rgba(60, 64, 67, 0.12);
-  background: white;
+  padding-top: var(--mobius-space-sm, 8px);
+  padding-bottom: var(--mobius-space-sm, 8px);
+  border-top: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.12));
+  background: var(--mobius-bg-primary, white);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--mobius-space-sm, 8px);
   flex-shrink: 0;
 }
 
 #mobius-os-sidebar .record-id-input label {
-  font-size: 11px;
-  color: #5f6368;
-  font-weight: 600;
+  font-size: var(--mobius-font-sm, 11px);
+  color: var(--mobius-text-secondary, #5f6368);
+  font-weight: 500;
   white-space: nowrap;
 }
 
 #mobius-os-sidebar .record-id-input select {
-  padding: 6px 8px;
-  border: 1px solid rgba(60, 64, 67, 0.18);
-  border-radius: 8px;
-  font-size: 12px;
-  background: #fff;
+  padding: var(--mobius-space-sm, 6px) var(--mobius-space-sm, 8px);
+  border: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.18));
+  border-radius: var(--mobius-radius-sm, 8px);
+  font-size: var(--mobius-font-base, 12px);
+  background: var(--mobius-bg-primary, #fff);
 }
 
 #mobius-os-sidebar .record-id-input input {
   flex: 1;
-  padding: 7px 10px;
-  border: 1px solid rgba(60, 64, 67, 0.18);
-  border-radius: 8px;
-  font-size: 12px;
+  padding: var(--mobius-space-sm, 7px) var(--mobius-space-sm, 10px);
+  border: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.18));
+  border-radius: var(--mobius-radius-sm, 8px);
+  font-size: var(--mobius-font-base, 12px);
   outline: none;
 }
 
 /* Workflow Buttons */
 #mobius-os-sidebar .workflow-buttons {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  border-top: 1px solid rgba(60, 64, 67, 0.12);
-  background: #fff;
+  padding-top: var(--mobius-space-sm, 8px);
+  padding-bottom: var(--mobius-space-sm, 8px);
+  border-top: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.12));
+  background: var(--mobius-bg-primary, #fff);
   display: flex;
-  gap: 8px;
+  gap: var(--mobius-space-sm, 8px);
   flex-wrap: wrap;
   flex-shrink: 0;
 }
 
 #mobius-os-sidebar .context-button {
-  padding: 8px 10px;
-  background: rgba(60, 64, 67, 0.06);
-  border: 1px solid rgba(60, 64, 67, 0.10);
-  border-radius: 10px;
-  font-size: 12px;
+  padding: var(--mobius-space-sm, 8px) var(--mobius-space-sm, 10px);
+  background: var(--mobius-bg-tertiary, rgba(60, 64, 67, 0.06));
+  border: 1px solid var(--mobius-border-light, rgba(60, 64, 67, 0.10));
+  border-radius: var(--mobius-radius-base, 10px);
+  font-size: var(--mobius-font-base, 12px);
 }
 
 #mobius-os-sidebar .context-button:hover {
-  background: rgba(60, 64, 67, 0.10);
+  background: var(--mobius-bg-hover, rgba(60, 64, 67, 0.10));
 }
 
 /* Footer */
 #mobius-os-sidebar .footer {
-  padding-top: 10px;
-  padding-bottom: 10px;
-  border-top: 1px solid rgba(60, 64, 67, 0.12);
-  background: #fff;
+  padding-top: var(--mobius-space-sm, 10px);
+  padding-bottom: var(--mobius-space-sm, 10px);
+  border-top: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.12));
+  background: var(--mobius-bg-primary, #fff);
   flex-shrink: 0;
 }
 
@@ -703,13 +703,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: var(--mobius-space-sm, 10px);
   flex-wrap: nowrap;
 }
 
 #mobius-os-sidebar .user-info {
-  font-size: 12px;
-  color: #5f6368;
+  font-size: var(--mobius-font-base, 12px);
+  color: var(--mobius-text-secondary, #5f6368);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -718,8 +718,8 @@
 
 #mobius-os-sidebar .preferences {
   display: flex;
-  gap: 10px;
-  font-size: 11px;
+  gap: var(--mobius-space-sm, 10px);
+  font-size: var(--mobius-font-sm, 11px);
   align-items: center;
   white-space: nowrap;
 }
@@ -733,7 +733,7 @@
 
 #mobius-os-sidebar .preferences-expanded {
   display: none;
-  margin-top: 6px;
+  margin-top: var(--mobius-space-sm, 6px);
 }
 
 #mobius-os-sidebar .preferences-expanded.show {
@@ -743,70 +743,70 @@
 #mobius-os-sidebar .preference-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--mobius-space-sm, 8px);
   justify-content: flex-end;
-  margin-bottom: 6px;
+  margin-bottom: var(--mobius-space-sm, 6px);
 }
 
 #mobius-os-sidebar .preference-group label {
-  font-size: 11px;
-  color: #5f6368;
+  font-size: var(--mobius-font-sm, 11px);
+  color: var(--mobius-text-secondary, #5f6368);
   white-space: nowrap;
 }
 
 #mobius-os-sidebar .preference-group select {
-  padding: 6px 8px;
-  border: 1px solid rgba(60, 64, 67, 0.18);
-  border-radius: 8px;
-  font-size: 12px;
-  background: #fff;
+  padding: var(--mobius-space-sm, 6px) var(--mobius-space-sm, 8px);
+  border: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.18));
+  border-radius: var(--mobius-radius-sm, 8px);
+  font-size: var(--mobius-font-base, 12px);
+  background: var(--mobius-bg-primary, #fff);
 }
 
 #mobius-os-sidebar .preference-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 6px;
-  border-radius: 8px;
+  gap: var(--mobius-space-sm, 6px);
+  padding: var(--mobius-space-xs, 3px) var(--mobius-space-sm, 6px);
+  border-radius: var(--mobius-radius-sm, 8px);
 }
 
 #mobius-os-sidebar .preference-item:hover {
-  background: rgba(60, 64, 67, 0.06);
+  background: var(--mobius-bg-hover, rgba(60, 64, 67, 0.06));
 }
 
 #mobius-os-sidebar .pref-value {
-  color: #1a73e8;
-  font-weight: 600;
-  font-size: 11px;
+  color: var(--mobius-accent, #1a73e8);
+  font-weight: 500;
+  font-size: var(--mobius-font-sm, 11px);
 }
 
 /* Guidance / Follow-up actions (system message CTA buttons) */
 #mobius-os-sidebar .guidance-actions {
-  margin-top: 8px;
-  padding: 6px 8px;
+  margin-top: var(--mobius-space-sm, 8px);
+  padding: var(--mobius-space-sm, 6px) var(--mobius-space-sm, 8px);
   display: flex;
-  gap: 6px;
+  gap: var(--mobius-space-sm, 6px);
   flex-wrap: wrap;
   align-items: center;
-  border-radius: 10px;
-  border: 1px solid rgba(26, 115, 232, 0.18);
-  background: rgba(26, 115, 232, 0.06);
+  border-radius: var(--mobius-radius-base, 10px);
+  border: 1px solid color-mix(in srgb, var(--mobius-accent, #1a73e8) 18%, transparent);
+  background: color-mix(in srgb, var(--mobius-accent, #1a73e8) 6%, transparent);
 }
 
 #mobius-os-sidebar .guidance-action-btn {
   appearance: none;
-  border: 1px solid rgba(26, 115, 232, 0.28);
-  background: rgba(26, 115, 232, 0.10);
-  color: #174ea6;
-  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--mobius-accent, #1a73e8) 28%, transparent);
+  background: color-mix(in srgb, var(--mobius-accent, #1a73e8) 10%, transparent);
+  color: var(--mobius-accent, #174ea6);
+  padding: var(--mobius-space-xs, 5px) var(--mobius-space-sm, 10px);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--mobius-font-base, 12px);
   line-height: 1.2;
 }
 
 #mobius-os-sidebar .guidance-action-btn:hover {
-  background: rgba(26, 115, 232, 0.16);
-  border-color: rgba(26, 115, 232, 0.38);
+  background: color-mix(in srgb, var(--mobius-accent, #1a73e8) 16%, transparent);
+  border-color: color-mix(in srgb, var(--mobius-accent, #1a73e8) 38%, transparent);
 }
 
 /**
