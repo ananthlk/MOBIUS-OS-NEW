@@ -152,42 +152,42 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * CSS styles for greeting row
+ * CSS styles for greeting row (uses CSS variables for theming)
  */
 export const GREETING_ROW_STYLES = `
 .mobius-mini-greeting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
-  background: #f0f9ff;
-  border-bottom: 1px solid #e0f2fe;
+  padding: var(--mobius-space-sm, 8px) var(--mobius-space-sm, 10px);
+  background: var(--mobius-bg-secondary, #f0f9ff);
+  border-bottom: 1px solid var(--mobius-border-light, #e0f2fe);
 }
 
 .mobius-mini-greeting-main {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--mobius-space-xs, 4px);
   background: none;
   border: none;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: var(--mobius-space-xs, 2px) var(--mobius-space-sm, 6px);
+  border-radius: var(--mobius-radius-sm, 4px);
   transition: background 0.15s;
 }
 
 .mobius-mini-greeting-main:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--mobius-accent, #3b82f6) 10%, transparent);
 }
 
 .mobius-mini-greeting-text {
-  font-size: 11px;
-  font-weight: 500;
-  color: #0369a1;
+  font-size: var(--mobius-font-sm, 11px);
+  font-weight: 400;
+  color: var(--mobius-accent, #0369a1);
 }
 
 .mobius-mini-greeting-chevron {
-  color: #0369a1;
+  color: var(--mobius-accent, #0369a1);
   opacity: 0.7;
 }
 
@@ -195,16 +195,16 @@ export const GREETING_ROW_STYLES = `
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  color: #94a3b8;
+  padding: var(--mobius-space-xs, 4px);
+  border-radius: var(--mobius-radius-sm, 4px);
+  color: var(--mobius-text-muted, #94a3b8);
   opacity: 0.6;
   transition: all 0.15s;
 }
 
 .mobius-mini-greeting-dismiss:hover {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--mobius-bg-hover, rgba(0, 0, 0, 0.05));
 }
 
 /* User Dropdown */
@@ -213,10 +213,10 @@ export const GREETING_ROW_STYLES = `
   top: 100%;
   left: 0;
   right: 0;
-  margin-top: 4px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  margin-top: var(--mobius-space-xs, 4px);
+  background: var(--mobius-bg-primary, white);
+  border-radius: var(--mobius-radius-sm, 8px);
+  box-shadow: 0 4px 16px var(--mobius-shadow-strong, rgba(0, 0, 0, 0.15));
   z-index: 1000;
   overflow: hidden;
 }
@@ -224,22 +224,22 @@ export const GREETING_ROW_STYLES = `
 .mobius-mini-dropdown-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: #f8fafc;
+  gap: var(--mobius-space-sm, 10px);
+  padding: var(--mobius-space-md, 12px);
+  background: var(--mobius-bg-secondary, #f8fafc);
 }
 
 .mobius-mini-dropdown-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #3b82f6;
-  color: white;
+  background: var(--mobius-accent, #3b82f6);
+  color: var(--mobius-bg-primary, white);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 500;
+  font-size: var(--mobius-font-base, 14px);
 }
 
 .mobius-mini-dropdown-info {
@@ -247,49 +247,49 @@ export const GREETING_ROW_STYLES = `
 }
 
 .mobius-mini-dropdown-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: #0b1220;
+  font-size: var(--mobius-font-sm, 11px);
+  font-weight: 500;
+  color: var(--mobius-text-primary, #0b1220);
 }
 
 .mobius-mini-dropdown-email {
-  font-size: 9px;
-  color: #64748b;
+  font-size: var(--mobius-font-xs, 9px);
+  color: var(--mobius-text-secondary, #64748b);
 }
 
 .mobius-mini-dropdown-divider {
   height: 1px;
-  background: #e2e8f0;
+  background: var(--mobius-border, #e2e8f0);
 }
 
 .mobius-mini-dropdown-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--mobius-space-sm, 10px);
   width: 100%;
-  padding: 10px 12px;
+  padding: var(--mobius-space-sm, 10px) var(--mobius-space-md, 12px);
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 10px;
-  color: #374151;
+  font-size: var(--mobius-font-sm, 10px);
+  color: var(--mobius-text-secondary, #374151);
   text-align: left;
   transition: background 0.15s;
 }
 
 .mobius-mini-dropdown-item:hover {
-  background: #f8fafc;
+  background: var(--mobius-bg-secondary, #f8fafc);
 }
 
 .mobius-mini-dropdown-item svg {
-  color: #64748b;
+  color: var(--mobius-text-secondary, #64748b);
 }
 
 .mobius-mini-dropdown-signout {
-  color: #dc2626;
+  color: var(--mobius-danger, #dc2626);
 }
 
 .mobius-mini-dropdown-signout svg {
-  color: #dc2626;
+  color: var(--mobius-danger, #dc2626);
 }
 `;
