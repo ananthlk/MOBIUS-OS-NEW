@@ -15,8 +15,8 @@ You must load the extension from the **`dist`** folder, NOT the `extension` fold
 
 3. **Load Unpacked Extension**
    - Click the "Load unpacked" button
-   - Navigate to: `/Users/ananth/Mobius OS/extension/dist`
-   - **NOT** `/Users/ananth/Mobius OS/extension`
+   - Navigate to: `/Users/ananth/Mobius/mobius-os/extension/dist`
+   - **NOT** `/Users/ananth/Mobius/mobius-os/extension`
    - Select the `dist` folder and click "Select"
 
 4. **Verify Extension Loaded**

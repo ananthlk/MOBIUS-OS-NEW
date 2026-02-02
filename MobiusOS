@@ -3,7 +3,7 @@
 # Mobius OS - Wake Up Script
 # Usage: MobiusOS
 
-MOBIUS_DIR="/Users/ananth/Mobius OS"
+MOBIUS_DIR="/Users/ananth/Mobius/mobius-os"
 
 echo "🌀 Awakening Mobius OS..."
 
