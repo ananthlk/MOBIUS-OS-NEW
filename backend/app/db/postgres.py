@@ -31,6 +31,8 @@ def get_engine():
             pool_pre_ping=True,  # Verify connections before use
             pool_recycle=300,  # Recycle connections every 5 minutes
             pool_reset_on_return="rollback",  # Auto-rollback when connection returns to pool
+            pool_size=2,  # Cap connections per instance (shared DB e.g. db-f1-micro ~25 conns)
+            max_overflow=3,
         )
         
         # Add event listener to rollback any pending transaction when checking out
