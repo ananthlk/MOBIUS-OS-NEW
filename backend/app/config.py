@@ -49,6 +49,11 @@ class Config:
     FIRESTORE_DATABASE_CLOUD = os.getenv("FIRESTORE_DATABASE_CLOUD", "(default)")
     ENABLE_FIRESTORE = os.getenv("ENABLE_FIRESTORE", "false").lower() == "true"
 
+    # RAG / Corpus search — mobius-rag service URL
+    # Used by corpus_search.search() and the /api/v1/skills/corpus_search endpoint.
+    # Example: https://mobius-rag-xxxx-uc.a.run.app
+    RAG_API_URL = os.getenv("RAG_API_URL", "")
+
     @classmethod
     def get_database_url(cls) -> str:
         """Build PostgreSQL connection URL based on DATABASE_MODE."""
