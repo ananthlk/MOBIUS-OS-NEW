@@ -27,7 +27,7 @@
 substitutions:
   _SERVICE_NAME: mobius-os-backend
   _REGION: us-central1
-  _CLOUDSQL_INSTANCE: mobius-db
+  _CLOUDSQL_INSTANCE: mobius-platform-dev-db
   _TAG: latest
 
 steps:
@@ -70,7 +70,7 @@ steps:
       - '--add-cloudsql-instances'
       - '$PROJECT_ID:${_REGION}:${_CLOUDSQL_INSTANCE}'
       - '--set-env-vars'
-      - 'DATABASE_MODE=cloud,ENABLE_FIRESTORE=true,FLASK_ENV=production,FLASK_DEBUG=0,CLOUDSQL_CONNECTION_NAME=$PROJECT_ID:${_REGION}:${_CLOUDSQL_INSTANCE},POSTGRES_DB_CLOUD=mobius,POSTGRES_USER_CLOUD=postgres,GCP_PROJECT_ID=$PROJECT_ID'
+      - 'DATABASE_MODE=cloud,ENABLE_FIRESTORE=true,FLASK_ENV=production,FLASK_DEBUG=0,CLOUDSQL_CONNECTION_NAME=$PROJECT_ID:${_REGION}:${_CLOUDSQL_INSTANCE},POSTGRES_DB_CLOUD=mobius_os,POSTGRES_USER_CLOUD=postgres,GCP_PROJECT_ID=$PROJECT_ID,RAG_API_URL=https://mobius-rag-1032922478554.us-central1.run.app'
       - '--set-secrets'
       - 'POSTGRES_PASSWORD_CLOUD=db-password:latest,SECRET_KEY=app-secret-key:latest'
       - '--memory'
