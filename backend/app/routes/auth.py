@@ -4,6 +4,7 @@ Authentication Routes for User Awareness Sprint.
 Endpoints:
 - POST /api/v1/auth/register - Create account with email/password
 - POST /api/v1/auth/login - Login with email/password
+- POST /api/v1/auth/google - Sign in or sign up with a Google ID token
 - POST /api/v1/auth/refresh - Refresh access token
 - POST /api/v1/auth/logout - Invalidate session
 - GET /api/v1/auth/me - Get current user profile
@@ -11,15 +12,19 @@ Endpoints:
 - GET /api/v1/auth/check-email - Check if email exists (for page detection)
 """
 
+import logging
 import uuid
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 from app.services.auth_service import get_auth_service
+from app.services.welcome_email import send_welcome_email
 from app.db.postgres import get_db_session
 from app.models.tenant import AppUser
 from app.models.activity import Activity, UserActivity
 from app.models.probability import UserPreference
+
+logger = logging.getLogger(__name__)
 
 
 bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
@@ -86,17 +91,76 @@ def register():
     
     if error:
         return jsonify({"error": error}), 400
-    
+
     # Auto-login after registration
     auth_response, _ = auth_service.authenticate_email(
         email=email,
         password=password,
         tenant_id=tenant_id,
     )
-    
+
+    # Best-effort welcome email — never blocks signup on failure.
+    try:
+        send_welcome_email(
+            user_id=str(user.user_id),
+            email=user.email or email,
+            first_name=user.first_name or first_name or None,
+        )
+    except Exception:
+        logger.warning("register: welcome email send raised", exc_info=True)
+
     return jsonify({
         "ok": True,
         "message": "Registration successful",
+        "is_new_user": True,
+        **auth_response,
+    })
+
+
+# =============================================================================
+# Google Sign-In / Sign-Up
+# =============================================================================
+
+@bp.route("/google", methods=["POST"])
+def google_sign_in():
+    """Sign in (or auto-create on first time) with a Google ID token.
+
+    Frontend obtains the ID token via Google Identity Services, then POSTs:
+        { "id_token": "<google id token>", "tenant_id": "<optional>" }
+    """
+    data = request.json or {}
+    id_token_str = (data.get("id_token") or "").strip()
+    tenant_id = _get_tenant_id(data)
+    device_info = data.get("device_info")
+
+    if not id_token_str:
+        return jsonify({"error": "id_token is required"}), 400
+
+    auth_service = get_auth_service()
+    auth_service.get_or_create_default_tenant()
+
+    auth_response, is_new_user, error = auth_service.authenticate_google(
+        id_token_str=id_token_str,
+        tenant_id=tenant_id,
+        device_info=device_info,
+    )
+    if error:
+        return jsonify({"error": error}), 401
+
+    if is_new_user:
+        user = (auth_response or {}).get("user") or {}
+        try:
+            send_welcome_email(
+                user_id=str(user.get("user_id") or ""),
+                email=str(user.get("email") or ""),
+                first_name=user.get("first_name"),
+            )
+        except Exception:
+            logger.warning("google: welcome email send raised", exc_info=True)
+
+    return jsonify({
+        "ok": True,
+        "is_new_user": is_new_user,
         **auth_response,
     })
 

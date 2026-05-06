@@ -9,6 +9,7 @@ Handles:
 - User lookup and creation
 """
 
+import os
 import uuid
 import hashlib
 import secrets
@@ -23,11 +24,15 @@ from app.models.activity import Activity, UserActivity
 from app.models.probability import UserPreference
 
 
-# JWT Configuration
-JWT_SECRET = "mobius-os-secret-key-change-in-production"  # TODO: Use environment variable
+# JWT Configuration. Must match what mobius-chat reads from get_secret("JWT_SECRET")
+# so the chat side can validate access tokens this service issues.
+JWT_SECRET = os.getenv("JWT_SECRET") or "mobius-os-secret-key-change-in-production"
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+# Google OAuth — sign-in only flow, ID-token verification.
+GOOGLE_CLIENT_ID = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
 
 
 class AuthService:
@@ -248,35 +253,25 @@ class AuthService:
     # Authentication
     # =========================================================================
     
-    def authenticate_email(
+    def _issue_session_for_user(
         self,
-        email: str,
-        password: str,
-        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
         device_info: Optional[dict] = None,
-    ) -> Tuple[Optional[dict], Optional[str]]:
-        """Authenticate user with email/password.
-        
-        Returns:
-            Tuple of (auth_response, error_message)
+    ) -> dict:
+        """Issue tokens + auth_response envelope for an already-authenticated user.
+
+        Pulls a fresh AppUser inside this session so the response always reflects
+        current DB state (display_name, preferred_name, is_onboarded) — important
+        for a user we just created via OAuth.
         """
         with get_db_session() as session:
             user = session.query(AppUser).filter(
-                AppUser.email == email,
-                AppUser.tenant_id == tenant_id,
-                AppUser.status == "active"
+                AppUser.user_id == user_id,
+                AppUser.status == "active",
             ).first()
-            
             if not user:
-                return None, "Invalid email or password"
-            
-            if not user.password_hash:
-                return None, "Account uses OAuth login"
-            
-            if not self.verify_password(password, user.password_hash):
-                return None, "Invalid email or password"
-            
-            # Create session
+                raise RuntimeError(f"User {user_id} not found while issuing session")
+
             user_session = UserSession(
                 user_id=user.user_id,
                 device_info=device_info,
@@ -284,25 +279,18 @@ class AuthService:
             )
             session.add(user_session)
             session.flush()
-            
-            # Generate tokens
+
             access_token = self.create_access_token(user.user_id, user.tenant_id)
             refresh_token = self.create_refresh_token(user.user_id, user_session.session_id)
-            
-            # Store refresh token hash
+
             user_session.refresh_token_hash = self.hash_refresh_token(refresh_token)
-            
-            # Update last login
             user.last_login_at = datetime.utcnow()
-            
             session.commit()
-            
-            # Load user activities
+
             activities = []
             user_activities = session.query(UserActivity).filter(
                 UserActivity.user_id == user.user_id
             ).all()
-            
             for ua in user_activities:
                 activity = session.query(Activity).filter(
                     Activity.activity_id == ua.activity_id
@@ -313,12 +301,11 @@ class AuthService:
                         "label": activity.label,
                         "is_primary": ua.is_primary,
                     })
-            
-            # Load user preference
+
             preference = session.query(UserPreference).filter(
                 UserPreference.user_id == user.user_id
             ).first()
-            
+
             return {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
@@ -339,8 +326,123 @@ class AuthService:
                         "autonomy_routine_tasks": preference.autonomy_routine_tasks if preference else "confirm_first",
                         "autonomy_sensitive_tasks": preference.autonomy_sensitive_tasks if preference else "confirm_first",
                     } if preference else None,
-                }
-            }, None
+                },
+            }
+
+    def authenticate_email(
+        self,
+        email: str,
+        password: str,
+        tenant_id: uuid.UUID,
+        device_info: Optional[dict] = None,
+    ) -> Tuple[Optional[dict], Optional[str]]:
+        """Authenticate user with email/password.
+
+        Returns:
+            Tuple of (auth_response, error_message)
+        """
+        with get_db_session() as session:
+            user = session.query(AppUser).filter(
+                AppUser.email == email,
+                AppUser.tenant_id == tenant_id,
+                AppUser.status == "active"
+            ).first()
+
+            if not user:
+                return None, "Invalid email or password"
+
+            if not user.password_hash:
+                return None, "Account uses OAuth login"
+
+            if not self.verify_password(password, user.password_hash):
+                return None, "Invalid email or password"
+
+            user_id = user.user_id
+
+        return self._issue_session_for_user(user_id, device_info=device_info), None
+
+    # =========================================================================
+    # Google Sign-In (ID-token verification, sign-in only)
+    # =========================================================================
+
+    def verify_google_id_token(self, id_token_str: str) -> Tuple[Optional[dict], Optional[str]]:
+        """Verify a Google ID token. Returns (claims, error).
+
+        Requires GOOGLE_CLIENT_ID set in env. Uses google-auth's id_token.verify_oauth2_token,
+        which validates signature against Google's JWKS, expiry, and audience.
+        """
+        if not GOOGLE_CLIENT_ID:
+            return None, "Google sign-in not configured (GOOGLE_CLIENT_ID missing)"
+        if not id_token_str or not id_token_str.strip():
+            return None, "Missing id_token"
+        try:
+            from google.oauth2 import id_token as google_id_token
+            from google.auth.transport import requests as google_requests
+        except ImportError:
+            return None, "google-auth not installed on server"
+        try:
+            claims = google_id_token.verify_oauth2_token(
+                id_token_str,
+                google_requests.Request(),
+                GOOGLE_CLIENT_ID,
+            )
+        except ValueError as exc:
+            return None, f"Invalid Google ID token: {exc}"
+
+        if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+            return None, "Invalid token issuer"
+        if not claims.get("email"):
+            return None, "Google account has no email claim"
+        if claims.get("email_verified") is False:
+            return None, "Google email is not verified"
+        return claims, None
+
+    def authenticate_google(
+        self,
+        id_token_str: str,
+        tenant_id: uuid.UUID,
+        device_info: Optional[dict] = None,
+    ) -> Tuple[Optional[dict], bool, Optional[str]]:
+        """Authenticate (or auto-create) a user from a Google ID token.
+
+        Returns:
+            (auth_response, is_new_user, error_message)
+        """
+        claims, err = self.verify_google_id_token(id_token_str)
+        if err:
+            return None, False, err
+
+        provider_user_id = str(claims["sub"])
+        email = str(claims["email"]).strip().lower()
+        given_name = (claims.get("given_name") or "").strip() or None
+        family_name = (claims.get("family_name") or "").strip() or None
+        full_name = (claims.get("name") or "").strip() or None
+        avatar_url = claims.get("picture") or None
+        display_name = full_name or (
+            f"{given_name} {family_name}".strip() if (given_name or family_name) else None
+        )
+
+        existing = self.get_user_by_provider("google", provider_user_id)
+        is_new_user = False
+
+        if existing is None:
+            # No google link yet. create_user_from_oauth handles "email already exists,
+            # link provider to existing user" — in that case we shouldn't claim is_new_user.
+            email_match = self.get_user_by_email(email, tenant_id)
+            user = self.create_user_from_oauth(
+                tenant_id=tenant_id,
+                provider="google",
+                provider_user_id=provider_user_id,
+                email=email,
+                display_name=display_name,
+                first_name=given_name,
+                avatar_url=avatar_url,
+            )
+            is_new_user = email_match is None
+        else:
+            user = existing
+
+        return self._issue_session_for_user(user.user_id, device_info=device_info), is_new_user, None
     
     def refresh_access_token(self, refresh_token: str) -> Tuple[Optional[dict], Optional[str]]:
         """Refresh an access token using a refresh token.
