@@ -2,6 +2,8 @@
  * Background service worker for Mobius OS extension
  */
 
+import { AUTH_BASE_URL } from './config';
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[Mobius OS] Extension installed');
 
@@ -48,6 +50,36 @@ const PERSISTENT_KEYS = [
  */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || !message.type) return false;
+
+  // Proxy auth API calls to the shared mobius-user service. Content scripts
+  // fetch under the host page's origin and get blocked by mobius-user's CORS
+  // allowlist; the background worker fetches in the extension context, which
+  // host_permissions exempts from CORS. Only the auth service origin is
+  // allowed — this is not a general-purpose fetch proxy.
+  if (message.type === 'mobius:auth:fetch') {
+    const url = String(message.url || '');
+    if (!url.startsWith(`${AUTH_BASE_URL}/`)) {
+      sendResponse({ ok: false, error: 'URL not allowed' });
+      return false;
+    }
+    const init: RequestInit = { method: String(message.method || 'GET') };
+    if (message.headers && typeof message.headers === 'object') {
+      init.headers = message.headers as Record<string, string>;
+    }
+    if (typeof message.body === 'string') {
+      init.body = message.body;
+    }
+    fetch(url, init)
+      .then(async (r) => {
+        const json = await r.json().catch(() => null);
+        sendResponse({ ok: true, status: r.status, json });
+      })
+      .catch((error) => {
+        console.error('[Mobius Background] Auth fetch error:', error);
+        sendResponse({ ok: false, error: String(error) });
+      });
+    return true; // Keep channel open for async response
+  }
 
   // Handle auth storage operations
   if (message.type === 'mobius:auth:getStorage') {

@@ -10,9 +10,49 @@
 
 import { AuthTokens, UserProfile, AuthState } from '../types';
 
-import { API_V1_URL } from '../config';
+import { AUTH_API_V1_URL } from '../config';
 
-const API_BASE = API_V1_URL;
+// All auth traffic goes to the shared mobius-user service — the same
+// identity provider mobius-chat uses — never to the mobius-os backend.
+const API_BASE = AUTH_API_V1_URL;
+
+/**
+ * Fetch against the auth service via the background worker.
+ *
+ * Content scripts fetch under the host page's origin, and mobius-user
+ * enforces a CORS origin allowlist that can never include arbitrary host
+ * pages — so every auth call is proxied through the background service
+ * worker, whose extension-context fetch is exempt from page CORS.
+ * Mirrors the subset of the Response interface the call sites use.
+ */
+export async function apiFetch(
+  url: string,
+  init: { method?: string; headers?: Record<string, string>; body?: string } = {}
+): Promise<{ ok: boolean; status: number; json: () => Promise<any> }> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      {
+        type: 'mobius:auth:fetch',
+        url,
+        method: init.method || 'GET',
+        headers: init.headers,
+        body: init.body,
+      },
+      (resp) => {
+        const lastErr = chrome.runtime.lastError?.message;
+        if (lastErr || !resp || !resp.ok) {
+          reject(new Error(resp?.error || lastErr || 'Auth fetch failed'));
+          return;
+        }
+        resolve({
+          ok: resp.status >= 200 && resp.status < 300,
+          status: resp.status,
+          json: async () => resp.json,
+        });
+      }
+    );
+  });
+}
 
 const STORAGE_KEYS = {
   accessToken: 'mobius.auth.accessToken',
@@ -264,7 +304,7 @@ class AuthService {
     }
     
     try {
-      const response = await fetch(`${API_BASE}/auth/refresh`, {
+      const response = await apiFetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -307,7 +347,7 @@ class AuthService {
    */
   async login(email: string, password: string, tenantId?: string): Promise<{ success: boolean; error?: string; user?: UserProfile }> {
     try {
-      const response = await fetch(`${API_BASE}/auth/login`, {
+      const response = await apiFetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -376,7 +416,7 @@ class AuthService {
     tenantId?: string
   ): Promise<{ success: boolean; error?: string; user?: UserProfile }> {
     try {
-      const response = await fetch(`${API_BASE}/auth/register`, {
+      const response = await apiFetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -445,7 +485,7 @@ class AuthService {
     // Call backend to invalidate session
     if (refreshToken) {
       try {
-        await fetch(`${API_BASE}/auth/logout`, {
+        await apiFetch(`${API_BASE}/auth/logout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refresh_token: refreshToken }),
@@ -469,7 +509,7 @@ class AuthService {
     }
     
     try {
-      const response = await fetch(`${API_BASE}/auth/me`, {
+      const response = await apiFetch(`${API_BASE}/auth/me`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -547,7 +587,7 @@ class AuthService {
    */
   async checkEmail(email: string, tenantId?: string): Promise<{ exists: boolean; user?: { display_name?: string; is_onboarded?: boolean } }> {
     try {
-      const response = await fetch(`${API_BASE}/auth/check-email`, {
+      const response = await apiFetch(`${API_BASE}/auth/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, tenant_id: tenantId }),

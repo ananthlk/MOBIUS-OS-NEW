@@ -4,7 +4,7 @@
  */
 
 import './styles/sidebar.css';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, AUTH_BASE_URL } from './config';
 import { getOrCreateSessionId } from './utils/session';
 import { fetchMiniStatus, searchMiniPatients, sendChatMessage, submitMiniNote, submitAttentionStatus, reportIssue, AttentionStatus, resolvePatientContext, fetchDetectionConfig, setFactorMode } from './services/api';
 import { getUiDefaultsForMode } from './utils/uiDefaults';
@@ -42,7 +42,7 @@ import { createPatientContext, buildPrivacyContext, PrivacyMode } from './servic
 import type { SidecarStateResponse, Bottleneck, RecordContext, PrivacyContext } from './types/record';
 import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, DetectedPatient, ResolvedPatientContext, UserProfile, PersonalizationData, MiniStatusResponse as MiniStatusResponseType, ResolutionPlan } from './types';
 import { PatientContextDetector } from './services/patientContextDetector';
-import { getAuthService } from './services/auth';
+import { getAuthService, apiFetch } from './services/auth';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
 import { initTooltipStyles, applyAutoTooltips, setupTooltips } from './services/tooltips';
 import { 
@@ -3463,12 +3463,12 @@ async function renderMiniIfAllowed(): Promise<void> {
   // Account Creation & Onboarding Flow (scoped to have access to lockedOverlay)
   // =========================================================================
   
-  const API_BASE_AUTH = API_BASE_URL;
+  const API_BASE_AUTH = AUTH_BASE_URL;
   
   // Fetch available activities from backend
   const fetchActivities = async (): Promise<Array<{activity_code: string; label: string; description?: string}>> => {
     try {
-      const response = await fetch(`${API_BASE_AUTH}/api/v1/auth/activities`);
+      const response = await apiFetch(`${API_BASE_AUTH}/api/v1/auth/activities`);
       const data = await response.json();
       if (data.ok && data.activities) {
         return data.activities;
@@ -3703,7 +3703,7 @@ async function renderMiniIfAllowed(): Promise<void> {
       }
       
       try {
-        const response = await fetch(`${API_BASE_AUTH}/api/v1/auth/onboarding`, {
+        const response = await apiFetch(`${API_BASE_AUTH}/api/v1/auth/onboarding`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -3888,7 +3888,7 @@ async function renderMiniIfAllowed(): Promise<void> {
       if (errorDiv) errorDiv.style.display = 'none';
       
       try {
-        const response = await fetch(`${API_BASE_AUTH}/api/v1/auth/register`, {
+        const response = await apiFetch(`${API_BASE_AUTH}/api/v1/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3964,7 +3964,7 @@ async function renderMiniIfAllowed(): Promise<void> {
             font-size: 10px;
             margin-bottom: 6px;
             outline: none;
-          " value="admin@demo.clinic" />
+          " />
           <input type="password" class="mobius-mini-login-password" placeholder="Password" style="
             width: 100%;
             box-sizing: border-box;
@@ -3974,7 +3974,7 @@ async function renderMiniIfAllowed(): Promise<void> {
             font-size: 10px;
             margin-bottom: 8px;
             outline: none;
-          " value="demo1234" />
+          " />
           <button class="mobius-mini-signin-btn" style="
             width: 100%;
             padding: 8px 12px;
@@ -4077,7 +4077,7 @@ async function renderMiniIfAllowed(): Promise<void> {
           </div>
           
           <div style="font-size: 8px; color: #94a3b8; margin-top: 8px; text-align: center;">
-            Demo: admin@demo.clinic
+            Sign in with your Mobius account
           </div>
         </div>
       `;

@@ -18,6 +18,13 @@ const PROD_API_BASE = 'https://mobius-os-backend-ortabkknqa-uc.a.run.app';
 export const API_BASE_URL = PRODUCTION ? PROD_API_BASE : DEV_API_BASE;
 export const API_V1_URL = `${API_BASE_URL}/api/v1`;
 
+// Auth is NOT served by the mobius-os backend: identity lives in the shared
+// mobius-user service (same accounts + JWT as mobius-chat and every other
+// surface). The mobius-os backend accepts these tokens via the shared
+// JWT_SECRET and JIT-provisions its local user row on first request.
+export const AUTH_BASE_URL = 'https://mobius-user-ortabkknqa-uc.a.run.app';
+export const AUTH_API_V1_URL = `${AUTH_BASE_URL}/api/v1`;
+
 // Log which environment is active (only in dev)
 if (!PRODUCTION) {
   console.log('[Mobius] Running in DEVELOPMENT mode, API:', API_BASE_URL);

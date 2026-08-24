@@ -518,16 +518,85 @@ class AuthService:
     # =========================================================================
     
     def validate_access_token(self, access_token: str) -> Optional[AppUser]:
-        """Validate an access token and return the user."""
+        """Validate an access token and return the user.
+
+        Tokens are minted by mobius-user (shared JWT_SECRET). A valid token
+        whose user has no local row yet gets a row JIT-provisioned from
+        mobius-user's /me — mobius-user is the single source of identity;
+        the local app_user row only anchors module-side FKs (preferences,
+        assignments, event logs).
+        """
         payload = self.decode_token(access_token)
         if not payload or payload.get("type") != "access":
             return None
-        
+
         user_id = payload.get("sub")
         if not user_id:
             return None
-        
-        return self.get_user_by_id(uuid.UUID(user_id))
+
+        user = self.get_user_by_id(uuid.UUID(user_id))
+        if user is None:
+            user = self._jit_provision_from_user_service(access_token, payload)
+        return user
+
+    def _jit_provision_from_user_service(
+        self, access_token: str, payload: dict
+    ) -> Optional[AppUser]:
+        """Create a local app_user row for an identity that lives in mobius-user."""
+        base = os.getenv(
+            "USER_SERVICE_URL", "https://mobius-user-ortabkknqa-uc.a.run.app"
+        ).rstrip("/")
+        try:
+            import requests
+
+            resp = requests.get(
+                f"{base}/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=10,
+            )
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            if not data.get("ok") or not data.get("user"):
+                return None
+            remote = data["user"]
+        except Exception as e:
+            print(f"[AuthService] JIT provision: user-service /me failed: {e}")
+            return None
+
+        user_id = uuid.UUID(payload["sub"])
+        tenant_id = uuid.UUID(
+            payload.get("tenant_id")
+            or remote.get("tenant_id")
+            or "00000000-0000-0000-0000-000000000001"
+        )
+        with get_db_session() as session:
+            tenant = session.query(Tenant).filter(Tenant.tenant_id == tenant_id).first()
+            if not tenant:
+                session.add(Tenant(tenant_id=tenant_id, name="Default Tenant"))
+            existing = session.query(AppUser).filter(AppUser.user_id == user_id).first()
+            if existing:
+                session.expunge(existing)
+                return existing
+            user = AppUser(
+                user_id=user_id,
+                tenant_id=tenant_id,
+                email=remote.get("email"),
+                display_name=remote.get("display_name"),
+                first_name=remote.get("first_name"),
+                preferred_name=remote.get("preferred_name"),
+                timezone=remote.get("timezone") or "America/New_York",
+                locale=remote.get("locale") or "en-US",
+                onboarding_completed_at=(
+                    datetime.utcnow() if remote.get("is_onboarded") else None
+                ),
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            session.expunge(user)
+            print(f"[AuthService] JIT-provisioned user {user_id} from mobius-user")
+            return user
     
     def get_or_create_default_tenant(self) -> Tenant:
         """Get or create the default tenant for development."""
