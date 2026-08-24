@@ -6140,3 +6140,84 @@
 #mobius-os-sidebar.theme-dark .mobius-notify {
   color: #9aa0a6;
 }
+/* =============================================================================
+   COLLAPSIBLE PANELS (sidecar facelift)
+   Standard section chrome — consumes --mobius-* tokens (mobius-design).
+   ============================================================================= */
+
+.sidecar-panel {
+  background: var(--mobius-bg-primary, #ffffff);
+  border: 1px solid var(--mobius-border-light, #f1f5f9);
+  border-radius: var(--mobius-radius-base, 8px);
+  margin: 0 0 8px 0;
+  overflow: hidden;
+  box-shadow: 0 1px 2px var(--mobius-shadow, rgba(0, 0, 0, 0.04));
+}
+
+.sidecar-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--mobius-bg-secondary, #f8fafc);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.sidecar-panel-header:hover {
+  background: var(--mobius-bg-hover, #e2e8f0);
+}
+
+.sidecar-panel-chevron {
+  display: inline-flex;
+  color: var(--mobius-text-muted, #64748b);
+  transition: transform 0.18s ease;
+  flex: 0 0 auto;
+}
+
+.sidecar-panel.collapsed .sidecar-panel-chevron {
+  transform: rotate(-90deg);
+}
+
+.sidecar-panel-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mobius-text-secondary, #374151);
+  flex: 0 0 auto;
+}
+
+.sidecar-panel-summary {
+  font-size: 10px;
+  color: var(--mobius-text-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  text-align: right;
+}
+
+.sidecar-panel.collapsed .sidecar-panel-summary {
+  opacity: 1;
+}
+
+.sidecar-panel-body {
+  padding: 8px 10px;
+  display: block;
+}
+
+.sidecar-panel.collapsed .sidecar-panel-body {
+  display: none;
+}
+
+/* Panel-hosted chat: let the messages area own the padding rhythm */
+.sidecar-panel .sidecar-quick-chat {
+  margin: 0;
+}

@@ -48,6 +48,7 @@ import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, Det
 import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService, apiFetch } from './services/auth';
 import { askMobius } from './services/chat';
+import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
 import { initTooltipStyles, applyAutoTooltips, setupTooltips } from './services/tooltips';
 import { 
@@ -2892,7 +2893,14 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   // === STATUS BAR ===
   if (sidecarState?.care_readiness) {
     const statusBar = StatusBar({ careReadiness: sidecarState.care_readiness });
-    sidebarContainer.appendChild(statusBar);
+    const readinessPanel = CollapsibleSection({
+      id: 'readiness',
+      label: 'Care readiness',
+      summary: `${sidecarState.care_readiness.position ?? ''}%`,
+      content: statusBar,
+    });
+    readinessPanel.style.margin = '6px 10px 0';
+    sidebarContainer.appendChild(readinessPanel);
   }
   
   // === MAIN CONTENT (flex container, not scrollable) ===
@@ -2921,14 +2929,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   if (patient) {
     const patientSection = document.createElement('div');
     patientSection.className = 'sidecar-patient-row';
-    patientSection.setAttribute('style', `
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 0;
-      border-bottom: 1px solid rgba(11, 18, 32, 0.08);
-      margin-bottom: 6px;
-    `);
+    patientSection.setAttribute('style', 'display: flex; align-items: center; gap: 6px;');
     
     // Label (smaller)
     const rowLabel = document.createElement('div');
@@ -2941,9 +2942,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       color: rgba(91, 102, 122, 0.95);
       font-weight: 600;
     `);
-    rowLabel.textContent = 'PATIENT';
-    patientSection.appendChild(rowLabel);
-    
+
     // Patient info - single line with name + ID
     const patientInfo = document.createElement('div');
     patientInfo.setAttribute('style', 'flex: 1; min-width: 0; display: flex; flex-direction: row; align-items: baseline; gap: 6px;');
@@ -2970,7 +2969,13 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     });
     patientSection.appendChild(editBtn);
     
-    cardsContainer.appendChild(patientSection);
+    const patientPanel = CollapsibleSection({
+      id: 'patient',
+      label: 'Patient',
+      summary: sidecarPrivacyMode ? 'Patient' : patient.name,
+      content: patientSection,
+    });
+    cardsContainer.appendChild(patientPanel);
   }
   
   // === VIEW PREFERENCE (stored in localStorage, controlled from menu) ===
@@ -3155,7 +3160,12 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         }
       },
     });
-    cardsContainer.appendChild(factorList);
+    cardsContainer.appendChild(CollapsibleSection({
+      id: 'plan',
+      label: 'Plan',
+      summary: `${factors.length} factor${factors.length === 1 ? '' : 's'}`,
+      content: factorList,
+    }));
   } else {
     // Fallback: Legacy bottleneck card (if no factors available)
     const bottlenecks = sidecarState?.bottlenecks || [];
@@ -3262,7 +3272,12 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         }
       },
     });
-    cardsContainer.appendChild(bottleneckCard);
+    cardsContainer.appendChild(CollapsibleSection({
+      id: 'plan',
+      label: 'Plan',
+      summary: `${(sidecarState?.bottlenecks || []).length} item${(sidecarState?.bottlenecks || []).length === 1 ? '' : 's'}`,
+      content: bottleneckCard,
+    }));
   }
   
   // === CONTEXT EXPANDER ===
@@ -3274,7 +3289,13 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       resolutionPlan: miniState.resolutionPlan,
       resolvedSteps: sidecarState.resolved_steps || [],
     });
-    cardsContainer.appendChild(contextExpander);
+    cardsContainer.appendChild(CollapsibleSection({
+      id: 'context',
+      label: 'Context & prior runs',
+      summary: 'History, milestones, sources',
+      content: contextExpander,
+      defaultCollapsed: true,
+    }));
   }
   
   mainContent.appendChild(cardsContainer);
@@ -3313,7 +3334,15 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       }
     },
   });
-  mainContent.appendChild(quickChat);
+  const chatPanel = CollapsibleSection({
+    id: 'chat',
+    label: 'Ask Mobius',
+    summary: 'Payer policy, filing limits, auth rules',
+    content: quickChat,
+  });
+  chatPanel.style.margin = '0 10px 8px';
+  chatPanel.style.flex = '0 0 auto';
+  mainContent.appendChild(chatPanel);
   sidebarContainer.appendChild(mainContent);
   
   // Add to DOM
