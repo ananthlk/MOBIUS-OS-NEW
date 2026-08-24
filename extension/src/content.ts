@@ -3964,7 +3964,7 @@ async function renderMiniIfAllowed(): Promise<void> {
             font-size: 10px;
             margin-bottom: 6px;
             outline: none;
-          " value="sarah.chen@demo.clinic" />
+          " value="admin@demo.clinic" />
           <input type="password" class="mobius-mini-login-password" placeholder="Password" style="
             width: 100%;
             box-sizing: border-box;
@@ -4077,7 +4077,7 @@ async function renderMiniIfAllowed(): Promise<void> {
           </div>
           
           <div style="font-size: 8px; color: #94a3b8; margin-top: 8px; text-align: center;">
-            Demo: sarah.chen@demo.clinic
+            Demo: admin@demo.clinic
           </div>
         </div>
       `;

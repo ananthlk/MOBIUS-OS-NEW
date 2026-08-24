@@ -10,7 +10,7 @@ module.exports = (env, argv) => {
   const isProduction = env?.BUILD_TARGET === 'production' || argv.mode === 'production';
   
   console.log(`\n📦 Building for: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
-  console.log(`   API Target: ${isProduction ? 'https://mobius-os-backend-mc2ivyhdxq-uc.a.run.app' : 'http://localhost:5001'}\n`);
+  console.log(`   API Target: ${isProduction ? 'https://mobius-os-backend-ortabkknqa-uc.a.run.app' : 'http://localhost:5001'}\n`);
 
   return {
   entry: {

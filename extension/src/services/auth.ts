@@ -278,9 +278,11 @@ class AuthService {
       
       const data = await response.json();
       
-      // Store new access token (keep existing refresh token)
+      // Store new access token (keep existing refresh token).
+      // Must go through the background proxy — content scripts cannot
+      // access chrome.storage.session directly.
       const expiresAt = Date.now() + (data.expires_in * 1000);
-      await chrome.storage.session.set({
+      await this.storageSet({
         [STORAGE_KEYS.accessToken]: data.access_token,
         [STORAGE_KEYS.expiresAt]: expiresAt,
       });

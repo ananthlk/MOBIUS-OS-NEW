@@ -8,6 +8,7 @@
 
 import type { Alert, Toast, AlertType, UserAlertsResponse } from '../types/record';
 import { getAuthHeader } from './auth';
+import { API_V1_URL } from '../config';
 
 // Configuration
 const POLL_INTERVAL_MS = 30000;  // 30 seconds
@@ -419,7 +420,7 @@ async function pollForAlerts(): Promise<void> {
       return;
     }
     
-    const response = await fetch('/api/v1/user/alerts', {
+    const response = await fetch(`${API_V1_URL}/user/alerts`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

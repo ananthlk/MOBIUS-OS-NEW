@@ -12,7 +12,7 @@ export const PRODUCTION = process.env.PRODUCTION ?? false;
 
 // API Base URLs
 const DEV_API_BASE = 'http://localhost:5001';
-const PROD_API_BASE = 'https://mobius-os-backend-mc2ivyhdxq-uc.a.run.app';
+const PROD_API_BASE = 'https://mobius-os-backend-ortabkknqa-uc.a.run.app';
 
 // Export the active API base URL
 export const API_BASE_URL = PRODUCTION ? PROD_API_BASE : DEV_API_BASE;
