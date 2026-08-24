@@ -9,6 +9,7 @@
  */
 
 import type { Milestone, KnowledgeContext, PrivacyContext, ResolvedStep } from '../../types/record';
+import { ICONS } from './icons';
 import type { ResolutionPlan } from '../../types';
 import { formatLabel, getPossessive } from '../../services/personalization';
 import { getRelativeTime } from '../../services/dataHierarchy';
@@ -421,7 +422,7 @@ function createPayerSection(knowledgeContext: KnowledgeContext): HTMLElement {
   if (knowledgeContext.payer.avg_response_time) {
     const responseTime = document.createElement('div');
     responseTime.className = 'sidecar-payer-response-time';
-    responseTime.textContent = `⏱️ Typical response: ${knowledgeContext.payer.avg_response_time}`;
+    responseTime.innerHTML = `${ICONS.clock} Typical response: ${knowledgeContext.payer.avg_response_time}`;
     info.appendChild(responseTime);
   }
   

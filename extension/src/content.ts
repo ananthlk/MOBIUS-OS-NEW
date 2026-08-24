@@ -49,6 +49,7 @@ import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService, apiFetch } from './services/auth';
 import { askMobius } from './services/chat';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
+import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
 import { initTooltipStyles, applyAutoTooltips, setupTooltips } from './services/tooltips';
 import { 
@@ -99,9 +100,9 @@ type MiniLine = {
 // Mode icon mapping for tasking display
 const getModeIcon = (mode?: ExecutionMode): string => {
   switch (mode) {
-    case 'agentic': return '🤖';
-    case 'copilot': return '👤✓';
-    case 'user_driven': return '👤';
+    case 'agentic': return SIDECAR_ICONS.mobius;
+    case 'copilot': return SIDECAR_ICONS.person;
+    case 'user_driven': return SIDECAR_ICONS.person;
     default: return '';
   }
 };
@@ -1757,7 +1758,8 @@ function createMini(): HTMLElement {
       if (showMode && line.mode) {
         const icon = getModeIcon(line.mode);
         const modeText = line.mode_text || '';
-        text.textContent = `${icon} ${modeText}`;
+        text.innerHTML = icon;
+        text.appendChild(document.createTextNode(` ${modeText}`));
       } else {
         text.textContent = line.text;
       }
@@ -2911,7 +2913,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   // === CARDS CONTAINER (bottlenecks, patient context - takes remaining space, scrollable) ===
   const cardsContainer = document.createElement('div');
   cardsContainer.className = 'sidecar-cards-container';
-  cardsContainer.setAttribute('style', 'flex: 1; min-height: 0; overflow-y: auto; padding: 6px 10px;');
+  cardsContainer.setAttribute('style', 'flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 6px 10px;');
   
   // === MOBIUS GREETING ===
   const greeting = document.createElement('div');
@@ -3341,7 +3343,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     content: quickChat,
   });
   chatPanel.style.margin = '0 10px 8px';
-  chatPanel.style.flex = '0 0 auto';
+  chatPanel.classList.add('sidecar-panel-chat');
   mainContent.appendChild(chatPanel);
   sidebarContainer.appendChild(mainContent);
   

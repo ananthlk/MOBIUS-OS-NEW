@@ -6221,3 +6221,63 @@
 .sidecar-panel .sidecar-quick-chat {
   margin: 0;
 }
+
+/* =============================================================================
+   ICON SIZING — shared inline SVG icons (components/sidecar/icons.ts)
+   ============================================================================= */
+
+.sidecar-svg-icon {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  vertical-align: -2px;
+  flex: 0 0 auto;
+}
+
+/* =============================================================================
+   CHAT PANEL AUTO-SCALE
+   The chat panel flex-grows into whatever space collapsed panels free up;
+   the messages area absorbs the growth and scrolls internally.
+   ============================================================================= */
+
+.sidecar-panel-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidecar-panel-chat.collapsed {
+  flex: 0 0 auto;
+}
+
+.sidecar-panel-chat .sidecar-panel-header {
+  flex: 0 0 auto;
+}
+
+.sidecar-panel-chat .sidecar-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidecar-panel-chat .sidecar-quick-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: none;
+  margin-top: 0;
+  padding: 0;
+}
+
+.sidecar-panel-chat .sidecar-chat-messages {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 88px;
+}
+
+.sidecar-panel-chat .sidecar-quick-chat-wrapper {
+  flex: 0 0 auto;
+}

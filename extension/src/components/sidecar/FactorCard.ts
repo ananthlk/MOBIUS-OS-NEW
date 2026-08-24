@@ -9,6 +9,7 @@
  */
 
 import { Factor, FactorStep, WorkflowMode, UserRemedy } from '../../types';
+import { ICONS, modeIcon } from './icons';
 
 export interface FactorCardProps {
   factor: Factor;
@@ -29,11 +30,11 @@ function getStatusIcon(status: string, userOverride?: 'resolved' | 'unresolved' 
     return '✓'; // User resolved icon
   }
   if (userOverride === 'unresolved') {
-    return '⚠'; // User flagged icon
+    return ICONS.warning; // User flagged icon
   }
   switch (status) {
     case 'resolved': return '✓';
-    case 'blocked': return '⚠️';
+    case 'blocked': return ICONS.warning;
     case 'waiting': return '◯';
     default: return '○';
   }
@@ -126,7 +127,7 @@ function createStatusDropdown(
   // Options
   const options = [
     { status: 'resolved' as const, label: 'Resolved', icon: '✓', desc: 'Mark as done' },
-    { status: 'unresolved' as const, label: 'Needs work', icon: '⚠', desc: 'Flag for attention' },
+    { status: 'unresolved' as const, label: 'Needs work', icon: ICONS.warning, desc: 'Flag for attention' },
   ];
   
   options.forEach(opt => {
@@ -176,7 +177,7 @@ export function FactorCard(props: FactorCardProps): HTMLElement {
   // Status icon
   const statusIcon = document.createElement('span');
   statusIcon.className = 'factor-status-icon';
-  statusIcon.textContent = getStatusIcon(factor.status, userOverride);
+  statusIcon.innerHTML = getStatusIcon(factor.status, userOverride);
   header.appendChild(statusIcon);
   
   // Label
@@ -224,7 +225,7 @@ export function FactorCard(props: FactorCardProps): HTMLElement {
   if (factor.mode && !isExpanded) {
     const modeIndicator = document.createElement('span');
     modeIndicator.className = 'factor-mode-indicator';
-    modeIndicator.textContent = factor.mode === 'mobius' ? '🤖' : factor.mode === 'together' ? '🤝' : '👤';
+    modeIndicator.innerHTML = modeIcon(factor.mode);
     header.appendChild(modeIndicator);
   }
   
@@ -253,7 +254,7 @@ export function FactorCard(props: FactorCardProps): HTMLElement {
         mobiusStatus.className = 'factor-mobius-status';
         mobiusStatus.innerHTML = `
           <div class="mobius-handling">
-            <span class="mobius-icon">🤖</span>
+            <span class="mobius-icon">${ICONS.mobius}</span>
             <span class="mobius-text">Mobius is handling this.</span>
           </div>
           <div class="mobius-notify">You'll be notified when complete.</div>
@@ -315,7 +316,7 @@ function createModeDropdownRow(factor: Factor, onModeSelect: (factorType: string
     const hint = document.createElement('span');
     hint.className = 'factor-mode-hint';
     const successRate = Math.round(factor.recommendation.confidence * 100);
-    hint.innerHTML = `💡 <strong>${getShortModeLabel(factor.recommendation.mode)}</strong> · ${successRate}% success rate`;
+    hint.innerHTML = `${ICONS.bulb} <strong>${getShortModeLabel(factor.recommendation.mode)}</strong> · ${successRate}% success rate`;
     row.appendChild(hint);
   }
   
@@ -336,8 +337,8 @@ function createModeDropdownRow(factor: Factor, onModeSelect: (factorType: string
   dropdownMenu.style.display = 'none';
   
   const modes: { mode: WorkflowMode; icon: string; label: string }[] = [
-    { mode: 'mobius', icon: '🤖', label: 'Mobius handles' },
-    { mode: 'manual', icon: '👤', label: 'I\'ll handle' },
+    { mode: 'mobius', icon: ICONS.mobius, label: 'Mobius handles' },
+    { mode: 'manual', icon: ICONS.person, label: 'I\'ll handle' },
   ];
   
   for (const m of modes) {
@@ -376,8 +377,8 @@ function createModeDropdownRow(factor: Factor, onModeSelect: (factorType: string
  */
 function getModeIcon(mode: WorkflowMode | null): string {
   switch (mode) {
-    case 'mobius': return '🤖';
-    case 'manual': return '👤';
+    case 'mobius': return ICONS.mobius;
+    case 'manual': return ICONS.person;
     default: return '';
   }
 }
@@ -569,7 +570,7 @@ function createStepElement(step: FactorStep, mode: WorkflowMode | null, onStepAc
     } else if (step.status === 'skipped') {
       status.textContent = '⊘ Skipped';
     } else if (mode === 'mobius') {
-      status.textContent = '🤖 Mobius';
+      status.innerHTML = `${ICONS.mobius} Mobius`;
     } else {
       status.textContent = '○';
     }

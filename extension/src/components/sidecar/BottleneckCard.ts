@@ -9,6 +9,7 @@
  */
 
 import type { Bottleneck, AnswerOption, PrivacyContext, WorkflowMode } from '../../types/record';
+import { ICONS } from './icons';
 import { formatLabel } from '../../services/personalization';
 import { resolveValue, getSourceBadge, hasConflict } from '../../services/dataHierarchy';
 
@@ -345,7 +346,7 @@ export function BottleneckCard(props: BottleneckCardProps): HTMLElement {
         manualSection.className = 'sidecar-workflow-option-group';
         manualSection.innerHTML = `
           <div class="sidecar-workflow-option-group-header">
-            <span class="sidecar-workflow-option-group-icon">👤</span>
+            <span class="sidecar-workflow-option-group-icon">${ICONS.person}</span>
             <span class="sidecar-workflow-option-group-title">You'll need to handle</span>
           </div>
         `;
