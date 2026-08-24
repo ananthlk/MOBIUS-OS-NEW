@@ -25,6 +25,12 @@ export const API_V1_URL = `${API_BASE_URL}/api/v1`;
 export const AUTH_BASE_URL = 'https://mobius-user-ortabkknqa-uc.a.run.app';
 export const AUTH_API_V1_URL = `${AUTH_BASE_URL}/api/v1`;
 
+// Shared mobius-chat service — the same chat pipeline every Mobius surface
+// uses. The extension's QuickChat is a no-PHI general assistant: it sends
+// only what the user types (never page/EMR context) and relies on chat's
+// server-side PHI gate as the backstop.
+export const CHAT_BASE_URL = 'https://mobius-chat-ortabkknqa-uc.a.run.app';
+
 // Log which environment is active (only in dev)
 if (!PRODUCTION) {
   console.log('[Mobius] Running in DEVELOPMENT mode, API:', API_BASE_URL);

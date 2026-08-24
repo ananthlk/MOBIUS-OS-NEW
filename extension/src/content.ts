@@ -32,6 +32,10 @@ import {
   AllClearCard,
   ContextExpander,
   QuickChat,
+  setQuickChatLoading,
+  showQuickChatResponse,
+  addUserMessage,
+  setQuickChatStatus,
   SidecarMenu,
   CollapseButton,
   AlertIndicator,
@@ -43,6 +47,7 @@ import type { SidecarStateResponse, Bottleneck, RecordContext, PrivacyContext } 
 import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, DetectedPatient, ResolvedPatientContext, UserProfile, PersonalizationData, MiniStatusResponse as MiniStatusResponseType, ResolutionPlan } from './types';
 import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService, apiFetch } from './services/auth';
+import { askMobius } from './services/chat';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
 import { initTooltipStyles, applyAutoTooltips, setupTooltips } from './services/tooltips';
 import { 
@@ -3275,13 +3280,37 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   mainContent.appendChild(cardsContainer);
   
   // === QUICK CHAT (compact, at bottom) ===
+  // No-PHI general assistant against the shared mobius-chat pipeline.
+  // Sends only the typed question — no patient/EMR context is attached —
+  // and chat's server-side PHI gate is the backstop for typed identifiers.
   const quickChat = QuickChat({
     record: recordContext,
     knowledgeContext: sidecarState?.knowledge_context || { payer: { name: '' }, policy_excerpts: [], relevant_history: [] },
+    placeholder: 'Ask Mobius — payer policy, filing limits, auth rules…',
     onSend: async (message) => {
-      console.log('[Mobius] Chat:', message);
-      // TODO: Implement chat with knowledge context
-      showToast('Chat coming soon');
+      addUserMessage(quickChat, message);
+      setQuickChatLoading(quickChat, true);
+      setQuickChatStatus(quickChat, 'Asking Mobius…');
+      try {
+        const result = await askMobius(message, (status) => {
+          setQuickChatStatus(quickChat, status);
+        });
+        setQuickChatStatus(quickChat, null);
+        if (result.ok && result.answer) {
+          showQuickChatResponse(
+            quickChat,
+            result.answer,
+            result.sourceCount ? `${result.sourceCount} corpus sources` : undefined
+          );
+        } else {
+          showQuickChatResponse(quickChat, result.error || 'Something went wrong — try again.');
+        }
+      } catch (err) {
+        setQuickChatStatus(quickChat, null);
+        showQuickChatResponse(quickChat, 'Could not reach Mobius chat.');
+      } finally {
+        setQuickChatLoading(quickChat, false);
+      }
     },
   });
   mainContent.appendChild(quickChat);

@@ -2,7 +2,7 @@
  * Background service worker for Mobius OS extension
  */
 
-import { AUTH_BASE_URL } from './config';
+import { AUTH_BASE_URL, CHAT_BASE_URL } from './config';
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[Mobius OS] Extension installed');
@@ -58,7 +58,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // allowed — this is not a general-purpose fetch proxy.
   if (message.type === 'mobius:auth:fetch') {
     const url = String(message.url || '');
-    if (!url.startsWith(`${AUTH_BASE_URL}/`)) {
+    const allowed =
+      url.startsWith(`${AUTH_BASE_URL}/`) || url.startsWith(`${CHAT_BASE_URL}/`);
+    if (!allowed) {
       sendResponse({ ok: false, error: 'URL not allowed' });
       return false;
     }

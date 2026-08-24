@@ -136,24 +136,80 @@ export function addUserMessage(element: HTMLElement, message: string): void {
 }
 
 /**
+ * Update (or create) a transient status line — used while an answer is
+ * being generated. Replaced in place on every update, removed on finish.
+ */
+export function setQuickChatStatus(element: HTMLElement, status: string | null): void {
+  const messagesContainer = element.querySelector('.sidecar-chat-messages');
+  if (!messagesContainer) return;
+  let statusEl = messagesContainer.querySelector('.sidecar-chat-status') as HTMLElement | null;
+  if (status === null) {
+    statusEl?.remove();
+    return;
+  }
+  if (!statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.className = 'sidecar-chat-status';
+    statusEl.style.cssText = 'font-size: 10px; color: #94a3b8; font-style: italic; padding: 4px 2px;';
+    messagesContainer.appendChild(statusEl);
+  }
+  statusEl.textContent = status;
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+/**
+ * Render markdown-lite (bold + bullet lines) into safe DOM nodes.
+ * LLM output never touches innerHTML.
+ */
+function renderMarkdownLite(target: HTMLElement, markdown: string): void {
+  const appendInline = (parent: HTMLElement, line: string) => {
+    const parts = line.split('**');
+    parts.forEach((part, i) => {
+      if (!part) return;
+      if (i % 2 === 1) {
+        const b = document.createElement('strong');
+        b.textContent = part;
+        parent.appendChild(b);
+      } else {
+        parent.appendChild(document.createTextNode(part));
+      }
+    });
+  };
+  markdown.split('\n').forEach((rawLine) => {
+    const line = rawLine.trimEnd();
+    if (!line.trim()) return;
+    const el = document.createElement('div');
+    const bullet = line.match(/^\s*[*-]\s+(.*)$/);
+    if (bullet) {
+      el.style.cssText = 'padding-left: 12px; text-indent: -8px;';
+      el.appendChild(document.createTextNode('• '));
+      appendInline(el, bullet[1]);
+    } else {
+      appendInline(el, line);
+    }
+    target.appendChild(el);
+  });
+}
+
+/**
  * Show a response in the chat area
  */
 export function showQuickChatResponse(element: HTMLElement, response: string, source?: string): void {
   const messagesContainer = element.querySelector('.sidecar-chat-messages');
   if (!messagesContainer) return;
-  
+
   // Remove empty state if present
   const emptyState = messagesContainer.querySelector('.sidecar-chat-empty');
   if (emptyState) emptyState.remove();
-  
+
   // Add system response
   const msgEl = document.createElement('div');
   msgEl.className = 'sidecar-chat-message system-message';
-  
-  // Response text
+
+  // Response text (markdown-lite: bold + bullets)
   const text = document.createElement('div');
   text.className = 'sidecar-chat-message-text';
-  text.textContent = response;
+  renderMarkdownLite(text, response);
   msgEl.appendChild(text);
   
   // Source citation (if provided)
