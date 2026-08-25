@@ -4875,12 +4875,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return;
       }
       if (type === 'mobius:toggle-panel') {
-        // Toolbar icon click: open the sidebar, or collapse it if already open.
-        if (document.getElementById(MINI_IDS.sidebar)) {
-          await collapseToMini();
-        } else {
-          await renderMiniIfAllowed();
+        // Toolbar icon click cycles three states:
+        //   none (just the icon) → mini (indicators only) → side panel → none
+        const hasSidebar = !!document.getElementById(MINI_IDS.sidebar);
+        const hasMini = !!document.getElementById(MINI_IDS.root);
+        if (hasSidebar) {
+          // side panel → none
+          removeSidebar();
+          removeMini();
+        } else if (hasMini) {
+          // mini → side panel
           await expandToSidebar();
+        } else {
+          // none → mini
+          await renderMiniIfAllowed();
         }
         sendResponse({ ok: true });
         return;
