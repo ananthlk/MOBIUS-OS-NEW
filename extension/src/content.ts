@@ -38,8 +38,6 @@ import {
   setQuickChatStatus,
   SidecarMenu,
   CollapseButton,
-  AlertIndicator,
-  updateAlertIndicator
 } from './components';
 import * as ToastManager from './services/toastManager';
 import { createPatientContext, buildPrivacyContext, PrivacyMode } from './services/personalization';
@@ -2661,6 +2659,12 @@ function createMini(): HTMLElement {
 
 async function expandToSidebar(): Promise<void> {
   console.log('[Mobius OS] Expanding to sidebar...');
+  // Opening the panel counts as seeing the alerts — clear the toolbar badge.
+  try {
+    chrome.runtime.sendMessage({ type: 'mobius:badge:clear' }, () => void chrome.runtime.lastError);
+  } catch {
+    // Badge clear is best-effort.
+  }
   const mini = document.getElementById(MINI_IDS.root) as HTMLElement | null;
   if (mini) {
     const rect = mini.getBoundingClientRect();
@@ -2827,15 +2831,9 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   const headerRight = document.createElement('div');
   headerRight.setAttribute('style', 'display: flex; align-items: center; gap: 4px;');
   
-  // Alert indicator
-  const alertIndicator = AlertIndicator({
-    alerts: sidecarState?.alerts || [],
-    onClick: () => {
-      showToast('Inbox coming soon');
-    },
-  });
-  headerRight.appendChild(alertIndicator);
-  
+  // Alerts surface on the toolbar icon badge (background worker); the
+  // in-header bell was an unwired stub and was removed.
+
   // Privacy indicator (if enabled)
   if (sidecarPrivacyMode) {
     const privacyIndicator = document.createElement('span');
@@ -2864,6 +2862,14 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   
   const menu = SidecarMenu({
     onCollapse: () => void collapseToMini(),
+    onDisableSite: () => {
+      void (async () => {
+        await setDomainAllowed(getHostname(), false);
+        removeSidebar();
+        removeMini();
+        showToast('Mobius disabled on this site — click the toolbar icon to re-enable');
+      })();
+    },
     onHistoryClick: () => showToast('History coming soon'),
     onSettingsClick: () => showToast('Settings coming soon'),
     onHelpClick: () => showToast('Help coming soon'),
@@ -4788,6 +4794,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
       if (type === 'mobius:expand') {
         await expandToSidebar();
+        sendResponse({ ok: true });
+        return;
+      }
+      if (type === 'mobius:toggle-panel') {
+        // Toolbar icon click: open the sidebar, or collapse it if already open.
+        if (document.getElementById(MINI_IDS.sidebar)) {
+          await collapseToMini();
+        } else {
+          await renderMiniIfAllowed();
+          await expandToSidebar();
+        }
         sendResponse({ ok: true });
         return;
       }

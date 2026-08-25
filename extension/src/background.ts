@@ -2,7 +2,7 @@
  * Background service worker for Mobius OS extension
  */
 
-import { AUTH_BASE_URL, CHAT_BASE_URL } from './config';
+import { AUTH_BASE_URL, CHAT_BASE_URL, API_V1_URL } from './config';
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[Mobius OS] Extension installed');
@@ -50,6 +50,13 @@ const PERSISTENT_KEYS = [
  */
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || !message.type) return false;
+
+  // Clear the toolbar badge (sent by the content script when the panel opens).
+  if (message.type === 'mobius:badge:clear') {
+    void chrome.action.setBadgeText({ text: '' });
+    sendResponse({ ok: true });
+    return false;
+  }
 
   // Proxy auth API calls to the shared mobius-user service. Content scripts
   // fetch under the host page's origin and get blocked by mobius-user's CORS
@@ -166,3 +173,94 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return false;
 });
+
+
+// =============================================================================
+// Toolbar icon: click toggles the panel on the active tab.
+// (No default_popup in the manifest, so chrome.action.onClicked fires.)
+// Clicking on a site that isn't allowlisted yet allowlists it first — the
+// click is the explicit per-site opt-in gesture.
+// =============================================================================
+
+const ALLOWED_DOMAINS_KEY = 'mobius.allowedDomains';
+
+async function ensureDomainAllowed(hostname: string): Promise<void> {
+  const items = await chrome.storage.local.get([ALLOWED_DOMAINS_KEY]);
+  const current: string[] = Array.isArray(items[ALLOWED_DOMAINS_KEY])
+    ? (items[ALLOWED_DOMAINS_KEY] as string[])
+    : [];
+  const next = new Set(current.map((d) => String(d).toLowerCase()));
+  if (!next.has(hostname)) {
+    next.add(hostname);
+    await chrome.storage.local.set({ [ALLOWED_DOMAINS_KEY]: Array.from(next).sort() });
+  }
+}
+
+function sendToTab(tabId: number, message: unknown): Promise<boolean> {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, message, () => {
+      resolve(!chrome.runtime.lastError);
+    });
+  });
+}
+
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab.id || !tab.url) return;
+  let hostname = '';
+  try {
+    hostname = new URL(tab.url).hostname.toLowerCase();
+  } catch {
+    return;
+  }
+  if (!hostname || tab.url.startsWith('chrome://')) return;
+
+  await ensureDomainAllowed(hostname);
+
+  let delivered = await sendToTab(tab.id, { type: 'mobius:toggle-panel' });
+  if (!delivered) {
+    // Content script not present (tab predates the extension load) — inject it.
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+      await new Promise((r) => setTimeout(r, 150));
+      delivered = await sendToTab(tab.id, { type: 'mobius:toggle-panel' });
+    } catch (e) {
+      console.error('[Mobius Background] Could not inject content script:', e);
+    }
+  }
+});
+
+// =============================================================================
+// Alerts → toolbar badge. Polls the backend on an alarm (survives service
+// worker sleep) using the stored access token; unread count shows on the
+// pinned icon. Cleared when the panel opens ('mobius:badge:clear').
+// =============================================================================
+
+const ALERTS_ALARM = 'mobius-alerts-poll';
+
+async function pollAlertsBadge(): Promise<void> {
+  try {
+    const items = await chrome.storage.session.get(['mobius.auth.accessToken']);
+    const token = items['mobius.auth.accessToken'] as string | undefined;
+    if (!token) {
+      await chrome.action.setBadgeText({ text: '' });
+      return;
+    }
+    const resp = await fetch(`${API_V1_URL}/user/alerts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const alerts: Array<{ read?: boolean }> = Array.isArray(data?.alerts) ? data.alerts : [];
+    const unread = alerts.filter((a) => !a.read).length;
+    await chrome.action.setBadgeBackgroundColor({ color: '#3b82f6' });
+    await chrome.action.setBadgeText({ text: unread > 0 ? (unread > 9 ? '9+' : String(unread)) : '' });
+  } catch (e) {
+    console.error('[Mobius Background] Alerts badge poll failed:', e);
+  }
+}
+
+chrome.alarms.create(ALERTS_ALARM, { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALERTS_ALARM) void pollAlertsBadge();
+});
+void pollAlertsBadge();

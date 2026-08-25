@@ -22,6 +22,8 @@ import {
 
 export interface SidecarMenuProps {
   onCollapse: () => void;
+  /** Remove this site from the allowlist and tear the UI down. */
+  onDisableSite?: () => void;
   onHistoryClick: () => void;
   onSettingsClick: () => void;
   onHelpClick: () => void;
@@ -46,6 +48,7 @@ const VIEW_OPTIONS = [
  */
 export function SidecarMenu(props: SidecarMenuProps): HTMLElement {
   const { 
+    onDisableSite,
     onHistoryClick, 
     onSettingsClick, 
     onHelpClick, 
@@ -120,6 +123,13 @@ export function SidecarMenu(props: SidecarMenuProps): HTMLElement {
         },
       },
     },
+    ...(onDisableSite
+      ? [{
+          label: 'Disable on this site',
+          icon: 'view',
+          onClick: () => onDisableSite(),
+        }]
+      : []),
     { label: 'divider', icon: '' },
     {
       label: 'Theme',
