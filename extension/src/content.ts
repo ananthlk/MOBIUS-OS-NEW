@@ -49,6 +49,8 @@ import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService, apiFetch } from './services/auth';
 import { askMobius, classifyPageSource, PageContext } from './services/chat';
 import { screenTextForPhi } from './services/phiScreen';
+import { resolveEnvelope, deriveRole, EnvelopeAction } from './services/envelopes';
+import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
@@ -3419,6 +3421,73 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       });
     },
   });
+  // === ENVELOPE ACTION ZONE (mode-aware) ===
+  // Detected surface + role → envelope → proposed actions. Constant chrome
+  // stays; only this zone changes, and it proposes (never auto-runs).
+  const envSurface = classifyPageSource(getHostname());
+  const envRole = deriveRole(currentUserProfile?.activities);
+  const envelope = resolveEnvelope(envSurface, envRole);
+
+  const runEnvelopeAction = (action: EnvelopeAction) => {
+    if (action.kind === 'ask') {
+      quickChat.querySelector<HTMLInputElement>('.sidecar-quick-chat-input')?.focus();
+      return;
+    }
+    if (action.kind === 'preview' || action.kind === 'collate' || action.kind === 'find_email') {
+      showToast(`${action.label} — coming soon`);
+      return;
+    }
+    // synthesize / compose_reply reuse the consent pipeline: capture →
+    // local PHI screen (zero egress) → acknowledge → send the preset prompt.
+    const text = capturePageText();
+    if (!text) {
+      showToast('Nothing readable on this page');
+      return;
+    }
+    const screen = screenTextForPhi(text);
+    const pageCtx: PageContext = {
+      text,
+      url: window.location.href.split('?')[0],
+      title: document.title || window.location.hostname,
+      sourceType: envSurface,
+    };
+    const prompt = action.prompt || action.label;
+    showPageAckCard(quickChat, {
+      title: screen.phi_flag
+        ? 'This page looks like it contains patient information.'
+        : `Attach this page and ${action.label.toLowerCase()}?`,
+      labels: screen.identifier_labels,
+      evidence: screen.findings.map((f) => `${f.label}: ${f.redacted_span} (×${f.count})`),
+      chars: text.length,
+      acceptText: screen.phi_flag ? 'Acknowledge & continue' : 'Attach & continue',
+      onAccept: () => {
+        attachedPage = { ...pageCtx, phiAcked: screen.phi_flag };
+        setAttachedPageChip(quickChat, {
+          title: pageCtx.title,
+          chars: text.length,
+          phi: screen.phi_flag,
+          onClear: clearAttachment,
+        });
+        addUserMessage(quickChat, prompt);
+        void runSend(prompt, false);
+      },
+      onCancel: () => {},
+    });
+  };
+
+  // EMR-with-patient keeps the existing patient scaffold as its envelope;
+  // every other surface gets the proposed action zone.
+  if (!(envSurface === 'emr' && patient) && envelope.actions.length > 0) {
+    cardsContainer.appendChild(
+      CollapsibleSection({
+        id: 'actions',
+        label: 'Actions',
+        summary: envelope.chipLabel,
+        content: EnvelopeActions(envelope, runEnvelopeAction),
+      })
+    );
+  }
+
   const chatPanel = CollapsibleSection({
     id: 'chat',
     label: 'Ask Mobius',

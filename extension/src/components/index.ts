@@ -50,6 +50,7 @@ export { ContextExpander } from './sidecar/ContextExpander';
 export { QuickChat, setQuickChatLoading, showQuickChatResponse, clearQuickChatResponse, addUserMessage, setQuickChatStatus } from './sidecar/QuickChat';
 export { CollapsibleSection, setSectionSummary } from './sidecar/CollapsibleSection';
 export { showPageAckCard, setAttachedPageChip } from './sidecar/QuickChat';
+export { EnvelopeActions } from './sidecar/EnvelopeActions';
 export { SidecarMenu, CollapseButton } from './sidecar/SidecarMenu';
 export { AlertIndicator, updateAlertIndicator, NotificationDot } from './sidecar/AlertIndicator';
 export { FactorCard } from './sidecar/FactorCard';
