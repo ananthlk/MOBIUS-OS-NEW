@@ -1,10 +1,13 @@
 /**
  * Chat Service — asks the shared mobius-chat pipeline.
  *
- * No-PHI general assistant: sends ONLY the text the user typed. Never
- * attaches page-scraped, patient, or EMR context. mobius-chat's server-side
- * PHI gate is the backstop — a 422 phi_blocked response is surfaced to the
- * user as-is, with no override.
+ * Consent-gated context model: by default only the typed question is sent.
+ * Page content can be attached ONLY through the explicit read-page flow —
+ * captured on user action, screened locally (services/phiScreen, zero
+ * egress), and acknowledged before anything leaves the browser. Attached
+ * content rides inside the message body so mobius-chat's server-side PHI
+ * gate (the authoritative, fail-closed layer) scans it; a server block is
+ * surfaced for a second explicit acknowledgement before any override.
  *
  * Transport: POST /chat enqueues and returns {correlation_id, thread_id};
  * GET /chat/response/{cid} is polled until status leaves processing/pending.
@@ -29,6 +32,37 @@ export interface ChatAnswer {
   error?: string;
   /** True when the PHI gate blocked the message. */
   phiBlocked?: boolean;
+  /** Identifier labels from the server PHI gate when blocked. */
+  phiLabels?: string[];
+}
+
+/** Page content the user explicitly captured and acknowledged for sharing. */
+export interface PageContext {
+  text: string;
+  url: string;
+  title: string;
+  /** Source-type hint so the server can apply type-specific extraction
+   *  (email vs EMR vs RCM vs generic web). Today it rides in the message
+   *  header; when chat grows a gated system_context envelope, the same
+   *  field moves there with no FE change. */
+  sourceType: 'email' | 'emr' | 'rcm' | 'web';
+}
+
+/** Cheap client-side source-type hint from the hostname. */
+export function classifyPageSource(hostname: string): PageContext['sourceType'] {
+  const h = hostname.toLowerCase();
+  if (/mail\.google\.com|outlook\.|mail\./.test(h)) return 'email';
+  if (/mock-emr|epic|cerner|athena|qualifacts|carelogic|myavatar|credible/.test(h)) return 'emr';
+  if (/availity|waystar|claim|billing|rcm|clearinghouse/.test(h)) return 'rcm';
+  return 'web';
+}
+
+export interface AskOptions {
+  /** Acknowledged page content to attach. Rides INSIDE the message body so
+   *  the server PHI gate scans it — never in unscanned side-channels. */
+  pageContext?: PageContext;
+  /** Set after the user explicitly acknowledged a PHI warning. */
+  phiOverride?: boolean;
 }
 
 function storageGet(key: string): Promise<string | null> {
@@ -55,7 +89,8 @@ function sleep(ms: number): Promise<void> {
  */
 export async function askMobius(
   message: string,
-  onProgress?: (status: string) => void
+  onProgress?: (status: string) => void,
+  opts: AskOptions = {}
 ): Promise<ChatAnswer> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   // Auth is optional on chat; attach the Mobius identity when present so
@@ -77,8 +112,11 @@ export async function askMobius(
       method: 'POST',
       headers,
       body: JSON.stringify({
-        message,
+        message: opts.pageContext
+          ? `${message}\n\n[Attached page (${opts.pageContext.sourceType}): ${opts.pageContext.title} — ${opts.pageContext.url}]\n${opts.pageContext.text}`
+          : message,
         ...(threadId ? { thread_id: threadId } : {}),
+        ...(opts.phiOverride ? { phi_override: true } : {}),
       }),
     });
   } catch (e) {
@@ -90,6 +128,9 @@ export async function askMobius(
     return {
       ok: false,
       phiBlocked: true,
+      phiLabels: Array.isArray(postData.detail.identifier_labels)
+        ? postData.detail.identifier_labels
+        : [],
       error:
         postData.detail.message ||
         'Message looks like it contains PHI — please rephrase without identifiers.',

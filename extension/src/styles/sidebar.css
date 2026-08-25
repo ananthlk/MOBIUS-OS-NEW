@@ -6281,3 +6281,133 @@
 .sidecar-panel-chat .sidecar-quick-chat-wrapper {
   flex: 0 0 auto;
 }
+
+/* =============================================================================
+   PAGE-CONTEXT CONSENT FLOW (read page → local PHI screen → acknowledge)
+   ============================================================================= */
+
+.sidecar-quick-chat-readpage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--mobius-border, #e2e8f0);
+  border-radius: var(--mobius-radius-sm, 6px);
+  background: var(--mobius-bg-secondary, #f8fafc);
+  color: var(--mobius-text-muted, #64748b);
+  cursor: pointer;
+  margin-right: 6px;
+  flex: 0 0 auto;
+}
+
+.sidecar-quick-chat-readpage:hover {
+  background: var(--mobius-bg-hover, #f9fafb);
+  color: var(--mobius-accent, #3b82f6);
+}
+
+.sidecar-chat-ack {
+  border: 1px solid var(--mobius-border, #e2e8f0);
+  border-left: 3px solid var(--mobius-accent, #3b82f6);
+  border-radius: var(--mobius-radius-sm, 6px);
+  background: var(--mobius-bg-card, #ffffff);
+  padding: 8px 10px;
+  margin: 6px 0;
+  font-size: 10px;
+}
+
+.sidecar-chat-ack.has-phi {
+  border-left-color: var(--mobius-warning, #f59e0b);
+}
+
+.sidecar-chat-ack-title {
+  font-weight: 600;
+  color: var(--mobius-text-primary, #1a1d21);
+  margin-bottom: 4px;
+}
+
+.sidecar-chat-ack.has-phi .sidecar-chat-ack-title {
+  color: var(--mobius-warning, #f59e0b);
+}
+
+.sidecar-chat-ack-labels {
+  color: var(--mobius-text-secondary, #374151);
+  margin-bottom: 2px;
+}
+
+.sidecar-chat-ack-evidence {
+  font-family: var(--mobius-font-mono, ui-monospace, monospace);
+  font-size: 9px;
+  color: var(--mobius-text-muted, #64748b);
+  margin-bottom: 4px;
+}
+
+.sidecar-chat-ack-meta {
+  color: var(--mobius-text-muted, #64748b);
+  margin-bottom: 6px;
+}
+
+.sidecar-chat-ack-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sidecar-chat-ack-accept {
+  background: var(--mobius-accent, #3b82f6);
+  color: var(--mobius-accent-text, #ffffff);
+  border: none;
+  border-radius: var(--mobius-radius-sm, 6px);
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sidecar-chat-ack.has-phi .sidecar-chat-ack-accept {
+  background: var(--mobius-warning, #f59e0b);
+}
+
+.sidecar-chat-ack-cancel {
+  background: var(--mobius-bg-secondary, #f8fafc);
+  color: var(--mobius-text-secondary, #374151);
+  border: 1px solid var(--mobius-border, #e2e8f0);
+  border-radius: var(--mobius-radius-sm, 6px);
+  padding: 4px 10px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.sidecar-chat-attach-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  color: var(--mobius-text-secondary, #374151);
+  background: var(--mobius-bg-tertiary, #f1f5f9);
+  border: 1px solid var(--mobius-border-light, #e5e7eb);
+  border-radius: var(--mobius-radius-full, 9999px);
+  padding: 3px 8px;
+  margin: 0 0 6px 0;
+  flex: 0 0 auto;
+}
+
+.sidecar-chat-attach-chip.has-phi {
+  border-color: var(--mobius-warning, #f59e0b);
+}
+
+.sidecar-chat-attach-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sidecar-chat-attach-chip button {
+  background: none;
+  border: none;
+  color: var(--mobius-text-muted, #64748b);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0 2px;
+  flex: 0 0 auto;
+}

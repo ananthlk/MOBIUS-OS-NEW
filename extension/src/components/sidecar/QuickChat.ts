@@ -6,11 +6,14 @@
  */
 
 import type { KnowledgeContext, RecordContext } from '../../types/record';
+import { ICONS } from './icons';
 
 export interface QuickChatProps {
   record: RecordContext;
   knowledgeContext: KnowledgeContext;
   onSend: (message: string) => void;
+  /** Explicit user action to capture + screen + attach the current page. */
+  onReadPage?: () => void;
   placeholder?: string;
 }
 
@@ -18,7 +21,7 @@ export interface QuickChatProps {
  * Create the QuickChat element
  */
 export function QuickChat(props: QuickChatProps): HTMLElement {
-  const { record, onSend, placeholder } = props;
+  const { record, onSend, onReadPage, placeholder } = props;
   
   const container = document.createElement('div');
   container.className = 'sidecar-quick-chat';
@@ -84,11 +87,122 @@ export function QuickChat(props: QuickChatProps): HTMLElement {
     }
   });
   
+  // Read-page button — the explicit consent gesture for page context
+  if (onReadPage) {
+    const pageBtn = document.createElement('button');
+    pageBtn.className = 'sidecar-quick-chat-readpage';
+    pageBtn.type = 'button';
+    pageBtn.title = 'Read this page and attach it (screened for PHI first)';
+    pageBtn.innerHTML = ICONS.page;
+    pageBtn.addEventListener('click', () => onReadPage());
+    inputWrapper.appendChild(pageBtn);
+  }
+
   inputWrapper.appendChild(input);
   inputWrapper.appendChild(sendBtn);
   container.appendChild(inputWrapper);
   
   return container;
+}
+
+/**
+ * Show an acknowledgement card before any page content is shared.
+ * `labels` empty means the local screen found nothing.
+ */
+export function showPageAckCard(
+  element: HTMLElement,
+  opts: {
+    title: string;
+    labels: string[];
+    evidence?: string[];
+    chars: number;
+    acceptText: string;
+    onAccept: () => void;
+    onCancel: () => void;
+  }
+): void {
+  const messagesContainer = element.querySelector('.sidecar-chat-messages');
+  if (!messagesContainer) return;
+  element.querySelector('.sidecar-chat-ack')?.remove();
+  const emptyState = messagesContainer.querySelector('.sidecar-chat-empty');
+  if (emptyState) emptyState.remove();
+
+  const card = document.createElement('div');
+  card.className = 'sidecar-chat-ack' + (opts.labels.length ? ' has-phi' : '');
+
+  const title = document.createElement('div');
+  title.className = 'sidecar-chat-ack-title';
+  if (opts.labels.length) title.innerHTML = ICONS.warning + ' ';
+  title.appendChild(document.createTextNode(opts.title));
+  card.appendChild(title);
+
+  if (opts.labels.length) {
+    const labels = document.createElement('div');
+    labels.className = 'sidecar-chat-ack-labels';
+    labels.textContent = `Detected: ${opts.labels.join(', ')}`;
+    card.appendChild(labels);
+  }
+  if (opts.evidence && opts.evidence.length) {
+    const ev = document.createElement('div');
+    ev.className = 'sidecar-chat-ack-evidence';
+    ev.textContent = opts.evidence.slice(0, 3).join('  ·  ');
+    card.appendChild(ev);
+  }
+
+  const meta = document.createElement('div');
+  meta.className = 'sidecar-chat-ack-meta';
+  meta.textContent = `${opts.chars.toLocaleString()} characters captured — nothing has been sent yet.`;
+  card.appendChild(meta);
+
+  const row = document.createElement('div');
+  row.className = 'sidecar-chat-ack-actions';
+  const accept = document.createElement('button');
+  accept.className = 'sidecar-chat-ack-accept';
+  accept.textContent = opts.acceptText;
+  accept.addEventListener('click', () => {
+    card.remove();
+    opts.onAccept();
+  });
+  const cancel = document.createElement('button');
+  cancel.className = 'sidecar-chat-ack-cancel';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => {
+    card.remove();
+    opts.onCancel();
+  });
+  row.appendChild(accept);
+  row.appendChild(cancel);
+  card.appendChild(row);
+
+  messagesContainer.appendChild(card);
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+/** Show / clear the "page attached" chip above the input. */
+export function setAttachedPageChip(
+  element: HTMLElement,
+  info: { title: string; chars: number; phi: boolean; onClear: () => void } | null
+): void {
+  element.querySelector('.sidecar-chat-attach-chip')?.remove();
+  if (!info) return;
+  const wrapper = element.querySelector('.sidecar-quick-chat-wrapper');
+  if (!wrapper) return;
+
+  const chip = document.createElement('div');
+  chip.className = 'sidecar-chat-attach-chip' + (info.phi ? ' has-phi' : '');
+  chip.innerHTML = ICONS.page;
+  const label = document.createElement('span');
+  label.textContent = ` ${info.title || 'Page'} · ${info.chars.toLocaleString()} chars${info.phi ? ' · PHI acknowledged' : ''}`;
+  chip.appendChild(label);
+  const clear = document.createElement('button');
+  clear.textContent = '✕';
+  clear.title = 'Remove attached page';
+  clear.addEventListener('click', () => {
+    chip.remove();
+    info.onClear();
+  });
+  chip.appendChild(clear);
+  element.insertBefore(chip, wrapper);
 }
 
 /**

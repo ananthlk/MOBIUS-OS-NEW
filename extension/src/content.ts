@@ -36,6 +36,8 @@ import {
   showQuickChatResponse,
   addUserMessage,
   setQuickChatStatus,
+  showPageAckCard,
+  setAttachedPageChip,
   SidecarMenu,
   CollapseButton,
 } from './components';
@@ -45,7 +47,8 @@ import type { SidecarStateResponse, Bottleneck, RecordContext, PrivacyContext } 
 import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, DetectedPatient, ResolvedPatientContext, UserProfile, PersonalizationData, MiniStatusResponse as MiniStatusResponseType, ResolutionPlan } from './types';
 import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService, apiFetch } from './services/auth';
-import { askMobius } from './services/chat';
+import { askMobius, classifyPageSource, PageContext } from './services/chat';
+import { screenTextForPhi } from './services/phiScreen';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
@@ -3309,37 +3312,111 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   mainContent.appendChild(cardsContainer);
   
   // === QUICK CHAT (compact, at bottom) ===
-  // No-PHI general assistant against the shared mobius-chat pipeline.
-  // Sends only the typed question — no patient/EMR context is attached —
-  // and chat's server-side PHI gate is the backstop for typed identifiers.
+  // Consent-gated context model: by default only the typed question is
+  // sent. Page content attaches ONLY via the read-page flow — captured on
+  // click, screened locally (zero egress), acknowledged, then sent inside
+  // the message body so chat's server-side PHI gate scans it too.
+  let attachedPage: (PageContext & { phiAcked: boolean }) | null = null;
+
+  const capturePageText = (): string => {
+    const skip = (el: Element) =>
+      el.id?.startsWith('mobius-os') || el.id?.startsWith('mobius-toast') || el.id === 'mobius-patient-context';
+    const parts: string[] = [];
+    for (const el of Array.from(document.body.children)) {
+      if (skip(el)) continue;
+      const t = (el as HTMLElement).innerText;
+      if (t && t.trim()) parts.push(t.trim());
+    }
+    return parts.join('\n').slice(0, 12000);
+  };
+
+  const clearAttachment = () => {
+    attachedPage = null;
+    setAttachedPageChip(quickChat, null);
+  };
+
+  const runSend = async (message: string, phiOverride: boolean) => {
+    setQuickChatLoading(quickChat, true);
+    setQuickChatStatus(quickChat, 'Asking Mobius…');
+    try {
+      const result = await askMobius(
+        message,
+        (status) => setQuickChatStatus(quickChat, status),
+        attachedPage
+          ? { pageContext: attachedPage, phiOverride: phiOverride || attachedPage.phiAcked }
+          : {}
+      );
+      setQuickChatStatus(quickChat, null);
+      if (result.ok && result.answer) {
+        showQuickChatResponse(
+          quickChat,
+          result.answer,
+          result.sourceCount ? `${result.sourceCount} corpus sources` : undefined
+        );
+        clearAttachment(); // one-shot: page context does not linger silently
+      } else if (result.phiBlocked) {
+        // Server gate caught identifiers the local screen can't (e.g. bare
+        // names). Second explicit acknowledgement before any override.
+        showPageAckCard(quickChat, {
+          title: 'Mobius server flagged patient information in this content.',
+          labels: result.phiLabels || ['Patient information'],
+          chars: attachedPage ? attachedPage.text.length : message.length,
+          acceptText: 'Acknowledge & send anyway',
+          onAccept: () => void runSend(message, true),
+          onCancel: () => clearAttachment(),
+        });
+      } else {
+        showQuickChatResponse(quickChat, result.error || 'Something went wrong — try again.');
+      }
+    } catch (err) {
+      setQuickChatStatus(quickChat, null);
+      showQuickChatResponse(quickChat, 'Could not reach Mobius chat.');
+    } finally {
+      setQuickChatLoading(quickChat, false);
+    }
+  };
+
   const quickChat = QuickChat({
     record: recordContext,
     knowledgeContext: sidecarState?.knowledge_context || { payer: { name: '' }, policy_excerpts: [], relevant_history: [] },
     placeholder: 'Ask Mobius — payer policy, filing limits, auth rules…',
     onSend: async (message) => {
       addUserMessage(quickChat, message);
-      setQuickChatLoading(quickChat, true);
-      setQuickChatStatus(quickChat, 'Asking Mobius…');
-      try {
-        const result = await askMobius(message, (status) => {
-          setQuickChatStatus(quickChat, status);
-        });
-        setQuickChatStatus(quickChat, null);
-        if (result.ok && result.answer) {
-          showQuickChatResponse(
-            quickChat,
-            result.answer,
-            result.sourceCount ? `${result.sourceCount} corpus sources` : undefined
-          );
-        } else {
-          showQuickChatResponse(quickChat, result.error || 'Something went wrong — try again.');
-        }
-      } catch (err) {
-        setQuickChatStatus(quickChat, null);
-        showQuickChatResponse(quickChat, 'Could not reach Mobius chat.');
-      } finally {
-        setQuickChatLoading(quickChat, false);
+      await runSend(message, false);
+    },
+    onReadPage: () => {
+      const text = capturePageText();
+      if (!text) {
+        showToast('Nothing readable on this page');
+        return;
       }
+      // Local screen — pure function, zero network egress.
+      const screen = screenTextForPhi(text);
+      const pageCtx: PageContext = {
+        text,
+        url: window.location.href.split('?')[0],
+        title: document.title || window.location.hostname,
+        sourceType: classifyPageSource(window.location.hostname),
+      };
+      showPageAckCard(quickChat, {
+        title: screen.phi_flag
+          ? 'This page looks like it contains patient information.'
+          : 'Attach this page to your next question?',
+        labels: screen.identifier_labels,
+        evidence: screen.findings.map((f) => `${f.label}: ${f.redacted_span} (×${f.count})`),
+        chars: text.length,
+        acceptText: screen.phi_flag ? 'Acknowledge & attach' : 'Attach page',
+        onAccept: () => {
+          attachedPage = { ...pageCtx, phiAcked: screen.phi_flag };
+          setAttachedPageChip(quickChat, {
+            title: pageCtx.title,
+            chars: text.length,
+            phi: screen.phi_flag,
+            onClear: clearAttachment,
+          });
+        },
+        onCancel: () => {},
+      });
     },
   });
   const chatPanel = CollapsibleSection({
