@@ -177,3 +177,33 @@ export function deriveRole(activities: string[] | undefined): Role {
     return 'front_desk';
   return 'unknown';
 }
+
+/**
+ * Default "Preferred" pins for a role, used to seed a new user's drawer so
+ * the surface arrives useful before they customize. Persisted per-user once
+ * they edit (see PHASE2_SPEC persistence surfaces).
+ */
+export function defaultPreferred(role: Role): { id: string; label: string }[] {
+  switch (role) {
+    case 'biller':
+      return [
+        { id: 'check-claim', label: 'Check a claim' },
+        { id: 'retrieve-patient', label: '↻ Retrieve a patient' },
+      ];
+    case 'clinician':
+      return [
+        { id: 'summarize-chart', label: 'Summarize chart' },
+        { id: 'new-note', label: 'New note' },
+      ];
+    case 'front_desk':
+      return [
+        { id: 'verify-eligibility', label: 'Verify eligibility' },
+        { id: 'retrieve-patient', label: '↻ Retrieve a patient' },
+      ];
+    default:
+      return [
+        { id: 'search-policy', label: 'Search policy' },
+        { id: 'retrieve-patient', label: '↻ Retrieve a patient' },
+      ];
+  }
+}

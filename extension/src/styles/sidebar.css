@@ -6512,3 +6512,43 @@
   text-align: center; font-size: 11px; color: var(--mobius-text-muted, #64748b); margin-top: 4px;
 }
 .sidecar-signin-toggle a { color: var(--mobius-accent, #3b82f6); text-decoration: none; font-weight: 600; }
+
+/* =============================================================================
+   PHASE 2: context strip + Do/Save + drawer
+   ============================================================================= */
+.sidecar-ctx-strip {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 12px;
+  background: var(--mobius-bg-tertiary, #f1f5f9);
+  border-bottom: 1px solid var(--mobius-border-light, #eef2f7);
+  font-size: 10.5px; color: var(--mobius-text-secondary, #374151);
+}
+.ctxs-glyph { color: var(--mobius-text-muted, #64748b); }
+.ctxs-title { color: var(--mobius-text-primary, #1a1d21); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.ctxs-role { color: var(--mobius-text-muted, #64748b); }
+.ctxs-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--mobius-text-muted, #64748b); opacity: .5; flex: 0 0 auto; }
+.ctxs-wrong { font-size: 9px; color: var(--mobius-text-muted, #64748b); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; opacity: .7; }
+.ctxs-tasks { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--mobius-text-secondary, #374151); background: var(--mobius-bg-card, #fff); border: 1px solid var(--mobius-border, #e2e8f0); border-radius: 999px; padding: 2px 9px; cursor: pointer; font-family: inherit; }
+.ctxs-tasks .n { font-weight: 700; }
+
+.sidecar-dosave { display: flex; flex-direction: column; gap: 11px; padding: 12px 12px 4px; }
+.ds-verbs { display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px; }
+.ds-verb { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 12px; border-radius: 12px; border: 1px solid var(--mobius-border, #e2e8f0); background: var(--mobius-bg-secondary, #f8fafc); cursor: pointer; text-align: left; font-family: inherit; }
+.ds-vt { font-size: 15px; font-weight: 700; }
+.ds-vs { font-size: 10.5px; color: var(--mobius-text-muted, #64748b); }
+.ds-verb.do { border-color: color-mix(in srgb, var(--mobius-accent, #3b82f6) 50%, var(--mobius-border, #e2e8f0)); background: color-mix(in srgb, var(--mobius-accent, #3b82f6) 9%, var(--mobius-bg-card, #fff)); }
+.ds-verb.do .ds-vt { color: var(--mobius-accent, #3b82f6); }
+.ds-verb.save { border-color: color-mix(in srgb, var(--mobius-success, #10b981) 45%, var(--mobius-border, #e2e8f0)); background: color-mix(in srgb, var(--mobius-success, #10b981) 9%, var(--mobius-bg-card, #fff)); }
+.ds-verb.save .ds-vt { color: var(--mobius-success, #10b981); }
+.ds-verb:hover { filter: brightness(0.99); }
+
+.ds-drawer { border-top: 1px dashed var(--mobius-border, #e2e8f0); padding-top: 9px; }
+.ds-grp { display: flex; align-items: baseline; justify-content: space-between; margin: 8px 0 6px; }
+.ds-grp:first-child { margin-top: 0; }
+.ds-grp-lbl { font-size: 9px; font-family: var(--mobius-font-mono, ui-monospace, monospace); letter-spacing: .06em; text-transform: uppercase; color: var(--mobius-text-muted, #64748b); opacity: .8; }
+.ds-customize { font-size: 9px; color: var(--mobius-accent, #3b82f6); cursor: pointer; font-weight: 500; }
+.ds-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds-chip { font-size: 11px; padding: 6px 11px; border-radius: 8px; border: 1px solid var(--mobius-border, #e2e8f0); background: var(--mobius-bg-secondary, #f8fafc); color: var(--mobius-text-secondary, #374151); cursor: pointer; font-family: inherit; }
+.ds-chip:hover { background: var(--mobius-bg-hover, #f9fafb); }
+.ds-chip.pref { color: var(--mobius-accent, #3b82f6); border-color: color-mix(in srgb, var(--mobius-accent, #3b82f6) 35%, var(--mobius-border, #e2e8f0)); background: color-mix(in srgb, var(--mobius-accent, #3b82f6) 7%, var(--mobius-bg-card, #fff)); font-weight: 500; }
+.ds-chip.pin { border-style: dashed; color: var(--mobius-text-muted, #64748b); background: transparent; }

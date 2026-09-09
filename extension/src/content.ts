@@ -49,8 +49,10 @@ import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService, apiFetch } from './services/auth';
 import { askMobius, classifyPageSource, PageContext } from './services/chat';
 import { screenTextForPhi } from './services/phiScreen';
-import { resolveEnvelope, deriveRole, EnvelopeAction } from './services/envelopes';
+import { resolveEnvelope, deriveRole, defaultPreferred, EnvelopeAction } from './services/envelopes';
 import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
+import { SidecarContextStrip } from './components/sidecar/SidecarContextStrip';
+import { DoSaveActions, PreferredItem } from './components/sidecar/DoSaveActions';
 import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
@@ -2979,24 +2981,32 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   const mainContent = document.createElement('div');
   mainContent.className = 'sidecar-main-content';
   mainContent.setAttribute('style', 'flex: 1; min-height: 0; display: flex; flex-direction: column;');
-  
+
+  // === CONTEXT STRIP ("what I know") — Phase 2 ===
+  try {
+    const ctxSurface = classifyPageSource(getHostname());
+    const glyphBySurface: Record<string, string> = { email: '✉', emr: '▤', rcm: '◱', web: '🌐' };
+    const ctxRole = deriveRole(currentUserProfile?.activities);
+    mainContent.appendChild(
+      SidecarContextStrip({
+        glyph: glyphBySurface[ctxSurface] || '🌐',
+        title: patient ? (sidecarPrivacyMode ? 'Patient' : patient.name) : document.title || getHostname(),
+        role: ctxRole === 'unknown' ? undefined : ctxRole.replace('_', ' '),
+        taskCount: 0, // wired to real tasks in 2.2
+        onWrong: () => showToast('Context correction coming soon'),
+      })
+    );
+  } catch (err) {
+    console.error('[Mobius] Context strip render failed:', err);
+  }
+
   // === CARDS CONTAINER (bottlenecks, patient context - takes remaining space, scrollable) ===
   const cardsContainer = document.createElement('div');
   cardsContainer.className = 'sidecar-cards-container';
   cardsContainer.setAttribute('style', 'flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 6px 10px;');
   
-  // === MOBIUS GREETING ===
-  const greeting = document.createElement('div');
-  greeting.className = 'sidecar-greeting';
-  const userName = currentUserProfile?.display_name?.split(' ')[0] || 'there';
-  const hour = new Date().getHours();
-  const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  greeting.innerHTML = `
-    <span class="sidecar-greeting-text">${timeGreeting}, ${userName}.</span>
-    <span class="sidecar-greeting-subtext">I'm here to help.</span>
-  `;
-  cardsContainer.appendChild(greeting);
-  
+  // Greeting removed in Phase 2 — the context strip carries identity now.
+
   // === PATIENT CONTEXT (compact single line) ===
   if (patient) {
     const patientSection = document.createElement('div');
@@ -3534,17 +3544,23 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     });
   };
 
-  // EMR-with-patient keeps the existing patient scaffold as its envelope;
-  // every other surface gets the proposed action zone.
-  if (!(envSurface === 'emr' && patient) && envelope.actions.length > 0) {
-    cardsContainer.appendChild(
-      CollapsibleSection({
-        id: 'actions',
-        label: 'Actions',
-        summary: envelope.chipLabel,
-        content: EnvelopeActions(envelope, runEnvelopeAction),
-      })
-    );
+  // === DO / SAVE + DRAWER (Phase 2) ===
+  // Promoted action + contribute, over the Suggested/Preferred drawer. Sits
+  // at the top of the scroll area, above any patient panels.
+  try {
+    const preferred: PreferredItem[] = defaultPreferred(envRole);
+    const doSave = DoSaveActions(envelope, {
+      onDo: (action) => runEnvelopeAction(action),
+      onSave: () => showToast('Save — smart filing coming soon'),
+      onAction: (action) => runEnvelopeAction(action),
+      onAsk: () => quickChat.querySelector<HTMLInputElement>('.sidecar-quick-chat-input')?.focus(),
+      preferred,
+      onPreferred: (item) => showToast(`${item.label} — coming soon`),
+      onCustomize: () => showToast('Customize your pinned actions — coming soon'),
+    });
+    cardsContainer.insertBefore(doSave, cardsContainer.firstChild);
+  } catch (err) {
+    console.error('[Mobius] Do/Save render failed:', err);
   }
 
   const chatPanel = CollapsibleSection({
