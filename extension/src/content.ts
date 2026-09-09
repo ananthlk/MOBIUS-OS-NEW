@@ -2928,7 +2928,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   
   const logoSection = document.createElement('div');
   logoSection.className = 'logo-section';
-  logoSection.setAttribute('style', 'display: flex; align-items: center; gap: 4px;');
+  logoSection.setAttribute('style', 'display: flex; align-items: center; gap: 8px;');
   logoSection.appendChild(MobiusLogo({ status: 'idle' }));
   const logoLabel = document.createElement('span');
   logoLabel.className = 'logo-label';

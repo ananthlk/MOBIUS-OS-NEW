@@ -10,10 +10,10 @@
 }
 
 #mobius-os-sidebar {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Google Sans', sans-serif;
+  font-family: var(--mobius-font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   background: var(--mobius-bg-primary, #ffffff);
   color: var(--mobius-text-primary, #0b1220);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   font-weight: 400;
 }
 
@@ -77,7 +77,7 @@
   display: flex;
   align-items: center;
   gap: var(--mobius-space-sm, 6px);
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   color: var(--mobius-text-secondary, #5f6368);
   min-width: 100px;
 }
@@ -108,7 +108,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   color: var(--mobius-text-secondary, #5f6368);
 }
 
@@ -154,7 +154,7 @@
 
 #mobius-os-sidebar .logo-label {
   font-weight: 500;
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   color: var(--mobius-text-primary, #202124);
   white-space: nowrap;
   overflow: hidden;
@@ -165,7 +165,7 @@
 #mobius-os-sidebar .context-display {
   flex: 1 1 auto;
   margin: 0;
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   color: var(--mobius-text-secondary, #5f6368);
   display: flex;
   align-items: center;
@@ -215,10 +215,10 @@
 #mobius-os-sidebar .mode-badge {
   display: inline-block;
   padding: var(--mobius-space-xs, 3px) var(--mobius-space-sm, 8px);
-  background: color-mix(in srgb, var(--mobius-accent, #1a73e8) 10%, transparent);
-  color: var(--mobius-accent, #1a73e8);
+  background: color-mix(in srgb, var(--mobius-accent, #3b82f6) 10%, transparent);
+  color: var(--mobius-accent, #3b82f6);
   border-radius: var(--mobius-radius-lg, 12px);
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 500;
   margin-left: var(--mobius-space-sm, 8px);
   text-transform: uppercase;
@@ -238,13 +238,13 @@
 }
 
 #mobius-os-sidebar .alert-btn {
-  font-size: var(--mobius-font-lg, 16px);
+  font-size: var(--mobius-text-lg, 16px);
   position: relative;
   margin-right: var(--mobius-space-sm, 8px);
 }
 
 #mobius-os-sidebar .settings-btn {
-  font-size: var(--mobius-font-xl, 18px);
+  font-size: var(--mobius-text-xl, 18px);
 }
 
 #mobius-os-sidebar .alert-btn:hover,
@@ -263,7 +263,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--mobius-font-lg, 16px);
+  font-size: var(--mobius-text-lg, 16px);
   line-height: 1;
 }
 
@@ -281,7 +281,7 @@
 }
 
 #mobius-os-sidebar .context-summary {
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   color: var(--mobius-text-primary, #202124);
   margin-bottom: var(--mobius-space-sm, 6px);
   line-height: 1.4;
@@ -290,10 +290,10 @@
 #mobius-os-sidebar .quick-action-btn {
   display: inline-block;
   padding: var(--mobius-space-sm, 7px) var(--mobius-space-md, 12px);
-  background: var(--mobius-accent, #1a73e8);
+  background: var(--mobius-accent, #3b82f6);
   color: var(--mobius-accent-text, white);
   border-radius: var(--mobius-radius-base, 10px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   cursor: pointer;
   border: none;
 }
@@ -318,7 +318,7 @@
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   font-weight: 500;
   color: var(--mobius-text-secondary, #5f6368);
   margin-bottom: var(--mobius-space-sm, 6px);
@@ -337,12 +337,12 @@
   align-items: flex-start;
   gap: var(--mobius-space-sm, 8px);
   padding: var(--mobius-space-xs, 4px) 0;
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   color: var(--mobius-text-primary, #202124);
 }
 
 #mobius-os-sidebar .task-item.shared {
-  color: var(--mobius-accent, #1a73e8);
+  color: var(--mobius-accent, #3b82f6);
 }
 
 #mobius-os-sidebar .task-item.backend {
@@ -368,7 +368,7 @@
   max-width: 75%;
   padding: var(--mobius-space-sm, 7px) var(--mobius-space-sm, 10px);
   border-radius: var(--mobius-radius-base, 10px);
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   line-height: 1.45;
   color: var(--mobius-text-primary, #0b1220);
 }
@@ -437,7 +437,7 @@
   border: none;
   background: transparent;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.7));
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
 }
 
 #mobius-os-sidebar .thinking-line summary {
@@ -492,7 +492,7 @@
   padding: var(--mobius-space-sm, 8px) var(--mobius-space-md, 12px);
   border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
   border-radius: var(--mobius-radius-base, 10px);
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   outline: none;
   background: var(--mobius-bg-primary, #fff);
   resize: none;
@@ -563,7 +563,7 @@
   border: none;
   background: var(--mobius-bg-primary, white);
   text-align: left;
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   font-weight: 500;
   color: var(--mobius-text-primary, #0b1220);
 }
@@ -623,7 +623,7 @@
   border: none;
   background: var(--mobius-bg-primary, white);
   text-align: left;
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
 }
 
 #mobius-os-sidebar .tools-dropdown button:hover {
@@ -643,7 +643,7 @@
 }
 
 #mobius-os-sidebar .record-id-input label {
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   color: var(--mobius-text-secondary, #5f6368);
   font-weight: 500;
   white-space: nowrap;
@@ -653,7 +653,7 @@
   padding: var(--mobius-space-sm, 6px) var(--mobius-space-sm, 8px);
   border: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.18));
   border-radius: var(--mobius-radius-sm, 8px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   background: var(--mobius-bg-primary, #fff);
 }
 
@@ -662,7 +662,7 @@
   padding: var(--mobius-space-sm, 7px) var(--mobius-space-sm, 10px);
   border: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.18));
   border-radius: var(--mobius-radius-sm, 8px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   outline: none;
 }
 
@@ -683,7 +683,7 @@
   background: var(--mobius-bg-tertiary, rgba(60, 64, 67, 0.06));
   border: 1px solid var(--mobius-border-light, rgba(60, 64, 67, 0.10));
   border-radius: var(--mobius-radius-base, 10px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
 }
 
 #mobius-os-sidebar .context-button:hover {
@@ -708,7 +708,7 @@
 }
 
 #mobius-os-sidebar .user-info {
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   color: var(--mobius-text-secondary, #5f6368);
   white-space: nowrap;
   overflow: hidden;
@@ -719,7 +719,7 @@
 #mobius-os-sidebar .preferences {
   display: flex;
   gap: var(--mobius-space-sm, 10px);
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   align-items: center;
   white-space: nowrap;
 }
@@ -749,7 +749,7 @@
 }
 
 #mobius-os-sidebar .preference-group label {
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   color: var(--mobius-text-secondary, #5f6368);
   white-space: nowrap;
 }
@@ -758,7 +758,7 @@
   padding: var(--mobius-space-sm, 6px) var(--mobius-space-sm, 8px);
   border: 1px solid var(--mobius-border, rgba(60, 64, 67, 0.18));
   border-radius: var(--mobius-radius-sm, 8px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   background: var(--mobius-bg-primary, #fff);
 }
 
@@ -775,9 +775,9 @@
 }
 
 #mobius-os-sidebar .pref-value {
-  color: var(--mobius-accent, #1a73e8);
+  color: var(--mobius-accent, #3b82f6);
   font-weight: 500;
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
 }
 
 /* Guidance / Follow-up actions (system message CTA buttons) */
@@ -789,24 +789,24 @@
   flex-wrap: wrap;
   align-items: center;
   border-radius: var(--mobius-radius-base, 10px);
-  border: 1px solid color-mix(in srgb, var(--mobius-accent, #1a73e8) 18%, transparent);
-  background: color-mix(in srgb, var(--mobius-accent, #1a73e8) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mobius-accent, #3b82f6) 18%, transparent);
+  background: color-mix(in srgb, var(--mobius-accent, #3b82f6) 6%, transparent);
 }
 
 #mobius-os-sidebar .guidance-action-btn {
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--mobius-accent, #1a73e8) 28%, transparent);
-  background: color-mix(in srgb, var(--mobius-accent, #1a73e8) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mobius-accent, #3b82f6) 28%, transparent);
+  background: color-mix(in srgb, var(--mobius-accent, #3b82f6) 10%, transparent);
   color: var(--mobius-accent, #174ea6);
   padding: var(--mobius-space-xs, 5px) var(--mobius-space-sm, 10px);
   border-radius: 999px;
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   line-height: 1.2;
 }
 
 #mobius-os-sidebar .guidance-action-btn:hover {
-  background: color-mix(in srgb, var(--mobius-accent, #1a73e8) 16%, transparent);
-  border-color: color-mix(in srgb, var(--mobius-accent, #1a73e8) 38%, transparent);
+  background: color-mix(in srgb, var(--mobius-accent, #3b82f6) 16%, transparent);
+  border-color: color-mix(in srgb, var(--mobius-accent, #3b82f6) 38%, transparent);
 }
 
 /**
@@ -828,7 +828,7 @@
   box-shadow: 0 16px 34px var(--mobius-shadow-strong, rgba(2, 6, 23, 0.14)) !important;
   overflow: hidden !important;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Google Sans', sans-serif !important;
-  font-size: var(--mobius-font-base, 12px) !important;
+  font-size: var(--mobius-text-base, 12px) !important;
   font-weight: 400 !important;
   user-select: none !important;
 }
@@ -925,13 +925,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   color: var(--mobius-text-secondary, #5f6368);
   font-weight: 500;
 }
 
 #mobius-os-mini .client-name {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-secondary, #5f6368);
   white-space: nowrap;
@@ -974,7 +974,7 @@
 }
 
 #mobius-os-mini .mobius-mini-brand-text {
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 500;
   color: var(--mobius-text-primary, #0b1220);
   white-space: nowrap;
@@ -992,7 +992,7 @@
   display: grid;
   place-items: center;
   font-weight: 400;
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
 }
 
 #mobius-os-mini .mobius-mini-expand-btn {
@@ -1005,7 +1005,7 @@
   display: grid;
   place-items: center;
   font-weight: 400;
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   line-height: 1;
 }
 
@@ -1023,7 +1023,7 @@
   display: grid;
   place-items: center;
   font-weight: 400;
-  font-size: var(--mobius-font-md, 14px);
+  font-size: var(--mobius-text-md, 14px);
   line-height: 1;
   color: var(--mobius-text-secondary, #374151);
 }
@@ -1075,7 +1075,7 @@
 }
 
 #mobius-os-mini .mobius-mini-minimized-patient {
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 400;
   color: var(--mobius-text-secondary, #374151);
   white-space: nowrap;
@@ -1109,7 +1109,7 @@
   padding: var(--mobius-space-sm, 10px) var(--mobius-space-md, 12px);
   border: none;
   background: var(--mobius-bg-primary, #fff);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   font-weight: 400;
   cursor: pointer;
   pointer-events: auto !important;
@@ -1144,7 +1144,7 @@
 
 #mobius-os-mini .mobius-mini-theme-submenu .mobius-mini-menu-item {
   padding: var(--mobius-space-sm, 8px) var(--mobius-space-md, 12px) var(--mobius-space-sm, 8px) var(--mobius-space-lg, 16px);
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   background: var(--mobius-bg-secondary, #f8fafc);
   color: var(--mobius-text-primary, #0b1220);
 }
@@ -1168,7 +1168,7 @@
 #mobius-os-mini .mobius-mini-row-label {
   width: 48px;
   flex: 0 0 auto;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--mobius-text-muted, rgba(91,102,122,0.95));
@@ -1184,7 +1184,7 @@
 }
 
 #mobius-os-mini .mobius-mini-patient-name {
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -1192,7 +1192,7 @@
 }
 
 #mobius-os-mini .mobius-mini-patient-id {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91,102,122,0.95));
   white-space: nowrap;
@@ -1201,7 +1201,7 @@
 }
 
 #mobius-os-mini .mobius-mini-patient-dob {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91,102,122,0.95));
   white-space: nowrap;
@@ -1216,7 +1216,7 @@
   background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
   cursor: pointer;
   font-weight: 500;
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   padding: 0 var(--mobius-space-sm, 10px);
 }
 
@@ -1257,7 +1257,7 @@
   display: flex;
   align-items: center;
   gap: var(--mobius-space-sm, 6px);
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 500;
   color: var(--mobius-text-primary, #0b1220);
 }
@@ -1321,7 +1321,7 @@
 
 #mobius-os-mini .mobius-mini-attention-row .mobius-mini-row-label {
   width: 48px;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   line-height: 1.2;
   flex-shrink: 0;
 }
@@ -1336,7 +1336,7 @@
 
 #mobius-os-mini .mobius-mini-question-text {
   flex: 1;
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   color: var(--mobius-text-primary, #1e293b);
   line-height: 1.3;
   min-width: 100px;
@@ -1362,7 +1362,7 @@
   word-wrap: break-word;
   text-align: left;
   min-width: 0;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   line-height: 1.35;
   color: var(--mobius-text-primary, #0b1220);
   padding-right: var(--mobius-space-sm, 6px);
@@ -1379,7 +1379,7 @@
   background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.04));
   cursor: pointer;
   flex-shrink: 0;
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-weight: 400;
   color: var(--mobius-text-secondary, #64748b);
   margin-left: var(--mobius-space-xs, 4px);
@@ -1408,7 +1408,7 @@
 }
 
 #mobius-os-mini .mobius-mini-dropdown-icon {
-  font-size: var(--mobius-font-xs, 6px);
+  font-size: var(--mobius-text-xs, 6px);
   color: inherit;
   opacity: 0.7;
 }
@@ -1420,7 +1420,7 @@
 
 #mobius-os-mini .mobius-mini-task-badge-row .mobius-mini-row-label {
   width: 48px;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   line-height: 1.2;
 }
 
@@ -1433,7 +1433,7 @@
   background: color-mix(in srgb, var(--mobius-accent, #2563eb) 6%, transparent);
   border-radius: var(--mobius-radius-sm, 8px);
   cursor: pointer;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-accent, #2563eb);
 }
@@ -1461,7 +1461,7 @@
   display: block !important;
   width: 100% !important;
   padding: var(--mobius-space-sm, 8px) var(--mobius-space-md, 12px) !important;
-  font-size: var(--mobius-font-sm, 10px) !important;
+  font-size: var(--mobius-text-sm, 10px) !important;
   text-align: left !important;
   background: transparent !important;
   border: none !important;
@@ -1475,7 +1475,7 @@
 }
 
 #mobius-os-mini .mobius-mini-step-question {
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 400;
   color: var(--mobius-text-primary, #1e293b);
   line-height: 1.3;
@@ -1489,7 +1489,7 @@
 
 #mobius-os-mini .mobius-mini-quick-answer-btn {
   padding: var(--mobius-space-xs, 4px) var(--mobius-space-sm, 8px);
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   border: 1px solid color-mix(in srgb, var(--mobius-accent, #2563eb) 20%, transparent);
   background: var(--mobius-bg-primary, white);
@@ -1521,7 +1521,7 @@
 
 #mobius-os-mini .mobius-mini-open-sidecar-btn {
   padding: var(--mobius-space-xs, 4px) var(--mobius-space-sm, 10px);
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 500;
   border: none;
   background: var(--mobius-accent, #2563eb);
@@ -1588,7 +1588,7 @@
 }
 
 #mobius-os-mini .mobius-mini-greeting-text {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-accent, #3b82f6);
 }
@@ -1682,7 +1682,7 @@
   border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.14));
   background: var(--mobius-bg-primary, #fff);
   padding: 0 34px 0 var(--mobius-space-sm, 8px);
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 400;
   color: var(--mobius-text-primary, #0b1220);
   outline: none;
@@ -1915,7 +1915,7 @@
 }
 
 .mobius-mini-modal-title {
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   font-weight: 500;
 }
 
@@ -1949,7 +1949,7 @@
 }
 
 .mobius-mini-field-label {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--mobius-text-secondary, rgba(91,102,122,0.95));
@@ -1990,7 +1990,7 @@
   border-radius: var(--mobius-radius-lg, 12px);
   border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.14));
   padding: 0 var(--mobius-space-sm, 10px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   font-weight: 400;
   outline: none;
 }
@@ -2000,7 +2000,7 @@
 }
 
 .mobius-mini-field-hint {
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   color: var(--mobius-text-secondary, rgba(91,102,122,0.95));
 }
 
@@ -2035,7 +2035,7 @@
 }
 
 .mobius-mini-suggestion .name {
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   font-weight: 500;
   color: var(--mobius-text-primary, #0b1220);
   min-width: 0;
@@ -2045,7 +2045,7 @@
 }
 
 .mobius-mini-suggestion .id {
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   font-weight: 400;
   color: var(--mobius-text-secondary, rgba(91,102,122,0.95));
   white-space: nowrap;
@@ -2065,7 +2065,7 @@
   height: 34px;
   border-radius: var(--mobius-radius-lg, 12px);
   padding: 0 var(--mobius-space-md, 12px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   font-weight: 500;
   cursor: pointer;
 }
@@ -2099,7 +2099,7 @@
   color: var(--mobius-bg-primary, #fff);
   padding: var(--mobius-space-sm, 10px) var(--mobius-space-md, 12px);
   border-radius: var(--mobius-radius-lg, 12px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   font-weight: 500;
   z-index: 2147483647;
   box-shadow: 0 14px 28px var(--mobius-shadow-strong, rgba(2,6,23,0.22));
@@ -2128,7 +2128,7 @@
 }
 
 .sidecar-status-bar-title {
-  font-size: var(--mobius-font-xs, 7px);
+  font-size: var(--mobius-text-xs, 7px);
   font-weight: 500;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.95));
   text-transform: uppercase;
@@ -2136,7 +2136,7 @@
 }
 
 .sidecar-status-bar-context {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.8));
   white-space: nowrap;
@@ -2192,7 +2192,7 @@
 
 /* Percentage label */
 .sidecar-status-bar-percent {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 500;
   color: var(--mobius-text-primary, #0b1220);
   white-space: nowrap;
@@ -2210,13 +2210,13 @@
 }
 
 .sidecar-greeting-text {
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   font-weight: 400;
   color: var(--mobius-text-primary, #0b1220);
 }
 
 .sidecar-greeting-subtext {
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
@@ -2242,13 +2242,13 @@
 }
 
 .sidecar-bottleneck-count {
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 400;
   color: var(--mobius-text-primary, #0b1220);
 }
 
 .sidecar-bottleneck-hint {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
@@ -2291,19 +2291,19 @@
 
 .sidecar-bottleneck-question {
   flex: 1;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-primary, #0b1220);
   line-height: 1.3;
 }
 
 .sidecar-source-badge {
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   opacity: 0.7;
 }
 
 .sidecar-conflict-badge {
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
 }
 
 .sidecar-bottleneck-answers {
@@ -2326,7 +2326,7 @@
   padding: var(--mobius-space-xs, 3px) var(--mobius-space-sm, 8px) !important;
   margin: 0 !important;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  font-size: var(--mobius-font-xs, 9px) !important;
+  font-size: var(--mobius-text-xs, 9px) !important;
   font-weight: 400 !important;
   background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.06)) !important;
   background-color: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.06)) !important;
@@ -2375,7 +2375,7 @@
   align-items: center;
   gap: var(--mobius-space-xs, 3px);
   padding: var(--mobius-space-xs, 3px) var(--mobius-space-sm, 6px);
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-accent, rgba(37, 99, 235, 0.9));
   background: color-mix(in srgb, var(--mobius-accent, #2563eb) 6%, transparent);
@@ -2397,11 +2397,11 @@
 }
 
 .sidecar-assign-label {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
 }
 
 .sidecar-assign-arrow {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   opacity: 0.6;
 }
 
@@ -2427,7 +2427,7 @@
   gap: 1px;
   width: 100%;
   padding: var(--mobius-space-sm, 6px) var(--mobius-space-sm, 10px);
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-primary, #0b1220);
   background: transparent;
@@ -2441,13 +2441,13 @@
 }
 
 .sidecar-assign-option-text {
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 400;
   color: var(--mobius-text-primary, #0b1220);
 }
 
 .sidecar-assign-option-hint {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
@@ -2464,14 +2464,14 @@
 }
 
 .sidecar-bottleneck-separator {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.7));
   text-align: center;
 }
 
 .sidecar-mode-btn {
   padding: var(--mobius-space-xs, 3px) var(--mobius-space-sm, 8px);
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   border-radius: var(--mobius-radius-sm, 8px);
   cursor: pointer;
@@ -2510,7 +2510,7 @@
   gap: var(--mobius-space-xs, 4px);
   margin-top: var(--mobius-space-xs, 4px);
   padding: var(--mobius-space-xs, 3px) var(--mobius-space-sm, 6px);
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-weight: 400;
   color: color-mix(in srgb, var(--mobius-accent, #2563eb) 75%, transparent);
   background: color-mix(in srgb, var(--mobius-accent, #2563eb) 4%, transparent);
@@ -2523,7 +2523,7 @@
 }
 
 .sidecar-mobius-tip-icon {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
 }
 
 .sidecar-bottleneck-mobius-tip--assigned {
@@ -2558,7 +2558,7 @@
   border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
   background: var(--mobius-bg-primary, #fff);
   padding: 0 26px 0 var(--mobius-space-sm, 6px);
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-primary, #0b1220);
   outline: none;
@@ -2605,7 +2605,7 @@
   border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
   background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
   cursor: pointer;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 500;
   color: var(--mobius-text-primary, #0b1220);
 }
@@ -2645,7 +2645,7 @@
 .sidecar-bottleneck-bulk-btn {
   width: 100%;
   padding: var(--mobius-space-sm, 8px) var(--mobius-space-md, 12px);
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 500;
   background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.03));
   color: var(--mobius-text-primary, #0b1220);
@@ -2683,12 +2683,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 500;
 }
 
 .sidecar-bottleneck-clear-text {
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   color: var(--mobius-success, #166534);
   font-weight: 400;
 }
@@ -2709,7 +2709,7 @@
   align-items: center;
   gap: var(--mobius-space-xs, 4px);
   cursor: pointer;
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   font-weight: 400;
   color: var(--mobius-text-secondary, rgba(91, 102, 122, 0.95));
   transition: background 0.15s ease;
@@ -2720,7 +2720,7 @@
 }
 
 .sidecar-context-expander-arrow {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.4));
   transition: transform 0.15s ease;
 }
@@ -2739,7 +2739,7 @@
 }
 
 .sidecar-section-title {
-  font-size: var(--mobius-font-xs, 7px);
+  font-size: var(--mobius-text-xs, 7px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.45));
   text-transform: uppercase;
@@ -2766,13 +2766,13 @@
   align-items: center;
   gap: var(--mobius-space-sm, 6px);
   padding: var(--mobius-space-xs, 4px) 0;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   color: var(--mobius-text-secondary, rgba(91, 102, 122, 0.8));
 }
 
 .sidecar-resolved-check {
   color: var(--mobius-success, #22c55e);
-  font-size: var(--mobius-font-sm, 10px);
+  font-size: var(--mobius-text-sm, 10px);
   flex-shrink: 0;
 }
 
@@ -2785,7 +2785,7 @@
 }
 
 .sidecar-resolved-answer {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
   background: var(--mobius-bg-tertiary, rgba(11, 18, 32, 0.04));
   padding: 1px var(--mobius-space-xs, 4px);
@@ -2814,7 +2814,7 @@
   display: flex;
   align-items: center;
   gap: var(--mobius-space-sm, 6px);
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
 }
 
 .sidecar-plan-factor-label {
@@ -2824,7 +2824,7 @@
 }
 
 .sidecar-plan-factor-progress {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
   font-weight: 400;
 }
@@ -2855,21 +2855,21 @@
 }
 
 .sidecar-plan-current-label {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
   flex-shrink: 0;
 }
 
 .sidecar-plan-current-text {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-secondary, rgba(91, 102, 122, 0.85));
   line-height: 1.3;
 }
 
 .sidecar-plan-actions {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-weight: 400;
   color: var(--mobius-accent, rgba(37, 99, 235, 0.8));
   margin-top: var(--mobius-space-xs, 4px);
@@ -2902,7 +2902,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   opacity: 0.6;
 }
 
@@ -2924,14 +2924,14 @@
 
 .sidecar-milestone-label {
   flex: 1;
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.7));
   font-style: italic;
 }
 
 .sidecar-milestone-arrow {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.4));
 }
 
@@ -2968,19 +2968,19 @@
 }
 
 .sidecar-prior-run-date {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
 
 .sidecar-prior-run-type {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.5));
   font-style: italic;
 }
 
 .sidecar-prior-run-outcome {
-  font-size: var(--mobius-font-xs, 7px);
+  font-size: var(--mobius-text-xs, 7px);
   font-weight: 400;
   padding: 1px var(--mobius-space-xs, 4px);
   border-radius: var(--mobius-radius-sm, 3px);
@@ -2998,7 +2998,7 @@
 }
 
 .sidecar-prior-run-summary {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-style: italic;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
   line-height: 1.3;
@@ -3016,13 +3016,13 @@
   display: flex;
   align-items: center;
   gap: var(--mobius-space-xs, 4px);
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   font-style: italic;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
 }
 
 .sidecar-substep-icon {
-  font-size: var(--mobius-font-xs, 6px);
+  font-size: var(--mobius-text-xs, 6px);
   opacity: 0.6;
 }
 
@@ -3041,7 +3041,7 @@
 }
 
 .sidecar-timeline-title {
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   font-weight: 500;
   color: var(--mobius-text-muted, #9ca3af);
   margin-bottom: var(--mobius-space-sm, 8px);
@@ -3052,7 +3052,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--mobius-space-sm, 6px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   margin-bottom: var(--mobius-space-sm, 6px);
   position: relative;
 }
@@ -3086,13 +3086,13 @@
 
 .sidecar-timeline-time {
   color: var(--mobius-text-muted, #9ca3af);
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
 }
 
 .sidecar-timeline-artifact {
   color: var(--mobius-accent, #2563eb);
   text-decoration: none;
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
 }
 
 .sidecar-timeline-artifact:hover {
@@ -3290,7 +3290,7 @@
 
 /* Empty state */
 .sidecar-chat-empty {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.5));
   font-style: italic;
   text-align: center;
@@ -3299,7 +3299,7 @@
 
 /* Chat messages */
 .sidecar-chat-message {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   line-height: 1.4;
   padding: var(--mobius-space-xs, 4px) var(--mobius-space-sm, 6px);
   border-radius: var(--mobius-radius-sm, 4px);
@@ -3328,7 +3328,7 @@
 }
 
 .sidecar-chat-message-source {
-  font-size: var(--mobius-font-xs, 8px);
+  font-size: var(--mobius-text-xs, 8px);
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.6));
   margin-top: var(--mobius-space-xs, 2px);
 }
@@ -3343,7 +3343,7 @@
   flex: 1;
   height: var(--mobius-button-height, 28px);
   padding: 0 32px 0 var(--mobius-space-sm, 8px);
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   border: 1px solid var(--mobius-border, rgba(11, 18, 32, 0.12));
   border-radius: var(--mobius-radius-sm, 6px);
@@ -3373,7 +3373,7 @@
   background: transparent;
   border: none;
   border-radius: var(--mobius-radius-sm, 6px);
-  font-size: var(--mobius-font-base, 12px);
+  font-size: var(--mobius-text-base, 12px);
   cursor: pointer;
   transition: background 0.15s ease;
   display: grid;
@@ -3404,7 +3404,7 @@
 }
 
 .sidecar-quick-chat-hint {
-  font-size: var(--mobius-font-xs, 9px);
+  font-size: var(--mobius-text-xs, 9px);
   font-weight: 400;
   color: var(--mobius-text-muted, rgba(91, 102, 122, 0.5));
   margin-top: var(--mobius-space-sm, 6px);
@@ -3420,13 +3420,13 @@
 }
 
 .sidecar-quick-chat-response-text {
-  font-size: var(--mobius-font-base, 13px);
+  font-size: var(--mobius-text-base, 13px);
   color: var(--mobius-text-primary, #1e3a5f);
   line-height: 1.4;
 }
 
 .sidecar-quick-chat-response-source {
-  font-size: var(--mobius-font-sm, 11px);
+  font-size: var(--mobius-text-sm, 11px);
   color: var(--mobius-text-secondary, #6b7280);
   margin-top: var(--mobius-space-sm, 6px);
 }
@@ -3601,7 +3601,7 @@
 
 .sidecar-menu-check {
   font-size: 10px;
-  color: #1a73e8;
+  color: #3b82f6;
   font-weight: 600;
 }
 
@@ -3610,7 +3610,7 @@
 }
 
 .sidecar-menu-submenu-item.active .sidecar-menu-view-label {
-  color: #1a73e8;
+  color: #3b82f6;
   font-weight: 500;
 }
 
@@ -4532,13 +4532,13 @@
 }
 
 .sidecar-workflow-rec-icon {
-  color: #1a73e8;
+  color: #3b82f6;
   font-size: 12px;
 }
 
 .sidecar-workflow-rec-text {
   font-size: 11px;
-  color: #1a73e8;
+  color: #3b82f6;
   font-style: italic;
 }
 
@@ -4574,7 +4574,7 @@
 .sidecar-workflow-mode-btn--selected {
   background: rgba(26, 115, 232, 0.08);
   border-color: rgba(26, 115, 232, 0.3);
-  color: #1a73e8;
+  color: #3b82f6;
 }
 
 .sidecar-workflow-mode-radio {
@@ -4878,7 +4878,7 @@
   font-size: 12px;
   font-weight: 500;
   color: #ffffff;
-  background: #1a73e8;
+  background: #3b82f6;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -5155,7 +5155,7 @@
 }
 
 #mobius-os-sidebar .factor-card.factor-focus {
-  border: 1px solid #1a73e8;
+  border: 1px solid #3b82f6;
   background: rgba(26, 115, 232, 0.04);
 }
 
@@ -5239,7 +5239,7 @@
 #mobius-os-sidebar .factor-focus-badge {
   font-size: 9px;
   font-weight: 500;
-  color: #1a73e8;
+  color: #3b82f6;
   margin-left: auto;
   background: rgba(26, 115, 232, 0.1);
   padding: 2px 5px;
@@ -5423,14 +5423,14 @@
 }
 
 #mobius-os-sidebar .factor-mode-dropdown-btn:hover {
-  border-color: #1a73e8;
-  color: #1a73e8;
+  border-color: #3b82f6;
+  color: #3b82f6;
 }
 
 #mobius-os-sidebar .factor-mode-dropdown-btn.has-selection {
   background: rgba(26, 115, 232, 0.08);
   border-color: rgba(26, 115, 232, 0.3);
-  color: #1a73e8;
+  color: #3b82f6;
 }
 
 #mobius-os-sidebar .factor-mode-dropdown-btn .dropdown-arrow {
@@ -5470,7 +5470,7 @@
 
 #mobius-os-sidebar .factor-mode-option.selected {
   background: rgba(26, 115, 232, 0.1);
-  color: #1a73e8;
+  color: #3b82f6;
   font-weight: 500;
 }
 
@@ -5623,7 +5623,7 @@
 }
 
 #mobius-os-sidebar .step-btn.done-btn {
-  background: #1a73e8;
+  background: #3b82f6;
   color: white;
 }
 
@@ -5643,7 +5643,7 @@
 
 #mobius-os-sidebar .step-btn.delegate-btn {
   background: transparent;
-  color: #1a73e8;
+  color: #3b82f6;
   border: 1px solid rgba(26, 115, 232, 0.2);
 }
 
@@ -5688,7 +5688,7 @@
 #mobius-os-sidebar .factor-evidence-link {
   margin-top: 12px;
   font-size: 11px;
-  color: #1a73e8;
+  color: #3b82f6;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -5764,7 +5764,7 @@
 }
 
 #mobius-os-sidebar .remedy-add-btn:hover {
-  color: #1a73e8;
+  color: #3b82f6;
 }
 
 /* Remedy Form */
@@ -5789,7 +5789,7 @@
 #mobius-os-sidebar .remedy-input:focus,
 #mobius-os-sidebar .remedy-notes-input:focus {
   outline: none;
-  border-color: #1a73e8;
+  border-color: #3b82f6;
 }
 
 #mobius-os-sidebar .remedy-outcomes {
@@ -5817,9 +5817,9 @@
 }
 
 #mobius-os-sidebar .outcome-btn.selected {
-  border-color: #1a73e8;
+  border-color: #3b82f6;
   background: rgba(26, 115, 232, 0.08);
-  color: #1a73e8;
+  color: #3b82f6;
 }
 
 #mobius-os-sidebar .outcome-icon {
@@ -5847,7 +5847,7 @@
 }
 
 #mobius-os-sidebar .remedy-submit-btn {
-  background: #1a73e8;
+  background: #3b82f6;
   border: none;
   color: white;
 }
@@ -6631,3 +6631,14 @@
 .sidecar-syslog-t { color: var(--mobius-text-muted, #94a3b8); flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .sidecar-syslog-cat { flex: 0 0 46px; font-weight: 500; opacity: 0.9; }
 .sidecar-syslog-msg { color: var(--mobius-text-muted, #64748b); word-break: break-word; }
+
+/* Design-review easy wins (M2 focus, K1 phi pill, K2 weight) */
+.sidecar-quick-chat-input:focus, .sidecar-signin-input:focus {
+  border-color: var(--mobius-accent, #3b82f6);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mobius-accent, #3b82f6) 25%, transparent);
+  outline: none;
+}
+.sidecar-phi-pill.off {
+  background: color-mix(in srgb, var(--mobius-success, #16a34a) 10%, var(--mobius-bg-card, #fff));
+}
+.ds-vt { font-weight: 600; }
