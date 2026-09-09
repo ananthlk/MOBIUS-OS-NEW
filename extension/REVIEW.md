@@ -10,6 +10,20 @@ Owner: Extension agent (mobius-os) · Last updated 2026-09-09 · Branch: `main`
 
 ---
 
+## 📋 STATUS: Demo-ready, actively monitoring for review feedback
+
+**Current state (2026-09-09):**
+- ✅ Phase 2 spec built and verified (all harness tests pass)
+- ✅ Brand polish applied (DM Sans, token refactor, declutter)
+- ✅ Copy finalized (§4 — ready for tone/wording review)
+- ✅ Compliance path contracted (PHI auth log, fail-closed)
+- 🔄 **Awaiting UX/Tech seat review** — see §6 below
+- 🔄 Loop monitoring REVIEW.md §6 every 30 min for feedback
+
+**To review:** read §1-4, click the interactive ARCHITECTURE.schematic.html, then add findings to §6.
+
+---
+
 ## 1. What this is
 
 A Chrome MV3 side panel that rides on any page (Gmail, an EMR, a payer portal)
