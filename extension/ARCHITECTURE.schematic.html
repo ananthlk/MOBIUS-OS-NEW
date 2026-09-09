@@ -176,6 +176,7 @@
         <div class="mod"><div class="mn">DoSaveActions <span class="st new">new</span></div><div class="md">Do/Save + drawer</div></div>
         <div class="mod"><div class="mn">RecommendationBanner <span class="st new">new</span></div><div class="md">proactive nudge</div></div>
         <div class="mod"><div class="mn">PhiStatusPill <span class="st new">new</span></div><div class="md">HIPAA ack toggle</div></div>
+        <div class="mod"><div class="mn">SystemLog <span class="st new">new</span></div><div class="md">hidden action trace</div></div>
         <div class="mod"><div class="mn">SidecarSignIn <span class="st new">new</span></div><div class="md">signed-out state</div></div>
         <div class="mod"><div class="mn">QuickChat <span class="st built">built ✅</span></div><div class="md">chat + consent cards</div></div>
         <div class="mod"><div class="mn">CollapsibleSection <span class="st built">built ✅</span></div><div class="md">panel chrome</div></div>
@@ -192,6 +193,7 @@
         <div class="mod"><div class="mn">consent.ts <span class="st new">new</span></div><div class="io"><b>in</b> host → <b>out</b> ConsentGrant · get/save/revoke</div></div>
         <div class="mod"><div class="mn">invocation.ts <span class="st new">new</span></div><div class="io"><b>out</b> task_id (ext_) · correlation key</div></div>
         <div class="mod"><div class="mn">authorizationLog.ts <span class="st new">new</span></div><div class="io"><b>in</b> {task_id,action,phi} → <b>out</b> POST /authorizations</div></div>
+        <div class="mod"><div class="mn">traceLog.ts <span class="st new">new</span></div><div class="io"><b>out</b> action trace (ring buffer)</div></div>
         <div class="mod"><div class="mn">auth.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> creds → <b>out</b> JWT · via bg proxy</div></div>
         <div class="mod"><div class="mn">api.ts <span class="st built">built ✅</span></div><div class="io"><b>out</b> sidecar state · tasks</div></div>
         <div class="mod"><div class="mn">toastManager.ts <span class="st built">built ✅</span></div><div class="io"><b>out</b> alerts poll</div></div>
@@ -320,6 +322,14 @@
       consumes:['host'], produces:['ConsentGrant (get / save / revoke)'],
       notes:['The per-read permission that decays: ask every read → "Always on this site" grant → (automatic, server-driven, not yet).','PHI reads never take a silent grant — they always show the acknowledgement (attestation).','Grants in chrome.storage.local today; SHOULD migrate to mobius-user (auditable).'],
       connects:['types/sidebar.ts','QuickChat','content.ts']},
+    'traceLog.ts': {layer:'Services', status:'new', file:'src/services/traceLog.ts',
+      consumes:['trace(category,message,taskId)'], produces:['subscribable action trace'],
+      notes:['In-memory ring buffer of every sidecar action, with task_ids.','PHI-safe: short labels/actions only, never raw text. Rendered by SystemLog.'],
+      connects:['SystemLog','content.ts']},
+    'SystemLog': {layer:'Components', status:'new', file:'components/sidecar/SystemLog.ts',
+      consumes:['onTrace / getTrace'], produces:['the hidden System log panel'],
+      notes:['Collapsed strip pinned at the bottom; expand to trace every action in order.','Live-updates via onTrace; copy button dumps the buffer.'],
+      connects:['traceLog.ts']},
     'PhiStatusPill': {layer:'Components', status:'new', file:'components/sidecar/PhiStatusPill.ts',
       consumes:['acknowledged:boolean, onToggle'], produces:['the HIPAA acknowledgement toggle'],
       notes:['The explicit-acknowledgement control: OFF = ask consent before each read; ON = attested for this site, so the prompts stop.','Clicking it IS the consent record — backed by a phiAttested ConsentGrant per host.','The authoritative server-side PHI gate still runs regardless; this governs only the client prompt.'],
