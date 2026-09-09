@@ -2856,11 +2856,11 @@ function deriveRecommendation(
       (f) => (f as { is_focus?: boolean }).is_focus || f.status === 'blocked' || f.status === 'waiting'
     ) as { label?: string; factor_type?: string } | undefined;
     const raw = focus?.label || focus?.factor_type || '';
-    const tail = raw ? ` — ${String(raw).replace(/_/g, ' ')} still needs attention` : '';
+    const tail = raw ? ` — ${String(raw).replace(/_/g, ' ')} needs attention` : '';
     return {
       id: `reco-readiness-${patient?.id || 'anon'}`,
       temper: 'opportunity',
-      message: `<b>${who}</b> is ${pos}% ready for this visit${tail}. Want a hand?`,
+      message: `<b>${who}</b> is ${pos}% ready for this visit${tail}.`,
       actionLabel: 'Show me',
     };
   } catch (err) {
