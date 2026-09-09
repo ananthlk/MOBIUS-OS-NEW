@@ -17,6 +17,7 @@ from app.routes.auth import bp as auth_bp
 from app.api.resolution import bp as resolution_bp
 from app.api.sidecar import sidecar_bp as sidecar_api_bp
 from app.api.skills import skills_bp
+from app.api.authorizations import authorizations_bp
 from app.db.postgres import close_db_session, rollback_session
 
 
@@ -51,6 +52,7 @@ def create_app(init_database: bool = False):
     app.register_blueprint(resolution_bp)  # /api/v1/resolution/*
     app.register_blueprint(sidecar_api_bp) # /api/v1/sidecar/* (new) + /api/v1/user/*
     app.register_blueprint(skills_bp)      # /api/v1/skills/*
+    app.register_blueprint(authorizations_bp)  # /api/v1/authorizations
     app.register_blueprint(chat_bp)        # /api/v1/modes/chat/*
     app.register_blueprint(mini_bp)        # /api/v1/mini/*
     app.register_blueprint(sidecar_bp)     # /api/v1/sidecar/* (legacy)

@@ -144,3 +144,4 @@ __all__ = [
     "MilestoneHistory",
     "MilestoneSubstep",
 ]
+from .authorization import AuthorizationLog

@@ -57,6 +57,8 @@ import { RecommendationBanner } from './components/sidecar/RecommendationBanner'
 import { PhiStatusPill } from './components/sidecar/PhiStatusPill';
 import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
 import { getConsentGrant, saveConsentGrant, revokeConsentGrant } from './services/consent';
+import { newTaskId } from './services/invocation';
+import { recordAuthorization } from './services/authorizationLog';
 import type { Recommendation } from './types/sidebar';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
@@ -2946,6 +2948,12 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         acknowledged: phiAcknowledged,
         onToggle: async (next) => {
           phiAcknowledged = next;
+          // Record the acknowledgement/revocation with a task id (provenance).
+          void recordAuthorization({
+            taskId: newTaskId(),
+            action: next ? 'phi_ack_on' : 'phi_ack_off',
+            phiPresent: true,
+          });
           try {
             if (next) {
               await saveConsentGrant(phiHost, true);
@@ -3551,12 +3559,21 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     }
     const screen = screenTextForPhi(text);
     const host = getHostname();
+    const captureTaskId = newTaskId();
+    const phiLabels = screen.identifier_labels;
     const pageCtx: PageContext = {
       text,
       url: window.location.href.split('?')[0],
       title: document.title || host,
       sourceType: classifyPageSource(host),
     };
+    const logRead = (action: 'read_ack' | 'read_auto' | 'site_grant') =>
+      void recordAuthorization({
+        taskId: captureTaskId,
+        action,
+        phiPresent: screen.phi_flag,
+        phiLabels,
+      });
     const attach = (phiAcked: boolean) => {
       attachedPage = { ...pageCtx, phiAcked };
       setAttachedPageChip(quickChat, {
@@ -3581,10 +3598,12 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       grant = null;
     }
     if (grant?.phiAttested) {
+      logRead('read_auto');
       attach(screen.phi_flag);
       return;
     }
     if (grant && !screen.phi_flag) {
+      logRead('read_auto');
       attach(false);
       return;
     }
@@ -3599,12 +3618,16 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       evidence: screen.findings.map((f) => `${f.label}: ${f.redacted_span} (×${f.count})`),
       chars: text.length,
       acceptText: screen.phi_flag ? 'Acknowledge & continue' : 'Attach page',
-      onAccept: () => attach(screen.phi_flag),
+      onAccept: () => {
+        logRead('read_ack');
+        attach(screen.phi_flag);
+      },
       // "Always on this site" only for non-PHI — PHI must attest every read.
       alwaysText: screen.phi_flag ? undefined : 'Always on this site',
       onAlways: screen.phi_flag
         ? undefined
         : () => {
+            logRead('site_grant');
             void saveConsentGrant(host, false);
             attach(false);
           },
