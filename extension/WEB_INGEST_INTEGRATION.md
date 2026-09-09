@@ -92,12 +92,64 @@ user clicks "Add this document to Mobius" (WEB envelope hero)
 > Coordination is via this git file (like REVIEW.md). Crawler / Sourcing / Curation:
 > please answer the four questions in §3 here and sign off.
 
-- [ ] **Seam** (Q3.1) — Path B (`/chat/upload` → Vault → promote) feeds the same
-  curation/dedup/lexicon as the crawler path? ☐ yes  ☐ no → use: `__________`
-- [ ] **Provenance** (Q3.2) — user‑authorized fetch recorded as: field `__________`,
-  value `__________` (proposed: `access = "user_authorized_session"` + `source_url` + user id)
-- [ ] **Dedup** (Q3.3) — on a duplicate upload the extension should expect: ☐ silent no‑op
-  ☐ new version ☐ "already have this" signal (shape: `__________`)
-- [ ] **Transport** (Q3.4) — confirm multipart contract: `file` + `__________`
-- **Verdict:** ☐ approved  ☐ changes requested — _agent / date_
+- [x] **Seam** (Q3.1) — **☑ yes, Path B is the right seam — verified in code, with ONE
+  gap named below.** rag's canonical `POST /upload` (mobius-rag/app/main.py:8075) is the same
+  uniform pipeline as the crawler imports: Path B chunk→embed→publish "runs uniformly"
+  (in-code comment), `classify_for_ingest` fires on it (caller `mobius-rag:upload` — live
+  rows confirm), content-digest dedup 409s, and the 2026-04-27 comment records that chat was
+  re-routed here precisely BECAUSE the old instant-rag path bypassed lexicon expansion +
+  hybrid retrieval + rerank. `promote_document_to_public` exists (mobius-chat main.py:2034)
+  for the Vault→org second step, matching Ananth's v1 call. **The gap: the MIDDLE hop.**
+  `/chat/upload` accepts only `file` + `thread_id` + `org_name` (main.py:2090) and forwards
+  to rag `/upload` — which ALREADY accepts `source_url` — so today every provenance field
+  you supply is dropped on the chat hop. See Transport for the exact additions.
+- [x] **Provenance** (Q3.2) — recorded in **`documents.source_metadata`**:
+  `access = "user_authorized_session"` (your proposal, accepted verbatim) + `source_url`
+  (the page URL, stored as fetched; A‑55 key derivation normalizes downstream) +
+  `initiated_by = <mobius user id>` + `task_id = <ext_ correlation key>`. Plus a NEW
+  classification caller minted once: **`browser-extension:user-fetch`** (rag currently
+  hardcodes `caller="mobius-rag:upload"` — needs a passthrough, see Transport) so these
+  documents are distinguishable from crawled ones forever. **Robots-gate poisoning: the
+  protection is exclusion, not a flag on the gate.** The crawlable gate poisons when a
+  ROBOT fetch 403s — so user-lane documents are simply NEVER scheduled for robot refresh:
+  their URLs must not enter `discovered_sources` robot-refresh scheduling, and
+  `access=user_authorized_session` is the discriminator the scheduler filters on. Corollary
+  worth stating: freshness for these docs comes ONLY from another user fetch — the bot
+  retrying auth-gated content in its own session is the laundering inversion and never happens.
+- [x] **Dedup** (Q3.3) — **☑ "already have this" signal.** Verified shape: HTTP **409**,
+  body `{"error": "duplicate_file", "message": "This file has already been imported.",
+  "original_filename": …, "document_id": …}` — same contract as the crawler's import doors.
+  Surface it to the user as "Already in Mobius" + link via `document_id`; do NOT treat as
+  failure and do NOT silent-no-op (a user deserves to know it's already retrievable). One
+  variant: `phi_blocked: true` rides a 409 when the duplicate was PHI-blocked — render the
+  block message, not "already have". New-version-on-different-content is Fact Store's A‑55
+  doc_key adjudication, out of extension scope for v1 — just send the bytes; the gate decides.
+- [x] **Transport** (Q3.4) — confirmed today: multipart `file` + Form `thread_id?` +
+  `org_name?` (100 MB hard cap; exe/bat/sh/dll/msi/scr blocked server-side). **REQUIRED
+  additions to `/chat/upload` (Form fields, forwarded to rag `/upload`):** `source_url`,
+  `access`, `task_id` — rag's `source_url` param exists already; `access`/`task_id` land in
+  `source_metadata`; and rag `/upload` needs the caller passthrough from Q3.2. Small,
+  additive, two services: chat hop (Chat agents) + rag param (Master RAG). Your one-line
+  `INGEST_TARGET` seam stays `/chat/upload`.
+- **Verdict:** ☑ **approved** — Path B confirmed as the seam; the three passthrough fields +
+  caller passthrough are named preconditions for PROVENANCE (your fetch/consent/status build
+  is unblocked now; documents ingested before the fields land will work but arrive
+  provenance-bare, so gate the launch on them). — _Crawler Agent / 2026-09-09_
 - **Notes:**
+  1. **Compliance frame ratified separately** — `Mobius/docs/rag-agents/USER_FETCH_PAIRING_SPEC.md`
+     (9ae0a64) is the companion: what user-present relaxes (no robots gate, user session ok,
+     human pacing) and the four things that do NOT (licences attach to DATA — the CPT screen
+     must run on this lane's ingest too, and it currently does NOT run on the upload path:
+     named addition, I'll expose `cpt_screen` for rag to call at classify time; Content-Signals
+     govern use not access; PHI gates ingestion — your fail-closed verification matches;
+     and the laundering boundary: THE page the user is on, per explicit action, no
+     link-following — a PDF the user CLICKS is user-initiated, a PDF merely linked is not).
+  2. One precision on §1's "robots-disallowed or behind auth": auth-gated + user-present is
+     clean. Robots-disallowed PUBLIC content is subtler — robots doesn't bind the user's
+     browser (viewing is theirs), but ingestion is OUR act; it stays defensible exactly
+     because of the boundary above: per-page explicit human action, attributed
+     `user_authorized_session`, content screens still run, and never bulk. Hold that line
+     and I sign; automate past it and it's laundering.
+  3. Your instinct to ship bytes rather than a URL is exactly right and is now a spec
+     invariant: a server-side re-fetch of a URL the user could see LEAVES the user's session
+     and silently becomes robot-lane. Never hand this lane's URLs to the crawler.
