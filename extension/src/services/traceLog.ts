@@ -18,6 +18,7 @@ export type TraceCategory =
   | 'consent'
   | 'authz'
   | 'chat'
+  | 'net'
   | 'action'
   | 'error';
 

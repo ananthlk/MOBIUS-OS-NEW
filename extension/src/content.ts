@@ -3083,8 +3083,14 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       mainContent.appendChild(
         RecommendationBanner({
           rec: topRecommendation,
-          onAct: () => showToast('Opening — recommendation actions coming soon'),
-          onDismiss: () => showToast('Dismissed'),
+          onAct: () => {
+            trace('action', `clicked recommendation: ${topRecommendation.actionLabel}`);
+            showToast('Opening — recommendation actions coming soon');
+          },
+          onDismiss: () => {
+            trace('action', 'dismissed recommendation');
+            showToast('Dismissed');
+          },
         })
       );
     } catch (err) {
@@ -3546,10 +3552,14 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     knowledgeContext: sidecarState?.knowledge_context || { payer: { name: '' }, policy_excerpts: [], relevant_history: [] },
     placeholder: 'Ask Mobius — payer policy, filing limits, auth rules…',
     onSend: async (message) => {
+      trace('action', 'clicked Send (ask)');
       addUserMessage(quickChat, message);
       await runSend(message, false);
     },
-    onReadPage: () => void beginPageCapture(),
+    onReadPage: () => {
+      trace('action', 'clicked Read page');
+      void beginPageCapture();
+    },
   });
 
   /**
@@ -3671,13 +3681,31 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   try {
     const preferred: PreferredItem[] = defaultPreferred(envRole);
     const doSave = DoSaveActions(envelope, {
-      onDo: (action) => runEnvelopeAction(action),
-      onSave: () => showToast('Save — smart filing coming soon'),
-      onAction: (action) => runEnvelopeAction(action),
-      onAsk: () => quickChat.querySelector<HTMLInputElement>('.sidecar-quick-chat-input')?.focus(),
+      onDo: (action) => {
+        trace('action', `clicked Do: ${action.label}`);
+        runEnvelopeAction(action);
+      },
+      onSave: () => {
+        trace('action', 'clicked Save');
+        showToast('Save — smart filing coming soon');
+      },
+      onAction: (action) => {
+        trace('action', `clicked: ${action.label}`);
+        runEnvelopeAction(action);
+      },
+      onAsk: () => {
+        trace('action', 'clicked Ask');
+        quickChat.querySelector<HTMLInputElement>('.sidecar-quick-chat-input')?.focus();
+      },
       preferred,
-      onPreferred: (item) => showToast(`${item.label} — coming soon`),
-      onCustomize: () => showToast('Customize your pinned actions — coming soon'),
+      onPreferred: (item) => {
+        trace('action', `clicked Preferred: ${item.label}`);
+        showToast(`${item.label} — coming soon`);
+      },
+      onCustomize: () => {
+        trace('action', 'clicked Customize');
+        showToast('Customize your pinned actions — coming soon');
+      },
     });
     cardsContainer.insertBefore(doSave, cardsContainer.firstChild);
   } catch (err) {

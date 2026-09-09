@@ -11,6 +11,7 @@
 import { AuthTokens, UserProfile, AuthState } from '../types';
 
 import { AUTH_API_V1_URL } from '../config';
+import { trace } from './traceLog';
 
 // All auth traffic goes to the shared mobius-user service — the same
 // identity provider mobius-chat uses — never to the mobius-os backend.
@@ -360,6 +361,7 @@ class AuthService {
       const data = await response.json();
       
       if (!response.ok || !data.ok) {
+        trace('error', `login failed · ${data.error || response.status}`);
         return { success: false, error: data.error || 'Login failed' };
       }
       
@@ -397,7 +399,7 @@ class AuthService {
       }
       
       this.emit('login', profile);
-      
+      trace('auth', `login ok · ${profile?.email || 'user'}`);
       return { success: true, user: profile };
     } catch (error) {
       console.error('[AuthService] Login error:', error);
@@ -468,7 +470,7 @@ class AuthService {
       }
       
       this.emit('login', profile);
-      
+      trace('auth', `login ok · ${profile?.email || 'user'}`);
       return { success: true, user: profile };
     } catch (error) {
       console.error('[AuthService] Registration error:', error);

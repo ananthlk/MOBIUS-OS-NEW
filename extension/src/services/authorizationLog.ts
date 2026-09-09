@@ -13,6 +13,7 @@
 
 import { API_V1_URL } from '../config';
 import { getAuthService } from './auth';
+import { trace } from './traceLog';
 
 export type AuthorizationAction =
   | 'phi_ack_on'
@@ -43,23 +44,40 @@ export async function recordAuthorization(rec: AuthorizationRecord): Promise<voi
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
-    await fetch(`${API_V1_URL}/authorizations`, {
-      method: 'POST',
-      headers,
-      signal: controller.signal,
-      body: JSON.stringify({
-        task_id: rec.taskId,
-        action: rec.action,
-        surface: 'extension',
-        origin_host: location.hostname,
-        origin_url: location.href,
-        phi_present: !!rec.phiPresent,
-        phi_labels: rec.phiLabels || null,
-        chat_correlation_id: rec.chatCorrelationId || null,
-      }),
-    }).catch(() => {});
-    clearTimeout(timeout);
+    trace('authz', `record ${rec.action} → POST /authorizations`, rec.taskId);
+    try {
+      const resp = await fetch(`${API_V1_URL}/authorizations`, {
+        method: 'POST',
+        headers,
+        signal: controller.signal,
+        body: JSON.stringify({
+          task_id: rec.taskId,
+          action: rec.action,
+          surface: 'extension',
+          origin_host: location.hostname,
+          origin_url: location.href,
+          phi_present: !!rec.phiPresent,
+          phi_labels: rec.phiLabels || null,
+          chat_correlation_id: rec.chatCorrelationId || null,
+        }),
+      });
+      const body = await resp.json().catch(() => null);
+      if (resp.ok && body?.ok) {
+        trace(
+          'net',
+          `authorization stored ✓ ${resp.status}${body.attributed ? ' · attributed' : ' · anon'}${
+            body.hipaa_log_forwarded ? ' · hipaa-log' : ''
+          }`,
+          rec.taskId
+        );
+      } else {
+        trace('error', `authorization store FAILED · HTTP ${resp.status}`, rec.taskId);
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
   } catch (err) {
+    trace('error', `authorization store error: ${err instanceof Error ? err.message : String(err)}`, rec.taskId);
     console.error('[Mobius] recordAuthorization failed (non-fatal):', err);
   }
 }

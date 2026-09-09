@@ -18,6 +18,7 @@
 import { CHAT_BASE_URL } from '../config';
 import type { SurfaceType } from '../types/sidebar';
 import { apiFetch, getAuthService } from './auth';
+import { trace } from './traceLog';
 
 const THREAD_STORAGE_KEY = 'mobius.chat.threadId';
 const POLL_INTERVAL_MS = 1500;
@@ -126,6 +127,7 @@ export async function askMobius(
 
   const postData = await post.json();
   if (post.status === 422 && postData?.detail?.phi_blocked) {
+    trace('error', `chat PHI-blocked by server gate`);
     return {
       ok: false,
       phiBlocked: true,
@@ -146,6 +148,7 @@ export async function askMobius(
   }
 
   const cid = String(postData.correlation_id);
+  trace('chat', `enqueued · correlation ${cid.slice(0, 8)}`);
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   let lastStatus = '';
 
@@ -162,9 +165,11 @@ export async function askMobius(
     const status = String(data?.status || '');
 
     if (status === 'completed') {
+      trace('net', `chat completed ✓ · ${Array.isArray(data.sources) ? data.sources.length : 0} sources`);
       return parseCompleted(data);
     }
     if (status === 'error' || status === 'failed') {
+      trace('error', `chat ${status}`);
       return { ok: false, error: 'Mobius could not answer that one' };
     }
     // processing / pending — surface the latest thinking step

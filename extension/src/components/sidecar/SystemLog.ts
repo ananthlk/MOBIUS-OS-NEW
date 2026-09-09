@@ -16,6 +16,7 @@ const CAT_COLOR: Record<TraceCategory, string> = {
   consent: 'var(--mobius-warning, #f59e0b)',
   authz: 'var(--mobius-warning, #f59e0b)',
   chat: 'var(--mobius-success, #10b981)',
+  net: 'var(--mobius-info, #0891b2)',
   action: 'var(--mobius-accent, #3b82f6)',
   error: 'var(--mobius-error, #dc2626)',
 };
