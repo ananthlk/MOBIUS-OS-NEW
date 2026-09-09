@@ -175,6 +175,7 @@
         <div class="mod"><div class="mn">SidecarContextStrip <span class="st new">new</span></div><div class="md">"what I know" band</div></div>
         <div class="mod"><div class="mn">DoSaveActions <span class="st new">new</span></div><div class="md">Do/Save + drawer</div></div>
         <div class="mod"><div class="mn">RecommendationBanner <span class="st new">new</span></div><div class="md">proactive nudge</div></div>
+        <div class="mod"><div class="mn">PhiStatusPill <span class="st new">new</span></div><div class="md">HIPAA status pill</div></div>
         <div class="mod"><div class="mn">SidecarSignIn <span class="st new">new</span></div><div class="md">signed-out state</div></div>
         <div class="mod"><div class="mn">QuickChat <span class="st built">built ✅</span></div><div class="md">chat + consent cards</div></div>
         <div class="mod"><div class="mn">CollapsibleSection <span class="st built">built ✅</span></div><div class="md">panel chrome</div></div>
@@ -188,6 +189,7 @@
         <div class="mod"><div class="mn">envelopes.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> Surface·Role → <b>out</b> Envelope · defaultPreferred</div></div>
         <div class="mod"><div class="mn">chat.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> msg·PageContext → <b>out</b> ChatAnswer</div></div>
         <div class="mod"><div class="mn">phiScreen.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> text → <b>out</b> PhiScreenResult · 0 egress</div></div>
+        <div class="mod"><div class="mn">consent.ts <span class="st new">new</span></div><div class="io"><b>in</b> host → <b>out</b> ConsentGrant · get/save/revoke</div></div>
         <div class="mod"><div class="mn">auth.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> creds → <b>out</b> JWT · via bg proxy</div></div>
         <div class="mod"><div class="mn">api.ts <span class="st built">built ✅</span></div><div class="io"><b>out</b> sidecar state · tasks</div></div>
         <div class="mod"><div class="mn">toastManager.ts <span class="st built">built ✅</span></div><div class="io"><b>out</b> alerts poll</div></div>
@@ -312,6 +314,14 @@
       consumes:['session, patient key'], produces:['sidecar state, tasks, mini status'],
       notes:['Calls the mobius-os backend for patient/sidecar state and tasks.','Feeds deriveRecommendation and the (2.2) tasks badge.'],
       connects:['content.ts','mobius-os-backend']},
+    'consent.ts': {layer:'Services', status:'new', file:'src/services/consent.ts',
+      consumes:['host'], produces:['ConsentGrant (get / save / revoke)'],
+      notes:['The per-read permission that decays: ask every read → "Always on this site" grant → (automatic, server-driven, not yet).','PHI reads never take a silent grant — they always show the acknowledgement (attestation).','Grants in chrome.storage.local today; SHOULD migrate to mobius-user (auditable).'],
+      connects:['types/sidebar.ts','QuickChat','content.ts']},
+    'PhiStatusPill': {layer:'Components', status:'new', file:'components/sidecar/PhiStatusPill.ts',
+      consumes:['present:boolean'], produces:['the HIPAA status pill'],
+      notes:['Status, not a control — green when no PHI in view, amber when a clinical identifier or patient is detected.','Consent is the per-read moment (the ack card), not a mode this pill toggles.'],
+      connects:['content.ts']},
     'toastManager.ts': {layer:'Services', status:'built', file:'src/services/toastManager.ts',
       consumes:['—'], produces:['alert toasts'],
       notes:['Polls /api/v1/user/alerts and shows global toasts, independent of the panel.'],
@@ -335,7 +345,7 @@
     'QuickChat': {layer:'Components', status:'built', file:'components/sidecar/QuickChat.ts',
       consumes:['onSend / onReadPage callbacks'], produces:['chat UI + consent cards + attach chip'],
       notes:['The "Anything" tier. Hosts the read-page → PHI-screen → acknowledge consent flow.'],
-      connects:['chat.ts','phiScreen.ts','content.ts']},
+      connects:['chat.ts','phiScreen.ts','consent.ts','content.ts']},
     'CollapsibleSection': {layer:'Components', status:'built', file:'components/sidecar/CollapsibleSection.ts',
       consumes:['label, summary, content'], produces:['a collapsible panel'],
       notes:['Standard panel chrome; collapse state persisted per id.'],

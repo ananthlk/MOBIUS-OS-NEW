@@ -119,6 +119,9 @@ export function showPageAckCard(
     acceptText: string;
     onAccept: () => void;
     onCancel: () => void;
+    /** Optional "Always on this site" grant — offered only for non-PHI reads. */
+    alwaysText?: string;
+    onAlways?: () => void;
   }
 ): void {
   const messagesContainer = element.querySelector('.sidecar-chat-messages');
@@ -171,6 +174,16 @@ export function showPageAckCard(
     opts.onCancel();
   });
   row.appendChild(accept);
+  if (opts.alwaysText && opts.onAlways) {
+    const always = document.createElement('button');
+    always.className = 'sidecar-chat-ack-always';
+    always.textContent = opts.alwaysText;
+    always.addEventListener('click', () => {
+      card.remove();
+      opts.onAlways!();
+    });
+    row.appendChild(always);
+  }
   row.appendChild(cancel);
   card.appendChild(row);
 

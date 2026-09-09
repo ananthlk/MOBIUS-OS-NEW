@@ -54,7 +54,9 @@ import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
 import { SidecarContextStrip } from './components/sidecar/SidecarContextStrip';
 import { DoSaveActions, PreferredItem } from './components/sidecar/DoSaveActions';
 import { RecommendationBanner } from './components/sidecar/RecommendationBanner';
+import { PhiStatusPill } from './components/sidecar/PhiStatusPill';
 import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
+import { getConsentGrant, saveConsentGrant } from './services/consent';
 import type { Recommendation } from './types/sidebar';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
@@ -2930,8 +2932,23 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   
   // Right: Actions
   const headerRight = document.createElement('div');
-  headerRight.setAttribute('style', 'display: flex; align-items: center; gap: 4px;');
-  
+  headerRight.setAttribute('style', 'display: flex; align-items: center; gap: 6px;');
+
+  // PHI status pill (2.3) — status only; consent is the per-read moment.
+  // Reflects a clinical-PHI screen of the page (strong identifiers only, so
+  // a stray phone/date on a generic page doesn't trip it), plus patient/EMR.
+  try {
+    const CLINICAL = new Set(['mrn', 'ssn', 'date_of_birth', 'member_id', 'name_labeled']);
+    const scan = screenTextForPhi((document.body?.innerText || '').slice(0, 12000));
+    const phiPresent =
+      !!patient ||
+      classifyPageSource(getHostname()) === 'emr' ||
+      scan.findings.some((f) => CLINICAL.has(f.category));
+    headerRight.appendChild(PhiStatusPill(phiPresent));
+  } catch (err) {
+    console.error('[Mobius] PHI pill render failed:', err);
+  }
+
   // Alerts surface on the toolbar icon badge (background worker); the
   // in-header bell was an unwired stub and was removed.
 
@@ -3497,41 +3514,77 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       addUserMessage(quickChat, message);
       await runSend(message, false);
     },
-    onReadPage: () => {
-      const text = capturePageText();
-      if (!text) {
-        showToast('Nothing readable on this page');
-        return;
-      }
-      // Local screen — pure function, zero network egress.
-      const screen = screenTextForPhi(text);
-      const pageCtx: PageContext = {
-        text,
-        url: window.location.href.split('?')[0],
-        title: document.title || window.location.hostname,
-        sourceType: classifyPageSource(window.location.hostname),
-      };
-      showPageAckCard(quickChat, {
-        title: screen.phi_flag
-          ? 'This page looks like it contains patient information.'
-          : 'Attach this page to your next question?',
-        labels: screen.identifier_labels,
-        evidence: screen.findings.map((f) => `${f.label}: ${f.redacted_span} (×${f.count})`),
-        chars: text.length,
-        acceptText: screen.phi_flag ? 'Acknowledge & attach' : 'Attach page',
-        onAccept: () => {
-          attachedPage = { ...pageCtx, phiAcked: screen.phi_flag };
-          setAttachedPageChip(quickChat, {
-            title: pageCtx.title,
-            chars: text.length,
-            phi: screen.phi_flag,
-            onClear: clearAttachment,
-          });
-        },
-        onCancel: () => {},
-      });
-    },
+    onReadPage: () => void beginPageCapture(),
   });
+
+  /**
+   * Consent-aware page capture (2.3). Captures → local PHI screen (0 egress)
+   * → either auto-attaches (non-PHI on a granted site) or shows the ack card.
+   * PHI content always shows the acknowledgement (the attestation), even on a
+   * granted site. When `presetPrompt` is given, attaching also sends it.
+   */
+  async function beginPageCapture(presetPrompt?: string): Promise<void> {
+    const text = capturePageText();
+    if (!text) {
+      showToast('Nothing readable on this page');
+      return;
+    }
+    const screen = screenTextForPhi(text);
+    const host = getHostname();
+    const pageCtx: PageContext = {
+      text,
+      url: window.location.href.split('?')[0],
+      title: document.title || host,
+      sourceType: classifyPageSource(host),
+    };
+    const attach = (phiAcked: boolean) => {
+      attachedPage = { ...pageCtx, phiAcked };
+      setAttachedPageChip(quickChat, {
+        title: pageCtx.title,
+        chars: text.length,
+        phi: phiAcked,
+        onClear: clearAttachment,
+      });
+      if (presetPrompt) {
+        addUserMessage(quickChat, presetPrompt);
+        void runSend(presetPrompt, false);
+      }
+    };
+
+    // Decay stage 2: non-PHI on a site the user already granted → skip the modal.
+    if (!screen.phi_flag) {
+      try {
+        if (await getConsentGrant(host)) {
+          attach(false);
+          return;
+        }
+      } catch {
+        // fall through to the modal
+      }
+    }
+
+    showPageAckCard(quickChat, {
+      title: screen.phi_flag
+        ? 'This page looks like it contains patient information.'
+        : presetPrompt
+          ? 'Attach this page and continue?'
+          : 'Attach this page to your next question?',
+      labels: screen.identifier_labels,
+      evidence: screen.findings.map((f) => `${f.label}: ${f.redacted_span} (×${f.count})`),
+      chars: text.length,
+      acceptText: screen.phi_flag ? 'Acknowledge & continue' : 'Attach page',
+      onAccept: () => attach(screen.phi_flag),
+      // "Always on this site" only for non-PHI — PHI must attest every read.
+      alwaysText: screen.phi_flag ? undefined : 'Always on this site',
+      onAlways: screen.phi_flag
+        ? undefined
+        : () => {
+            void saveConsentGrant(host, false);
+            attach(false);
+          },
+      onCancel: () => {},
+    });
+  }
   // === ENVELOPE ACTION ZONE (mode-aware) ===
   // Detected surface + role → envelope → proposed actions. Constant chrome
   // stays; only this zone changes, and it proposes (never auto-runs).
@@ -3548,42 +3601,8 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       showToast(`${action.label} — coming soon`);
       return;
     }
-    // synthesize / compose_reply reuse the consent pipeline: capture →
-    // local PHI screen (zero egress) → acknowledge → send the preset prompt.
-    const text = capturePageText();
-    if (!text) {
-      showToast('Nothing readable on this page');
-      return;
-    }
-    const screen = screenTextForPhi(text);
-    const pageCtx: PageContext = {
-      text,
-      url: window.location.href.split('?')[0],
-      title: document.title || window.location.hostname,
-      sourceType: envSurface,
-    };
-    const prompt = action.prompt || action.label;
-    showPageAckCard(quickChat, {
-      title: screen.phi_flag
-        ? 'This page looks like it contains patient information.'
-        : `Attach this page and ${action.label.toLowerCase()}?`,
-      labels: screen.identifier_labels,
-      evidence: screen.findings.map((f) => `${f.label}: ${f.redacted_span} (×${f.count})`),
-      chars: text.length,
-      acceptText: screen.phi_flag ? 'Acknowledge & continue' : 'Attach & continue',
-      onAccept: () => {
-        attachedPage = { ...pageCtx, phiAcked: screen.phi_flag };
-        setAttachedPageChip(quickChat, {
-          title: pageCtx.title,
-          chars: text.length,
-          phi: screen.phi_flag,
-          onClear: clearAttachment,
-        });
-        addUserMessage(quickChat, prompt);
-        void runSend(prompt, false);
-      },
-      onCancel: () => {},
-    });
+    // synthesize / compose_reply reuse the consent-aware capture pipeline.
+    void beginPageCapture(action.prompt || action.label);
   };
 
   // === DO / SAVE + DRAWER (Phase 2) ===
