@@ -3343,12 +3343,10 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         }
       },
     });
-    cardsContainer.appendChild(CollapsibleSection({
-      id: 'plan',
-      label: 'Plan',
-      summary: `${factors.length} factor${factors.length === 1 ? '' : 's'}`,
-      content: factorList,
-    }));
+    // Patient PLAN removed from the default body (declutter) — the
+    // recommendation banner surfaces the key patient signal. `factorList`
+    // is retained for a future patient-scoped action.
+    void factorList;
   } else {
     // Fallback: Legacy bottleneck card (if no factors available)
     const bottlenecks = sidecarState?.bottlenecks || [];
@@ -3455,12 +3453,8 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         }
       },
     });
-    cardsContainer.appendChild(CollapsibleSection({
-      id: 'plan',
-      label: 'Plan',
-      summary: `${(sidecarState?.bottlenecks || []).length} item${(sidecarState?.bottlenecks || []).length === 1 ? '' : 's'}`,
-      content: bottleneckCard,
-    }));
+    // Legacy bottleneck PLAN also removed from the default body (declutter).
+    void bottleneckCard;
   }
   
   // === CONTEXT EXPANDER ===
@@ -3472,13 +3466,9 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       resolutionPlan: miniState.resolutionPlan,
       resolvedSteps: sidecarState.resolved_steps || [],
     });
-    cardsContainer.appendChild(CollapsibleSection({
-      id: 'context',
-      label: 'Context & prior runs',
-      summary: 'History, milestones, sources',
-      content: contextExpander,
-      defaultCollapsed: true,
-    }));
+    // Context & prior runs removed from the bottom accordion (declutter).
+    // Can return as a compact element near the top if wanted.
+    void contextExpander;
   }
   
   mainContent.appendChild(cardsContainer);
