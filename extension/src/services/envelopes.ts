@@ -17,41 +17,13 @@
  * existing read-page → PHI-screen → chat pipeline).
  */
 
-import type { PageContext } from './chat';
+// Contract lives in the schema of record (types/sidebar.ts); this module
+// is the registry + resolution logic over those types.
+import type { SurfaceType, Role, ActionKind, EnvelopeAction, Envelope } from '../types/sidebar';
 
-export type Surface = PageContext['sourceType']; // 'email' | 'emr' | 'rcm' | 'web'
-export type Role = 'front_desk' | 'biller' | 'clinician' | 'unknown';
-
-export type ActionKind =
-  | 'ask' // focus the ask-Mobius input
-  | 'synthesize' // read page → "summarize this"
-  | 'compose_reply' // read page (email) → "draft a reply"
-  | 'find_email' // preview
-  | 'collate' // preview (Instant RAG ingestion)
-  | 'preview'; // recognized surface, flow not built yet
-
-export interface EnvelopeAction {
-  id: string;
-  label: string;
-  sublabel?: string;
-  /** ICONS key from components/sidecar/icons.ts */
-  icon: 'mobius' | 'page' | 'bulb' | 'person' | 'warning' | 'clock' | 'together';
-  kind: ActionKind;
-  /** Preset message for synthesize/compose_reply flows. */
-  prompt?: string;
-  primary?: boolean;
-}
-
-export interface Envelope {
-  id: Surface;
-  /** Chip text shown behind the "detected" marker. */
-  chipLabel: string;
-  /** One of the semantic accent tokens (var(--mobius-...)). */
-  accentVar: string;
-  /** The "On this page you can…" lead line. */
-  propose: string;
-  actions: EnvelopeAction[];
-}
+export type { SurfaceType, Role, ActionKind, EnvelopeAction, Envelope };
+/** @deprecated alias — use SurfaceType. */
+export type Surface = SurfaceType;
 
 const WEB: Envelope = {
   id: 'web',

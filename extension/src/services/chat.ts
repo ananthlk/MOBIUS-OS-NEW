@@ -16,6 +16,7 @@
  */
 
 import { CHAT_BASE_URL } from '../config';
+import type { SurfaceType } from '../types/sidebar';
 import { apiFetch, getAuthService } from './auth';
 
 const THREAD_STORAGE_KEY = 'mobius.chat.threadId';
@@ -45,11 +46,11 @@ export interface PageContext {
    *  (email vs EMR vs RCM vs generic web). Today it rides in the message
    *  header; when chat grows a gated system_context envelope, the same
    *  field moves there with no FE change. */
-  sourceType: 'email' | 'emr' | 'rcm' | 'web';
+  sourceType: SurfaceType;
 }
 
 /** Cheap client-side source-type hint from the hostname. */
-export function classifyPageSource(hostname: string): PageContext['sourceType'] {
+export function classifyPageSource(hostname: string): SurfaceType {
   const h = hostname.toLowerCase();
   if (/mail\.google\.com|outlook\.|mail\./.test(h)) return 'email';
   if (/mock-emr|epic|cerner|athena|qualifacts|carelogic|myavatar|credible/.test(h)) return 'emr';

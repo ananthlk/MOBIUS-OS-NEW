@@ -9,11 +9,8 @@
  */
 
 import type { Envelope, EnvelopeAction } from '../../services/envelopes';
-
-export interface PreferredItem {
-  id: string;
-  label: string;
-}
+import type { PreferredItem } from '../../types/sidebar';
+export type { PreferredItem };
 
 export interface DoSaveOpts {
   /** Run the promoted action (Do). */

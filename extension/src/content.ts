@@ -53,7 +53,12 @@ import { resolveEnvelope, deriveRole, defaultPreferred, EnvelopeAction } from '.
 import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
 import { SidecarContextStrip } from './components/sidecar/SidecarContextStrip';
 import { DoSaveActions, PreferredItem } from './components/sidecar/DoSaveActions';
+import {
+  FloatingRecommendation,
+  removeFloatingRecommendation,
+} from './components/sidecar/FloatingRecommendation';
 import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
+import type { Recommendation, FloatingPos } from './types/sidebar';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
@@ -125,6 +130,7 @@ const STORAGE_KEYS = {
   allowedDomains: 'mobius.allowedDomains',
   miniPos: 'mobius.miniPos',
   patientOverride: 'mobius.patientOverride',
+  recommendationPos: 'mobius.recommendationPos',
 } as const;
 
 // Theme system state (loaded from centralized theme system)
@@ -540,6 +546,7 @@ function removeSidebar(): void {
   if (existingSidebar) existingSidebar.remove();
   const style = document.getElementById(MINI_IDS.pageAdjust);
   if (style) style.remove();
+  removeFloatingRecommendation();
   sidebarContainer = null;
 }
 
@@ -2753,6 +2760,39 @@ async function renderSignedOutSidebar(): Promise<void> {
   document.body.appendChild(sidebarContainer);
 }
 
+/**
+ * Derive the top recommendation from backend state. Care readiness is
+ * surfaced here (not as its own bar): only nudge when there is a real gap.
+ * Defensive against loosely-typed backend shapes. 2.2 seed; richer
+ * recommendation sourcing (missed visits, benefits) lands as the backend
+ * exposes explicit recommendation objects.
+ */
+function deriveRecommendation(
+  state: SidecarStateResponse | null,
+  patient: { name: string; id: string } | null
+): Recommendation | null {
+  try {
+    const cr = state?.care_readiness as { position?: number } | undefined;
+    const pos = cr && typeof cr.position === 'number' ? cr.position : null;
+    if (pos === null || pos >= 75) return null; // no gap → no nudge
+    const who = patient?.name ? patient.name.split(' ')[0] : 'This patient';
+    const focus = (state?.factors || []).find(
+      (f) => (f as { is_focus?: boolean }).is_focus || f.status === 'blocked' || f.status === 'waiting'
+    ) as { label?: string; factor_type?: string } | undefined;
+    const raw = focus?.label || focus?.factor_type || '';
+    const tail = raw ? ` — ${String(raw).replace(/_/g, ' ')} needs attention` : '';
+    return {
+      id: `reco-readiness-${patient?.id || 'anon'}`,
+      temper: 'opportunity',
+      message: `<b>${who}</b> is at ${pos}% care readiness${tail}. Want help closing the gap?`,
+      actionLabel: 'Show me',
+    };
+  } catch (err) {
+    console.error('[Mobius] deriveRecommendation failed:', err);
+    return null;
+  }
+}
+
 async function initSidecarUI(miniState: MiniState): Promise<void> {
   console.log('[Mobius OS] Initializing Sidecar UI...');
   
@@ -2964,19 +3004,27 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   header.appendChild(headerRight);
   sidebarContainer.appendChild(header);
   
-  // === STATUS BAR ===
-  if (sidecarState?.care_readiness) {
-    const statusBar = StatusBar({ careReadiness: sidecarState.care_readiness });
-    const readinessPanel = CollapsibleSection({
-      id: 'readiness',
-      label: 'Care readiness',
-      summary: `${sidecarState.care_readiness.position ?? ''}%`,
-      content: statusBar,
-    });
-    readinessPanel.style.margin = '6px 10px 0';
-    sidebarContainer.appendChild(readinessPanel);
+  // === RECOMMENDATION (Phase 2.2) ===
+  // Care readiness is surfaced AS a recommendation, not its own bar. Derive
+  // the top nudge and float it (draggable, position persisted).
+  try {
+    const rec = deriveRecommendation(sidecarState, patient);
+    if (rec) {
+      const posRaw = await storageGet<FloatingPos>([STORAGE_KEYS.recommendationPos]);
+      FloatingRecommendation({
+        rec,
+        initialPos: (posRaw[STORAGE_KEYS.recommendationPos] as FloatingPos) || null,
+        onAct: () => showToast('Opening — recommendation actions coming soon'),
+        onDismiss: () => showToast('Dismissed'),
+        onMove: (pos) => void storageSet({ [STORAGE_KEYS.recommendationPos]: pos }),
+      });
+    } else {
+      removeFloatingRecommendation();
+    }
+  } catch (err) {
+    console.error('[Mobius] Recommendation render failed:', err);
   }
-  
+
   // === MAIN CONTENT (flex container, not scrollable) ===
   const mainContent = document.createElement('div');
   mainContent.className = 'sidecar-main-content';
