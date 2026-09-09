@@ -143,11 +143,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const filename = String(message.filename || filenameFromUrl(docUrl, contentType));
 
         // Content-Signals that ride ONLY in response headers are invisible to
-        // the server (it receives bytes, not our response), so forward the raw
-        // header lines verbatim — rag-side is the single normalizer that merges
-        // these with the origin's robots.txt signals (Crawler §2.6, TODO-A).
+        // the server (it receives bytes, not our response). Forward the FIVE
+        // ALLOWLISTED signal lines only, values UNPARSED — the set is bounded
+        // here (never a raw header bag: no Set-Cookie/Authorization/session
+        // headers ever), and rag is the single normalizer that parses them and
+        // merges with the origin robots.txt signals (Crawler §2.6, TODO-A).
+        // ALLOWLIST, NEVER BAG — do not add a sixth name without deciding, with
+        // rag, where its value lands.
+        const SIGNAL_HEADER_ALLOWLIST = ['x-robots-tag', 'content-signal', 'content-usage', 'tdm-reservation', 'tdm-policy'];
         const signalHeaders: string[] = [];
-        for (const h of ['x-robots-tag', 'content-signal', 'content-usage', 'tdm-reservation', 'tdm-policy']) {
+        for (const h of SIGNAL_HEADER_ALLOWLIST) {
           const v = docResp.headers.get(h);
           if (v) signalHeaders.push(`${h}: ${v}`);
         }
