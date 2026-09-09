@@ -2851,16 +2851,26 @@ function deriveRecommendation(
     const cr = state?.care_readiness as { position?: number } | undefined;
     const pos = cr && typeof cr.position === 'number' ? cr.position : null;
     if (pos === null || pos >= 75) return null; // no gap → no nudge
-    const who = patient?.name ? patient.name.split(' ')[0] : 'This patient';
     const focus = (state?.factors || []).find(
       (f) => (f as { is_focus?: boolean }).is_focus || f.status === 'blocked' || f.status === 'waiting'
     ) as { label?: string; factor_type?: string } | undefined;
     const raw = focus?.label || focus?.factor_type || '';
     const tail = raw ? ` — ${String(raw).replace(/_/g, ' ')} needs attention` : '';
+    // Personalize only with a REAL name and only when privacy mode is off.
+    // When the patient isn't resolved the name falls back to "Patient"/
+    // "Unknown", so guard those out and use a name-free subject instead of
+    // the clinically-odd "This patient is…".
+    const rawName = (patient?.name || '').trim();
+    const hasRealName =
+      !sidecarPrivacyMode && rawName !== '' && !/^(patient|unknown(\s+patient)?)$/i.test(rawName);
+    const first = hasRealName ? rawName.split(/\s+/)[0] : null;
+    const message = first
+      ? `<b>${first}</b> is ${pos}% ready for this visit${tail}.`
+      : `This visit is ${pos}% ready${tail}.`;
     return {
       id: `reco-readiness-${patient?.id || 'anon'}`,
       temper: 'opportunity',
-      message: `<b>${who}</b> is ${pos}% ready for this visit${tail}.`,
+      message,
       actionLabel: 'Show me',
     };
   } catch (err) {
