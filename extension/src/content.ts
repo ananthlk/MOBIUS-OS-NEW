@@ -51,6 +51,7 @@ import { askMobius, classifyPageSource, PageContext } from './services/chat';
 import { screenTextForPhi } from './services/phiScreen';
 import { resolveEnvelope, deriveRole, EnvelopeAction } from './services/envelopes';
 import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
+import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
@@ -2702,6 +2703,54 @@ interface MiniState {
   needsAttention: { color: MiniColor; problemStatement: string | null; userStatus: AttentionStatus };
 }
 
+/**
+ * Signed-out sidebar shell (Phase 1). Same chrome as the authed sidebar,
+ * but the body is the sign-in form. On success, re-init the authed sidebar.
+ */
+async function renderSignedOutSidebar(): Promise<void> {
+  if (document.getElementById('mobius-os-sidebar')) return;
+
+  sidebarContainer = document.createElement('div');
+  sidebarContainer.id = 'mobius-os-sidebar';
+  sidebarContainer.setAttribute('style', `
+    position: fixed !important; top: 0 !important; right: 0 !important;
+    width: 400px !important; height: 100vh !important;
+    z-index: 2147483646 !important; overflow: hidden !important;
+    display: flex !important; flex-direction: column !important;
+    margin: 0 !important; padding: 0 !important;
+  `);
+  await initializeStyles(sidebarContainer);
+
+  // Header: brand + close (close returns to icon-only)
+  const header = document.createElement('div');
+  header.className = 'sidecar-header';
+  const brand = document.createElement('div');
+  brand.className = 'sidecar-header-brand';
+  brand.appendChild(MobiusLogo({ status: 'idle' }));
+  const title = document.createElement('span');
+  title.className = 'sidecar-header-title';
+  title.textContent = 'Mobius OS';
+  brand.appendChild(title);
+  header.appendChild(brand);
+  const spacer = document.createElement('div');
+  spacer.style.flex = '1';
+  header.appendChild(spacer);
+  header.appendChild(CollapseButton(() => removeSidebar()));
+  sidebarContainer.appendChild(header);
+
+  const body = document.createElement('div');
+  body.setAttribute('style', 'flex: 1; min-height: 0; overflow-y: auto;');
+  body.appendChild(
+    SidecarSignIn(() => {
+      removeSidebar();
+      void expandToSidebar();
+    })
+  );
+  sidebarContainer.appendChild(body);
+
+  document.body.appendChild(sidebarContainer);
+}
+
 async function initSidecarUI(miniState: MiniState): Promise<void> {
   console.log('[Mobius OS] Initializing Sidecar UI...');
   
@@ -2713,10 +2762,20 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   
   // Get session
   sessionId = await getOrCreateSessionId();
-  
+
+  // Phase 1: the sidebar is the only surface, so it hosts sign-in itself.
+  // Signed out → render the sign-in shell and stop (no state fetch).
+  const _authSvc = getAuthService();
+  isAuthenticated = await _authSvc.isAuthenticated();
+  if (!isAuthenticated) {
+    await renderSignedOutSidebar();
+    return;
+  }
+  currentUserProfile = (await _authSvc.getUserProfile()) || currentUserProfile;
+
   // Load privacy mode
   sidecarPrivacyMode = await PrivacyMode.isEnabled();
-  
+
   // Build record context
   const patient = miniState.patient;
   const recordContext: RecordContext = patient 
@@ -3613,13 +3672,8 @@ async function getAuthHeader(): Promise<Record<string, string>> {
 }
 
 async function collapseToMini(): Promise<void> {
+  // Phase 1: no mini — "collapse" now means close the panel (icon-only).
   removeSidebar();
-  // Explicitly refresh state when collapsing from sidecar
-  // This ensures the mini shows the latest data including recommendations
-  await renderMiniIfAllowed();
-  // Force update of UI elements after state is loaded
-  updateStepPreviewGlobal();
-  updateTaskCountGlobal();
 }
 
 async function renderMiniIfAllowed(): Promise<void> {
@@ -4944,20 +4998,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return;
       }
       if (type === 'mobius:toggle-panel') {
-        // Toolbar icon click cycles three states:
-        //   none (just the icon) → mini (indicators only) → side panel → none
-        const hasSidebar = !!document.getElementById(MINI_IDS.sidebar);
-        const hasMini = !!document.getElementById(MINI_IDS.root);
-        if (hasSidebar) {
-          // side panel → none
+        // Phase 1: two states only — icon (closed) ↔ side panel (open).
+        if (document.getElementById(MINI_IDS.sidebar)) {
           removeSidebar();
-          removeMini();
-        } else if (hasMini) {
-          // mini → side panel
-          await expandToSidebar();
         } else {
-          // none → mini
-          await renderMiniIfAllowed();
+          await expandToSidebar();
         }
         sendResponse({ ok: true });
         return;
