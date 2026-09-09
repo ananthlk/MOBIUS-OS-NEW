@@ -6159,7 +6159,7 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 7px 12px;
   background: var(--mobius-bg-secondary, #f8fafc);
   border: none;
   cursor: pointer;
@@ -6209,7 +6209,7 @@
 }
 
 .sidecar-panel-body {
-  padding: 8px 10px;
+  padding: 8px 12px;
   display: block;
 }
 
@@ -6245,6 +6245,14 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* A flush footer band, not a floating card, so the panel reads as one
+     surface: banded top (context) → open middle (reco / Do·Save) → banded
+     bottom (chat + system log). Overrides the .sidecar-panel card chrome. */
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--mobius-border-light, #eef2f7);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .sidecar-panel-chat.collapsed {
@@ -6533,7 +6541,7 @@
 .ctxs-tasks { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--mobius-text-secondary, #374151); background: var(--mobius-bg-card, #fff); border: 1px solid var(--mobius-border, #e2e8f0); border-radius: 999px; padding: 2px 9px; cursor: pointer; font-family: inherit; }
 .ctxs-tasks .n { font-weight: 700; }
 
-.sidecar-dosave { display: flex; flex-direction: column; gap: 11px; padding: 12px 12px 4px; }
+.sidecar-dosave { display: flex; flex-direction: column; gap: 11px; padding: 10px 12px 12px; }
 .ds-verbs { display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px; }
 .ds-verb { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 12px; border-radius: 12px; border: 1px solid var(--mobius-border, #e2e8f0); background: var(--mobius-bg-secondary, #f8fafc); cursor: pointer; text-align: left; font-family: inherit; }
 .ds-vt { font-size: 15px; font-weight: 700; }
@@ -6560,7 +6568,7 @@
    ============================================================================= */
 .sidecar-reco {
   display: flex; gap: 8px; align-items: flex-start;
-  margin: 8px 12px 0; padding: 9px 11px 9px 10px;
+  margin: 10px 12px 0; padding: 9px 11px 9px 10px;
   border-radius: 9px;
   /* A light nudge, not a solid block: faint wash + a thin left accent bar
      (instead of a full tinted border + heavy fill that dominated the top). */

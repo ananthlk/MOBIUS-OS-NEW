@@ -3204,7 +3204,9 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   // === CARDS CONTAINER (bottlenecks, patient context - takes remaining space, scrollable) ===
   const cardsContainer = document.createElement('div');
   cardsContainer.className = 'sidecar-cards-container';
-  cardsContainer.setAttribute('style', 'flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 6px 10px;');
+  // No horizontal padding here — each hosted block owns the shared 12px inset
+  // so the panel's left edge stays a straight line (see .sidecar-dosave).
+  cardsContainer.setAttribute('style', 'flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 0;');
   
   // Greeting removed in Phase 2 — the context strip carries identity now.
 
