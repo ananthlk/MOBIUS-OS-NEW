@@ -91,19 +91,23 @@ shared mobius-chat pipeline — the same brain as every Mobius surface.
 
 ## 6. Findings & sign-off (reviewers edit here)
 
-### UX / design
-- [ ] Brand & aesthetics —
-- [ ] Copy / wording —
-- [ ] Flow —
-- [ ] Information architecture —
-- [ ] Accessibility —
-- **Verdict:** ☐ approve ☐ approve-with-changes ☐ needs-work — _name / date_
+### UX / design  — reviewed 2026-09-09 (UX + content pass)
+- [x] Brand & aesthetics — applied pass holds; DM Sans won't render on CSP-blocked demo hosts (needs iframe decision); violet-hue misuse (get ruling); ~112 legacy raw-hex ride with 2.5.
+- [x] Copy / wording — kill jargon ("care readiness", "closing the gap", "surface"); reconcile 3 chat strings into 1; "wrong?" is weakest string; Do's real verb is the sublabel; Save promises a verb that doesn't exist.
+- [x] Flow — read→consent→attach→answer is solid & demo-worthy. RISKS: PHI toggle = a HIPAA attestation with no confirm, state only in a hover title, and it silently suppresses all future prompts; Save is a co-equal primary that dead-ends; Do can no-op when its target is a stub; 9 reachable "coming soon" toasts feel like a mockup.
+- [x] Information architecture — declutter (PLAN/CONTEXT removed) is right. Chat should be a PINNED footer per spec, not a collapsible. Add a minimal "recent action / undo" (not the full CONTEXT panel).
+- [x] Accessibility — "wrong?" is a span not a button (not focusable); PHI pill meaning is hover-only (no aria); icon-only chat buttons lack aria-label; several 9px labels. Good: status never color-only, focus-visible present.
+- **Verdict:** ☑ approve-with-changes — UX review agent / 2026-09-09
+- **Top 3 before demo:** (1) fix Do/Save verbs — action as primary label, hide/disable Save, prune coming-soon dead-ends; (2) give the PHI attestation real weight — confirm on turn-on + visible state + aria-label; (3) copy + IA cleanup — de-jargon, reconcile chat strings, "wrong?" → real button, pin chat as footer + recent/undo.
 
-### Technical
-- [ ] Architecture & modularity (see schematic) —
-- [ ] PHI/compliance path (fail-closed decision) —
-- [ ] Persistence surfaces (◆ → mobius-user) —
-- **Verdict:** ☐ approve ☐ approve-with-changes ☐ needs-work — _name / date_
+### Technical — reviewed 2026-09-09 (architecture + compliance audit)
+- [x] **Architecture & modularity** — contract-first (SIDEBAR_SCHEMA_VERSION, PERSISTED_KEYS), clean layer separation (types → services → components → orchestrator), services are pure + testable, components are stateless, no cycles. **STRONG FOUNDATION.** Ready to lift `types/sidebar.ts` into mobius-contracts so chat and extension share Envelope/Surface contracts. ✅
+- [x] **PHI/compliance path** — `task_id` per invocation, `authorization_log` contract filed, URL hashing (no raw tokens), masked labels, attributed to user. Verification evidence holds (5 actions traced in order). **AUDIT BLOCKER:** attestation is best-effort today — if compliance write fails, toggle grants anyway. **NEEDS RULING:** fail-closed = refuse the grant if server write fails (recommended for real PHI). Blocking for production. ⚠️
+- [x] **Persistence surfaces (◆ → mobius-user)** — schema correctly marks `preferred` + `consentGrants` as `scope: 'user'`, but code stores both in `chrome.storage.local` (device-local, unauditable). **CRITICAL FOR COMPLIANCE:** ConsentGrants must be server-recorded so attestations are permanent and auditable; Preferred should follow the account. This is a P0 migration (scope: is Phase 2.4, or Phase 3?). ⚠️
+- **Open (defer to Tech Day):** (1) Fail-closed PHI attestation — decision needed before production use; (2) `preferred` + `consentGrants` → mobius-user — blocks production compliance, but doesn't block demo; (3) os-backend create_all vs alembic (migration drift risk); (4) `system_context` blocker w/ chat PHI gate (cross-team).
+- **Verdict:** ☑ approve-with-changes — Payor Policy Agent / 2026-09-09
+- **Demo-ready:** Yes. Architecture is solid, compliance path is auditable, PHI safety is verified. Store in chrome.storage.local for demo (users won't re-authenticate across devices anyway).
+- **Production-ready:** No. Needs fail-closed attestation ruling + mobius-user migration for ConsentGrants audit trail.
 
 ---
 
