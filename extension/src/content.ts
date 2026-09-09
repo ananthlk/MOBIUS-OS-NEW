@@ -50,6 +50,7 @@ import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService, apiFetch } from './services/auth';
 import { askMobius, classifyPageSource, PageContext } from './services/chat';
 import { renderEnvelope } from './components/sidecar/renderEnvelope';
+import { ingestCurrentPage, promoteDocument } from './services/ingest';
 import { screenTextForPhi } from './services/phiScreen';
 import { resolveEnvelope, deriveRole, defaultPreferred, EnvelopeAction } from './services/envelopes';
 import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
@@ -3806,6 +3807,141 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       onCancel: () => {},
     });
   }
+
+  /**
+   * Fetch the current page's document in the user's session and file it into
+   * RAG — the WEB envelope hero action. The fetch + upload run in the
+   * background worker (bytes never touch disk). Renders a consent → working →
+   * result card in the chat area; offers promote-to-org on success.
+   */
+  async function beginPageIngest(chatEl: HTMLElement): Promise<void> {
+    const msgs = chatEl.querySelector('.sidecar-chat-messages');
+    if (!msgs) return;
+    msgs.querySelector('.sidecar-chat-empty')?.remove();
+    chatEl.querySelector('.sidecar-ingest-card')?.remove();
+
+    const url = window.location.href;
+    const host = getHostname();
+    const guessName = (() => {
+      try {
+        const seg = decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() || '');
+        return seg || document.title || host;
+      } catch {
+        return document.title || host;
+      }
+    })();
+
+    const card = document.createElement('div');
+    card.className = 'sidecar-ingest-card';
+    msgs.appendChild(card);
+    const scroll = () => (msgs.scrollTop = msgs.scrollHeight);
+
+    const renderConsent = () => {
+      card.innerHTML = '';
+      const title = document.createElement('div');
+      title.className = 'sidecar-ingest-title';
+      title.textContent = 'Add this document to Mobius?';
+      const meta = document.createElement('div');
+      meta.className = 'sidecar-ingest-meta';
+      meta.textContent = `${guessName} · ${host}`;
+      const note = document.createElement('div');
+      note.className = 'sidecar-ingest-note';
+      note.textContent =
+        'Fetched in your browser session and filed for retrieval — it never lands on your device. Screened for PHI before it’s stored.';
+      const row = document.createElement('div');
+      row.className = 'sidecar-ingest-actions';
+      const add = document.createElement('button');
+      add.className = 'sidecar-ingest-accept';
+      add.textContent = 'Add to Mobius';
+      add.addEventListener('click', () => void run());
+      const cancel = document.createElement('button');
+      cancel.className = 'sidecar-ingest-cancel';
+      cancel.textContent = 'Cancel';
+      cancel.addEventListener('click', () => card.remove());
+      row.appendChild(add);
+      row.appendChild(cancel);
+      card.append(title, meta, note, row);
+      scroll();
+    };
+
+    const renderWorking = () => {
+      card.innerHTML = '';
+      const w = document.createElement('div');
+      w.className = 'sidecar-ingest-working';
+      w.textContent = `Filing “${guessName}” into Mobius…`;
+      const sub = document.createElement('div');
+      sub.className = 'sidecar-ingest-note';
+      sub.textContent = 'Fetching in your session → screening for PHI → indexing.';
+      card.append(w, sub);
+      scroll();
+    };
+
+    const renderResult = (opts: { icon: string; cls: string; title: string; body?: string; documentId?: string; taskId: string }) => {
+      card.innerHTML = '';
+      card.classList.add(opts.cls);
+      const t = document.createElement('div');
+      t.className = 'sidecar-ingest-title';
+      t.textContent = `${opts.icon} ${opts.title}`;
+      card.appendChild(t);
+      if (opts.body) {
+        const b = document.createElement('div');
+        b.className = 'sidecar-ingest-note';
+        b.textContent = opts.body;
+        card.appendChild(b);
+      }
+      // Promote-to-org offer on success (personal Vault → shared corpus).
+      if (opts.documentId) {
+        const row = document.createElement('div');
+        row.className = 'sidecar-ingest-actions';
+        const promote = document.createElement('button');
+        promote.className = 'sidecar-ingest-accept';
+        promote.textContent = 'Share to org corpus';
+        promote.addEventListener('click', () => {
+          promote.disabled = true;
+          promote.textContent = 'Sharing…';
+          void promoteDocument(opts.documentId!, opts.taskId).then((ok) => {
+            promote.textContent = ok ? '✓ Shared to org corpus' : 'Share failed — try again';
+            if (ok) promote.classList.add('done');
+            else promote.disabled = false;
+          });
+        });
+        row.appendChild(promote);
+        card.appendChild(row);
+      }
+      scroll();
+    };
+
+    const run = async () => {
+      const taskId = newTaskId();
+      renderWorking();
+      trace('action', `ingest: add document — ${guessName}`, taskId);
+      let result;
+      try {
+        result = await ingestCurrentPage({ url, taskId });
+      } catch (e) {
+        renderResult({ icon: '⚠', cls: 'error', title: 'Couldn’t add this document', body: String(e), taskId });
+        return;
+      }
+      if (result.ok) {
+        renderResult({
+          icon: '✓',
+          cls: 'ok',
+          title: 'Added to your library',
+          body: `${result.filename || guessName} is filed for retrieval. Ask Mobius about it below.`,
+          documentId: result.documentId,
+          taskId,
+        });
+      } else if (result.duplicate) {
+        renderResult({ icon: '✓', cls: 'ok', title: 'Already in Mobius', body: 'This document is already filed for retrieval — ask Mobius about it below.', taskId });
+      } else if (result.blocked) {
+        renderResult({ icon: '⚠', cls: 'blocked', title: 'Not stored — flagged by the safety gate', body: result.message, taskId });
+      } else {
+        renderResult({ icon: '⚠', cls: 'error', title: 'Couldn’t add this document', body: result.message, taskId });
+      }
+    };
+
+    renderConsent();
+  }
   // === ENVELOPE ACTION ZONE (mode-aware) ===
   // Detected surface + role → envelope → proposed actions. Constant chrome
   // stays; only this zone changes, and it proposes (never auto-runs).
@@ -3817,6 +3953,10 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   const runEnvelopeAction = (action: EnvelopeAction) => {
     if (action.kind === 'ask') {
       quickChat.querySelector<HTMLInputElement>('.sidecar-quick-chat-input')?.focus();
+      return;
+    }
+    if (action.kind === 'ingest') {
+      void beginPageIngest(quickChat);
       return;
     }
     if (action.kind === 'preview' || action.kind === 'collate' || action.kind === 'find_email') {

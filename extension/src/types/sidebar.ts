@@ -32,6 +32,7 @@ export type ActionKind =
   | 'compose_reply'
   | 'find_email'
   | 'collate'
+  | 'ingest'
   | 'preview';
 
 /** ICONS keys (components/sidecar/icons.ts) an action may render with. */

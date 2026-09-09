@@ -32,6 +32,17 @@ const WEB: Envelope = {
   propose: 'On this page you can…',
   actions: [
     {
+      // The dominant web action: fetch the doc the user is looking at (in their
+      // authenticated session, reaching robots/auth-blocked content) and file
+      // it for retrieval — without it ever landing on their device.
+      id: 'web-ingest',
+      label: 'Add this document to Mobius',
+      sublabel: 'Fetched in your browser, filed for retrieval — never saved to your device',
+      icon: 'page',
+      kind: 'ingest',
+      primary: true,
+    },
+    {
       id: 'web-synthesize',
       label: 'Summarize this page',
       sublabel: 'Key points + how it applies',
@@ -39,14 +50,6 @@ const WEB: Envelope = {
       kind: 'synthesize',
       prompt:
         'Summarize the attached page: the key points and how they apply to a Florida behavioral-health RCM workflow.',
-      primary: true,
-    },
-    {
-      id: 'web-collate',
-      label: 'Add to my library',
-      sublabel: 'File this page for later (soon)',
-      icon: 'page',
-      kind: 'collate',
     },
   ],
 };

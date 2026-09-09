@@ -39,6 +39,27 @@ const PERSISTENT_KEYS = [
   'mobius.auth.userProfile',
 ];
 
+/** Best-effort filename for a fetched document: last path segment, else a
+ *  content-type-derived default. */
+function filenameFromUrl(url: string, contentType: string): string {
+  try {
+    const path = new URL(url).pathname;
+    const last = decodeURIComponent(path.split('/').filter(Boolean).pop() || '');
+    if (last && /\.[a-z0-9]{2,5}$/i.test(last)) return last;
+    const ext = contentType.includes('pdf')
+      ? 'pdf'
+      : contentType.includes('html')
+        ? 'html'
+        : contentType.includes('plain')
+          ? 'txt'
+          : 'bin';
+    const base = (last || new URL(url).hostname.replace(/^www\./, '') || 'document').slice(0, 60);
+    return `${base}.${ext}`;
+  } catch {
+    return 'document.bin';
+  }
+}
+
 /**
  * Auth Storage Message Handler
  * Content scripts cannot access chrome.storage.session directly,
@@ -88,6 +109,63 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ ok: false, error: String(error) });
       });
     return true; // Keep channel open for async response
+  }
+
+  // Fetch a document in the user's authenticated session and stream it to the
+  // ingest target — the extension's unique capability: the bytes come from the
+  // page the user is on (cookies included via host_permissions), reaching
+  // robots/auth-blocked docs a server crawler can't, and go straight to the
+  // corpus WITHOUT ever touching the user's disk. See WEB_INGEST_INTEGRATION.md.
+  if (message.type === 'mobius:ingest:fetchUpload') {
+    const docUrl = String(message.url || '');
+    const uploadUrl = String(message.uploadUrl || '');
+    // The upload target is allowlisted (not a general proxy); the doc URL is
+    // the page the user is viewing, supplied by our own content script.
+    if (!uploadUrl.startsWith(`${CHAT_BASE_URL}/`)) {
+      sendResponse({ ok: false, error: 'upload target not allowed' });
+      return false;
+    }
+    if (!/^https?:\/\//i.test(docUrl)) {
+      sendResponse({ ok: false, error: 'invalid document url' });
+      return false;
+    }
+    (async () => {
+      try {
+        // 1) Fetch the document bytes in-session (cookies included).
+        const docResp = await fetch(docUrl, { credentials: 'include' });
+        if (!docResp.ok) {
+          sendResponse({ ok: false, stage: 'fetch', status: docResp.status, error: `fetch failed (${docResp.status})` });
+          return;
+        }
+        const blob = await docResp.blob();
+        const contentType = docResp.headers.get('Content-Type') || blob.type || 'application/octet-stream';
+        const filename = String(message.filename || filenameFromUrl(docUrl, contentType));
+
+        // 2) Multipart POST to the ingest target (extension context = CORS-exempt).
+        const fd = new FormData();
+        fd.append('file', blob, filename);
+        if (message.threadId) fd.append('thread_id', String(message.threadId));
+        if (message.orgName) fd.append('org_name', String(message.orgName));
+        // Provenance (WEB_INGEST_INTEGRATION.md §7, Crawler-approved). These
+        // Form fields are additive; the chat hop + rag param that forward them
+        // into documents.source_metadata are Chat/Master-RAG's to land — until
+        // then they're harmlessly ignored, so no rework when they ship.
+        fd.append('source_url', docUrl);
+        fd.append('access', 'user_authorized_session');
+        if (message.taskId) fd.append('task_id', String(message.taskId));
+
+        const headers: Record<string, string> = {};
+        if (message.token) headers['Authorization'] = `Bearer ${message.token}`;
+
+        const up = await fetch(uploadUrl, { method: 'POST', headers, body: fd });
+        const json = await up.json().catch(() => null);
+        sendResponse({ ok: true, status: up.status, bytes: blob.size, contentType, filename, json });
+      } catch (error) {
+        console.error('[Mobius Background] Ingest fetch/upload error:', error);
+        sendResponse({ ok: false, stage: 'upload', error: String(error) });
+      }
+    })();
+    return true; // async
   }
 
   // Handle auth storage operations

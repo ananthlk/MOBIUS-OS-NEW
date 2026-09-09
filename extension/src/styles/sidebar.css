@@ -6801,3 +6801,35 @@
 }
 .sidecar-env-continue-reason { font-size: 11px; color: var(--mobius-text-secondary, #374151); }
 .sidecar-env-continue.suggest .sidecar-env-continue-cta { color: var(--mobius-accent, #3b82f6); }
+
+/* =============================================================================
+   Web-page → RAG ingest card (fetch a doc in-session, file it for retrieval)
+   ============================================================================= */
+.sidecar-ingest-card {
+  border: 1px solid var(--mobius-border, #e2e8f0);
+  border-left: 3px solid var(--mobius-accent, #3b82f6);
+  border-radius: 9px; padding: 10px 11px; margin: 6px 0;
+  background: var(--mobius-bg-card, #fff);
+  font-family: var(--mobius-font-sans, 'DM Sans', -apple-system, sans-serif);
+}
+.sidecar-ingest-card.ok { border-left-color: var(--mobius-success, #10b981); }
+.sidecar-ingest-card.blocked { border-left-color: var(--mobius-warning, #f59e0b); }
+.sidecar-ingest-card.error { border-left-color: var(--mobius-error, #dc2626); }
+.sidecar-ingest-title { font-size: 12.5px; font-weight: 700; color: var(--mobius-text-primary, #1a1d21); }
+.sidecar-ingest-meta { font-size: 10.5px; color: var(--mobius-text-muted, #64748b); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidecar-ingest-note { font-size: 11px; line-height: 1.45; color: var(--mobius-text-secondary, #374151); margin-top: 5px; }
+.sidecar-ingest-working { font-size: 12px; font-weight: 600; color: var(--mobius-accent, #3b82f6); }
+.sidecar-ingest-actions { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
+.sidecar-ingest-accept {
+  font-family: inherit; font-size: 11.5px; font-weight: 600; color: #fff;
+  background: var(--mobius-accent, #3b82f6); border: none; border-radius: 7px;
+  padding: 6px 12px; cursor: pointer;
+}
+.sidecar-ingest-accept:disabled { opacity: .7; cursor: default; }
+.sidecar-ingest-accept.done { background: var(--mobius-success, #10b981); }
+.sidecar-ingest-cancel {
+  font-family: inherit; font-size: 11.5px; font-weight: 600; color: var(--mobius-text-secondary, #374151);
+  background: var(--mobius-bg-secondary, #f1f5f9); border: 1px solid var(--mobius-border, #e2e8f0);
+  border-radius: 7px; padding: 6px 12px; cursor: pointer;
+}
+.sidecar-ingest-accept:focus-visible, .sidecar-ingest-cancel:focus-visible { outline: 2px solid var(--mobius-accent, #3b82f6); outline-offset: 2px; }
