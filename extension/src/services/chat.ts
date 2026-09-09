@@ -17,6 +17,8 @@
 
 import { CHAT_BASE_URL } from '../config';
 import type { SurfaceType } from '../types/sidebar';
+import type { AssistantEnvelope, ChatTelemetry } from '../types/chatEnvelope';
+import { asEnvelope } from '../types/chatEnvelope';
 import { apiFetch, getAuthService } from './auth';
 import { trace } from './traceLog';
 
@@ -26,8 +28,12 @@ const POLL_TIMEOUT_MS = 180000; // chat answers can take a while on cold paths
 
 export interface ChatAnswer {
   ok: boolean;
-  /** Markdown answer text (direct_answer) when ok. */
+  /** Markdown answer text (direct_answer) when ok. Fallback render path. */
   answer?: string;
+  /** The render envelope — the preferred render source when present. */
+  envelope?: AssistantEnvelope;
+  /** Invocation + cost telemetry from the response. */
+  telemetry?: ChatTelemetry;
   /** Number of cited sources, when provided. */
   sourceCount?: number;
   /** Human-readable error / block message when not ok. */
@@ -117,6 +123,10 @@ export async function askMobius(
         message: opts.pageContext
           ? `${message}\n\n[Attached page (${opts.pageContext.sourceType}): ${opts.pageContext.title} — ${opts.pageContext.url}]\n${opts.pageContext.text}`
           : message,
+        // The extension is a quick-answer surface: 'quick' is ~2× faster and
+        // ~40% cheaper than the default path and returns the identical
+        // assistant_envelope, so the renderer is unchanged.
+        chat_mode: 'quick',
         ...(threadId ? { thread_id: threadId } : {}),
         ...(opts.phiOverride ? { phi_override: true } : {}),
       }),
@@ -185,7 +195,10 @@ export async function askMobius(
 }
 
 function parseCompleted(data: any): ChatAnswer {
-  // message is a JSON-encoded card: {mode, direct_answer, sections, ...}
+  // Preferred render source: the assistant_envelope (top-level).
+  const envelope = asEnvelope(data?.assistant_envelope) || undefined;
+
+  // Fallback answer text: direct_answer from the legacy card.
   let answer = '';
   try {
     const card = typeof data.message === 'string' ? JSON.parse(data.message) : data.message;
@@ -193,9 +206,21 @@ function parseCompleted(data: any): ChatAnswer {
   } catch {
     answer = typeof data.message === 'string' ? data.message : '';
   }
-  if (!answer) {
+
+  if (!envelope && !answer) {
     return { ok: false, error: 'Mobius returned an empty answer' };
   }
+
+  const perf = data?.llm_performance || {};
+  const telemetry: ChatTelemetry = {
+    model: data?.model_used || perf.primary_model,
+    mode: 'quick',
+    inputTokens: data?.tokens_used?.input_tokens,
+    outputTokens: data?.tokens_used?.output_tokens,
+    costUsd: typeof data?.cost_usd === 'number' ? data.cost_usd : perf.total_cost_usd,
+    latencyMs: perf.total_latency_ms,
+  };
+
   const sources = Array.isArray(data.sources) ? data.sources.length : undefined;
-  return { ok: true, answer, sourceCount: sources };
+  return { ok: true, answer, envelope, telemetry, sourceCount: sources };
 }

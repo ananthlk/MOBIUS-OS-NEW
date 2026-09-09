@@ -34,6 +34,7 @@ import {
   QuickChat,
   setQuickChatLoading,
   showQuickChatResponse,
+  showQuickChatEnvelope,
   addUserMessage,
   setQuickChatStatus,
   showPageAckCard,
@@ -48,6 +49,7 @@ import { Message, Status, Task, StatusIndicatorStatus, LLMChoice, AgentMode, Det
 import { PatientContextDetector } from './services/patientContextDetector';
 import { getAuthService, apiFetch } from './services/auth';
 import { askMobius, classifyPageSource, PageContext } from './services/chat';
+import { renderEnvelope } from './components/sidecar/renderEnvelope';
 import { screenTextForPhi } from './services/phiScreen';
 import { resolveEnvelope, deriveRole, defaultPreferred, EnvelopeAction } from './services/envelopes';
 import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
@@ -3658,13 +3660,19 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
           : {}
       );
       setQuickChatStatus(quickChat, null);
-      if (result.ok && result.answer) {
+      if (result.ok && (result.envelope || result.answer)) {
         trace('chat', `answered · ${result.sourceCount || 0} sources`);
-        showQuickChatResponse(
-          quickChat,
-          result.answer,
-          result.sourceCount ? `${result.sourceCount} corpus sources` : undefined
-        );
+        if (result.envelope) {
+          // Preferred path: render the assistant_envelope contract.
+          showQuickChatEnvelope(quickChat, renderEnvelope(result.envelope, result.telemetry));
+        } else {
+          // Fallback: plain markdown-lite answer text.
+          showQuickChatResponse(
+            quickChat,
+            result.answer!,
+            result.sourceCount ? `${result.sourceCount} corpus sources` : undefined
+          );
+        }
         clearAttachment(); // one-shot: page context does not linger silently
       } else if (result.phiBlocked) {
         // Server gate caught identifiers the local screen can't (e.g. bare

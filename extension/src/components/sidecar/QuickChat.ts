@@ -290,7 +290,7 @@ export function setQuickChatStatus(element: HTMLElement, status: string | null):
  * Render markdown-lite (bold + bullet lines) into safe DOM nodes.
  * LLM output never touches innerHTML.
  */
-function renderMarkdownLite(target: HTMLElement, markdown: string): void {
+export function renderMarkdownLite(target: HTMLElement, markdown: string): void {
   const appendInline = (parent: HTMLElement, line: string) => {
     const parts = line.split('**');
     parts.forEach((part, i) => {
@@ -352,6 +352,22 @@ export function showQuickChatResponse(element: HTMLElement, response: string, so
   messagesContainer.appendChild(msgEl);
   
   // Scroll to bottom
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+/**
+ * Show a rendered envelope (renderEnvelope output) as a system message.
+ * The preferred render path — richer than the markdown-lite text fallback.
+ */
+export function showQuickChatEnvelope(element: HTMLElement, envelopeEl: HTMLElement): void {
+  const messagesContainer = element.querySelector('.sidecar-chat-messages');
+  if (!messagesContainer) return;
+  messagesContainer.querySelector('.sidecar-chat-empty')?.remove();
+
+  const msgEl = document.createElement('div');
+  msgEl.className = 'sidecar-chat-message system-message';
+  msgEl.appendChild(envelopeEl);
+  messagesContainer.appendChild(msgEl);
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 

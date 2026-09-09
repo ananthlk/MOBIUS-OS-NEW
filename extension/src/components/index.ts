@@ -49,7 +49,7 @@ export { BottleneckCard, AllClearCard } from './sidecar/BottleneckCard';
 export { ContextExpander } from './sidecar/ContextExpander';
 export { QuickChat, setQuickChatLoading, showQuickChatResponse, clearQuickChatResponse, addUserMessage, setQuickChatStatus } from './sidecar/QuickChat';
 export { CollapsibleSection, setSectionSummary } from './sidecar/CollapsibleSection';
-export { showPageAckCard, setAttachedPageChip } from './sidecar/QuickChat';
+export { showPageAckCard, setAttachedPageChip, showQuickChatEnvelope } from './sidecar/QuickChat';
 export { EnvelopeActions } from './sidecar/EnvelopeActions';
 export { SidecarContextStrip } from './sidecar/SidecarContextStrip';
 export { DoSaveActions } from './sidecar/DoSaveActions';

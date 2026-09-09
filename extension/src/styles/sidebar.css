@@ -6714,3 +6714,71 @@
 .mobius-confirm-ok { background: var(--mobius-warning, #d97706); color: #fff; }
 .mobius-confirm-ok.danger { background: var(--mobius-error, #dc2626); }
 .mobius-confirm-cancel:focus-visible, .mobius-confirm-ok:focus-visible { outline: 2px solid var(--mobius-accent, #3b82f6); outline-offset: 2px; }
+
+/* =============================================================================
+   Assistant render envelope (renderEnvelope) — the chat answer surface
+   ============================================================================= */
+.sidecar-env { display: flex; flex-direction: column; gap: 8px; font-family: var(--mobius-font-sans, 'DM Sans', -apple-system, sans-serif); }
+
+/* Header strip: mode badge + which tool answered */
+.sidecar-env-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sidecar-env-mode {
+  font-family: var(--mobius-font-mono, ui-monospace, monospace);
+  font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--mobius-violet, #7c3aed);
+  background: color-mix(in srgb, var(--mobius-violet, #7c3aed) 10%, transparent);
+  padding: 2px 7px; border-radius: 999px;
+}
+.sidecar-env-tool { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--mobius-text-muted, #64748b); }
+.sidecar-env-tool svg { width: 11px; height: 11px; opacity: .8; }
+
+/* Answer body */
+.sidecar-env-answer { font-size: 12.5px; line-height: 1.5; color: var(--mobius-text-primary, #1a1d21); }
+.sidecar-env-answer div { margin: 2px 0; }
+.sidecar-env-answer strong { font-weight: 700; }
+
+/* Deduped "Key Points" bullets */
+.sidecar-env-bullets { display: flex; flex-direction: column; gap: 3px; padding-top: 2px; }
+.sidecar-env-bullets-lbl {
+  font-family: var(--mobius-font-mono, ui-monospace, monospace);
+  font-size: 8px; letter-spacing: .07em; text-transform: uppercase; color: var(--mobius-text-muted, #64748b);
+}
+.sidecar-env-bullet { font-size: 12px; line-height: 1.45; color: var(--mobius-text-secondary, #374151); padding-left: 10px; text-indent: -8px; }
+
+/* Collapsibles (How Mobius got here · Sources) */
+.sidecar-env-fold { border-top: 1px solid var(--mobius-border-light, #eef2f7); padding-top: 6px; }
+.sidecar-env-fold-head {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: none; cursor: pointer; padding: 2px 0; font-family: inherit; text-align: left;
+  font-size: 10px; font-weight: 600; letter-spacing: .02em; color: var(--mobius-text-muted, #64748b);
+}
+.sidecar-env-fold-head:hover { color: var(--mobius-text-secondary, #374151); }
+.sidecar-env-fold-chev { display: inline-block; transition: transform .15s; transform: rotate(-90deg); font-size: 9px; }
+.sidecar-env-fold.open .sidecar-env-fold-chev { transform: rotate(0deg); }
+.sidecar-env-fold-head:focus-visible { outline: 2px solid var(--mobius-accent, #3b82f6); outline-offset: 2px; border-radius: 3px; }
+.sidecar-env-fold-body { padding: 6px 0 2px; display: flex; flex-direction: column; gap: 8px; }
+/* `display:flex` above would defeat the [hidden] toggle — re-assert none. */
+.sidecar-env-fold-body[hidden] { display: none; }
+
+/* ReAct trace rounds */
+.sidecar-env-trace { display: flex; flex-direction: column; gap: 6px; }
+.sidecar-env-trace-row { border-left: 2px solid var(--mobius-border, #e2e8f0); padding-left: 8px; }
+.sidecar-env-trace-head { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+.sidecar-env-trace-n { font-family: var(--mobius-font-mono, ui-monospace, monospace); font-size: 8.5px; font-weight: 700; color: var(--mobius-violet, #7c3aed); }
+.sidecar-env-trace-tool { font-family: var(--mobius-font-mono, ui-monospace, monospace); font-size: 8.5px; color: var(--mobius-info, #0891b2); }
+.sidecar-env-trace-learned { font-size: 11px; line-height: 1.4; color: var(--mobius-text-secondary, #374151); }
+
+/* Sources */
+.sidecar-env-sources { display: flex; flex-direction: column; gap: 7px; }
+.sidecar-env-source { }
+.sidecar-env-source-title { font-size: 10.5px; font-weight: 600; color: var(--mobius-text-secondary, #374151); }
+.sidecar-env-source-snippet { font-size: 10px; line-height: 1.4; color: var(--mobius-text-muted, #64748b); margin-top: 1px; }
+
+.sidecar-env-draft { font-size: 12px; line-height: 1.45; color: var(--mobius-text-secondary, #374151); }
+
+/* Telemetry footer (model · tokens · cost · latency) */
+.sidecar-env-meta {
+  font-family: var(--mobius-font-mono, ui-monospace, monospace);
+  font-size: 8.5px; color: var(--mobius-text-muted, #94a3b8);
+  border-top: 1px solid var(--mobius-border-light, #eef2f7); padding-top: 5px; margin-top: 1px;
+}
