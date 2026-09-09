@@ -96,11 +96,11 @@ export interface ContextInfo {
 export type RecommendationTemper = 'opportunity' | 'correction';
 
 /** A proactive nudge sourced from backend intelligence — including the
- *  care-readiness signal, which is surfaced AS a recommendation rather than
- *  its own bar (payment probability, care-readiness factors, missed-visit
- *  patterns, benefit eligibility all feed this). Rendered as a FLOATING,
- *  draggable card so it's seen even when the panel is closed; its position
- *  is ◆ persisted (`recommendationPos`). One at a time; more queue. */
+ *  care-readiness signal, surfaced AS a recommendation rather than its own
+ *  bar (payment probability, care-readiness factors, missed-visit patterns,
+ *  benefit eligibility all feed this). Rendered as a banner with a permanent
+ *  place in the panel body (below the context strip). One at a time; more
+ *  queue. */
 export interface Recommendation {
   id: string;
   temper: RecommendationTemper;
@@ -112,11 +112,6 @@ export interface Recommendation {
   correlationId?: string;
 }
 
-/** ◆ persisted — last position of the floating recommendation card. */
-export interface FloatingPos {
-  x: number;
-  y: number;
-}
 
 // ── Tasks (pull, quiet) ────────────────────────────────────────────────────
 
@@ -165,8 +160,6 @@ export interface PersistedSidebarState {
   chatThreadId?: string;
   /** Stored read-permission grants (site/automatic). */
   consentGrants: ConsentGrant[];
-  /** Last position of the floating recommendation card. */
-  recommendationPos?: FloatingPos;
   /** UI prefs. */
   theme?: string;
   density?: string;

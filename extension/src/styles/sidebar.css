@@ -6554,78 +6554,39 @@
 .ds-chip.pin { border-style: dashed; color: var(--mobius-text-muted, #64748b); background: transparent; }
 
 /* =============================================================================
-   PHASE 2.2: floating, draggable recommendation card
-   Rendered into document.body — floats over the page, position persists.
+   PHASE 2.2: recommendation banner (permanent place in the panel)
    ============================================================================= */
-.mobius-reco-card {
-  position: fixed;
-  width: 300px;
-  z-index: 2147483645;
-  display: flex;
-  gap: 8px;
-  padding: 10px 12px 11px;
-  background: var(--mobius-bg-card, #fff);
-  border: 1px solid color-mix(in srgb, var(--mobius-violet, #7c3aed) 42%, var(--mobius-border, #e2e8f0));
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08);
-  font-family: var(--mobius-font-sans, -apple-system, sans-serif);
+.sidecar-reco {
+  display: flex; gap: 9px; align-items: flex-start;
+  margin: 8px 12px 0; padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--mobius-violet, #7c3aed) 40%, var(--mobius-border, #e2e8f0));
+  background: color-mix(in srgb, var(--mobius-violet, #7c3aed) 8%, var(--mobius-bg-card, #fff));
 }
-.mobius-reco-card.warn {
-  border-color: color-mix(in srgb, var(--mobius-warning, #f59e0b) 48%, var(--mobius-border, #e2e8f0));
+.sidecar-reco.warn {
+  border-color: color-mix(in srgb, var(--mobius-warning, #f59e0b) 45%, var(--mobius-border, #e2e8f0));
+  background: color-mix(in srgb, var(--mobius-warning, #f59e0b) 8%, var(--mobius-bg-card, #fff));
 }
-.mobius-reco-grip {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 3px;
-  padding: 2px 3px;
-  cursor: grab;
-}
-.mobius-reco-grip:active { cursor: grabbing; }
-.mobius-reco-grip span {
-  display: block;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--mobius-text-muted, #64748b);
-  opacity: 0.5;
-}
-.mobius-reco-body { flex: 1; min-width: 0; }
-.mobius-reco-lead {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.sidecar-reco-icon { flex: 0 0 auto; color: var(--mobius-violet, #7c3aed); }
+.sidecar-reco.warn .sidecar-reco-icon { color: var(--mobius-warning, #f59e0b); }
+.sidecar-reco-icon .sidecar-svg-icon { width: 15px; height: 15px; }
+.sidecar-reco-text { flex: 1; min-width: 0; }
+.sidecar-reco-lead {
   font-family: var(--mobius-font-mono, ui-monospace, monospace);
-  font-size: 8.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  font-weight: 500;
-  color: var(--mobius-violet, #7c3aed);
-  margin-bottom: 4px;
+  font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 500;
+  color: var(--mobius-violet, #7c3aed); margin-bottom: 3px;
 }
-.mobius-reco-card.warn .mobius-reco-lead { color: var(--mobius-warning, #f59e0b); }
-.mobius-reco-lead .sidecar-svg-icon { width: 12px; height: 12px; }
-.mobius-reco-msg { font-size: 12px; color: var(--mobius-text-primary, #1a1d21); line-height: 1.4; }
-.mobius-reco-msg b { font-weight: 600; }
-.mobius-reco-actions { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
-.mobius-reco-do {
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--mobius-violet, #7c3aed);
-  border: none;
-  border-radius: 7px;
-  padding: 5px 12px;
-  cursor: pointer;
-  font-family: inherit;
+.sidecar-reco.warn .sidecar-reco-lead { color: var(--mobius-warning, #f59e0b); }
+.sidecar-reco-msg { font-size: 12px; color: var(--mobius-text-primary, #1a1d21); line-height: 1.4; }
+.sidecar-reco-msg b { font-weight: 600; }
+.sidecar-reco-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.sidecar-reco-do {
+  font-size: 11px; font-weight: 600; color: #fff;
+  background: var(--mobius-violet, #7c3aed); border: none; border-radius: 7px;
+  padding: 5px 12px; cursor: pointer; font-family: inherit;
 }
-.mobius-reco-card.warn .mobius-reco-do { background: var(--mobius-warning, #f59e0b); }
-.mobius-reco-x {
-  font-size: 11px;
-  color: var(--mobius-text-muted, #64748b);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
+.sidecar-reco.warn .sidecar-reco-do { background: var(--mobius-warning, #f59e0b); }
+.sidecar-reco-x {
+  font-size: 11px; color: var(--mobius-text-muted, #64748b);
+  background: none; border: none; cursor: pointer; font-family: inherit;
 }

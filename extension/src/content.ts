@@ -53,12 +53,9 @@ import { resolveEnvelope, deriveRole, defaultPreferred, EnvelopeAction } from '.
 import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
 import { SidecarContextStrip } from './components/sidecar/SidecarContextStrip';
 import { DoSaveActions, PreferredItem } from './components/sidecar/DoSaveActions';
-import {
-  FloatingRecommendation,
-  removeFloatingRecommendation,
-} from './components/sidecar/FloatingRecommendation';
+import { RecommendationBanner } from './components/sidecar/RecommendationBanner';
 import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
-import type { Recommendation, FloatingPos } from './types/sidebar';
+import type { Recommendation } from './types/sidebar';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
 import { PreferencesModal, PREFERENCES_MODAL_STYLES, UserPreferences } from './components/settings/PreferencesModal';
@@ -130,7 +127,6 @@ const STORAGE_KEYS = {
   allowedDomains: 'mobius.allowedDomains',
   miniPos: 'mobius.miniPos',
   patientOverride: 'mobius.patientOverride',
-  recommendationPos: 'mobius.recommendationPos',
 } as const;
 
 // Theme system state (loaded from centralized theme system)
@@ -546,7 +542,6 @@ function removeSidebar(): void {
   if (existingSidebar) existingSidebar.remove();
   const style = document.getElementById(MINI_IDS.pageAdjust);
   if (style) style.remove();
-  removeFloatingRecommendation();
   sidebarContainer = null;
 }
 
@@ -3005,25 +3000,9 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   sidebarContainer.appendChild(header);
   
   // === RECOMMENDATION (Phase 2.2) ===
-  // Care readiness is surfaced AS a recommendation, not its own bar. Derive
-  // the top nudge and float it (draggable, position persisted).
-  try {
-    const rec = deriveRecommendation(sidecarState, patient);
-    if (rec) {
-      const posRaw = await storageGet<FloatingPos>([STORAGE_KEYS.recommendationPos]);
-      FloatingRecommendation({
-        rec,
-        initialPos: (posRaw[STORAGE_KEYS.recommendationPos] as FloatingPos) || null,
-        onAct: () => showToast('Opening — recommendation actions coming soon'),
-        onDismiss: () => showToast('Dismissed'),
-        onMove: (pos) => void storageSet({ [STORAGE_KEYS.recommendationPos]: pos }),
-      });
-    } else {
-      removeFloatingRecommendation();
-    }
-  } catch (err) {
-    console.error('[Mobius] Recommendation render failed:', err);
-  }
+  // Care readiness is surfaced AS a recommendation. Derived here; the
+  // banner is placed in the panel body (below the context strip).
+  const topRecommendation = deriveRecommendation(sidecarState, patient);
 
   // === MAIN CONTENT (flex container, not scrollable) ===
   const mainContent = document.createElement('div');
@@ -3046,6 +3025,21 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
     );
   } catch (err) {
     console.error('[Mobius] Context strip render failed:', err);
+  }
+
+  // === RECOMMENDATION BANNER — permanent place below the context strip ===
+  if (topRecommendation) {
+    try {
+      mainContent.appendChild(
+        RecommendationBanner({
+          rec: topRecommendation,
+          onAct: () => showToast('Opening — recommendation actions coming soon'),
+          onDismiss: () => showToast('Dismissed'),
+        })
+      );
+    } catch (err) {
+      console.error('[Mobius] Recommendation banner render failed:', err);
+    }
   }
 
   // === CARDS CONTAINER (bottlenecks, patient context - takes remaining space, scrollable) ===
