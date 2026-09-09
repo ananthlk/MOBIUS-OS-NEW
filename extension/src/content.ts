@@ -2915,7 +2915,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   // === HEADER ===
   const header = document.createElement('div');
   header.className = 'top-row';
-  header.setAttribute('style', 'display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid rgba(11, 18, 32, 0.08); background: rgba(11, 18, 32, 0.02);');
+  header.setAttribute('style', 'display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--mobius-border-light, #eef2f7); background: var(--mobius-bg-secondary, #f8fafc);');
   
   // Left: Logos
   const headerLeft = document.createElement('div');
@@ -2929,7 +2929,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   logoSection.appendChild(MobiusLogo({ status: 'idle' }));
   const logoLabel = document.createElement('span');
   logoLabel.className = 'logo-label';
-  logoLabel.setAttribute('style', 'font-size: 11px; font-weight: 600; color: #0b1220;');
+  logoLabel.setAttribute('style', 'font-size: 12px; font-weight: 600; letter-spacing: -0.01em; color: var(--mobius-text-primary, #1a1d21); font-family: var(--mobius-font-sans, "DM Sans", -apple-system, sans-serif);');
   logoLabel.textContent = 'Mobius OS';
   logoSection.appendChild(logoLabel);
   headerLeft.appendChild(logoSection);
