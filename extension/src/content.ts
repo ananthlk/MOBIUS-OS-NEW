@@ -3172,6 +3172,42 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   mainContent.className = 'sidecar-main-content';
   mainContent.setAttribute('style', 'flex: 1; min-height: 0; display: flex; flex-direction: column;');
 
+  // === GREETING (signed-in) — a warm, time-aware welcome for the user ===
+  try {
+    const hour = new Date().getHours();
+    const partOfDay = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+    // Prefer the module-level profile (populated at login) over miniState,
+    // which can be empty on the first post-login render. Names here are often
+    // email-derived slugs even in greeting_name ("demo-preview", "jordan.smith"),
+    // so take the first token on any separator and upper-case only its first
+    // letter — "demo-preview" → "Demo", "jordan.smith" → "Jordan", while a
+    // real "Ananth" / "McReady" is preserved as-is.
+    const src = (
+      currentUserProfile?.greeting_name ||
+      currentUserProfile?.display_name ||
+      (currentUserProfile?.email || miniState.userProfile?.email || '').split('@')[0] ||
+      staffName ||
+      ''
+    ).trim();
+    const token = src.split(/[\s.\-_]+/)[0] || '';
+    const firstName = token ? token.charAt(0).toUpperCase() + token.slice(1) : '';
+    const greet = document.createElement('div');
+    greet.className = 'sidecar-user-greeting';
+    const lead = document.createElement('span');
+    lead.className = 'sidecar-user-greeting-lead';
+    lead.textContent = firstName ? `${partOfDay}, ` : partOfDay;
+    greet.appendChild(lead);
+    if (firstName) {
+      const name = document.createElement('span');
+      name.className = 'sidecar-user-greeting-name';
+      name.textContent = firstName;
+      greet.appendChild(name);
+    }
+    mainContent.appendChild(greet);
+  } catch (err) {
+    console.error('[Mobius] Greeting render failed:', err);
+  }
+
   // === CONTEXT STRIP ("what I know") — Phase 2 ===
   try {
     const ctxSurface = classifyPageSource(getHostname());

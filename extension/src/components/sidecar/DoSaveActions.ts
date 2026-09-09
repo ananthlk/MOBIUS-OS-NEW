@@ -77,13 +77,9 @@ export function DoSaveActions(envelope: Envelope, opts: DoSaveOpts): HTMLElement
     drawer.appendChild(row);
   }
 
-  const prefHead = groupHead('Preferred · yours');
-  const customize = document.createElement('span');
-  customize.className = 'ds-customize';
-  customize.textContent = '✎ customize';
-  customize.addEventListener('click', () => opts.onCustomize());
-  prefHead.appendChild(customize);
-  drawer.appendChild(prefHead);
+  // No separate "customize" affordance — the "+ pin" chip below already opens
+  // the same customize flow, so a second control here was redundant.
+  drawer.appendChild(groupHead('Preferred · yours'));
 
   const prow = document.createElement('div');
   prow.className = 'ds-row';

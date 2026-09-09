@@ -6524,6 +6524,16 @@
 /* =============================================================================
    PHASE 2: context strip + Do/Save + drawer
    ============================================================================= */
+/* Distinct from the legacy .sidecar-greeting (a flex-column block) — this is
+   the one-line signed-in welcome at the top of the panel. */
+.sidecar-user-greeting {
+  padding: 10px 12px 8px;
+  font-family: var(--mobius-font-sans, 'DM Sans', -apple-system, sans-serif);
+  font-size: 13px; line-height: 1.2;
+  color: var(--mobius-text-muted, #64748b);
+}
+.sidecar-user-greeting-name { color: var(--mobius-text-primary, #1a1d21); font-weight: 700; }
+
 .sidecar-ctx-strip {
   display: flex; align-items: center; gap: 7px;
   padding: 8px 12px;
@@ -6637,7 +6647,18 @@
   color: var(--mobius-text-muted, #94a3b8);
 }
 .sidecar-syslog-head:hover { color: var(--mobius-text-secondary, #374151); }
-.sidecar-syslog-chevron { transition: transform .15s; display: inline-block; }
+.sidecar-syslog-head:hover .sidecar-syslog-label { color: var(--mobius-text-secondary, #374151); }
+/* The label lives inside a <button>, and `#mobius-os-sidebar button { font:
+   inherit }` (ID specificity) forces the button back to the 12px body font —
+   so the head's own font rules never reach this span. Give it an explicit
+   rule that matches the ASK MOBIUS band header (its sibling), kept muted so
+   the diagnostic strip stays subtle. */
+.sidecar-syslog-label {
+  font-family: var(--mobius-font-sans, 'DM Sans', -apple-system, sans-serif);
+  font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--mobius-text-muted, #64748b);
+}
+.sidecar-syslog-chevron { transition: transform .15s; display: inline-block; font-size: 9px; line-height: 1; }
 .sidecar-syslog.open .sidecar-syslog-chevron { transform: rotate(180deg); }
 .sidecar-syslog-count { background: var(--mobius-bg-tertiary, #f1f5f9); border-radius: 999px; padding: 0 6px; font-size: 8.5px; }
 .sidecar-syslog-copy { margin-left: auto; font-size: 8.5px; text-transform: none; letter-spacing: 0; color: var(--mobius-accent, #3b82f6); }
