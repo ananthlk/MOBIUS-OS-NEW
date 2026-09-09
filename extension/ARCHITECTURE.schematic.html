@@ -1,0 +1,399 @@
+<title>Extension Architecture</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --canvas:#eaeef4; --canvas-tint:#e0e6f0; --card:#ffffff; --card-2:#f8fafc;
+    --ink:#1a1d21; --ink-2:#3f4a5a; --muted:#6b7686; --line:#dbe1ea; --line-2:#eef2f7;
+    --contract:#7c3aed; --services:#3b82f6; --components:#10b981; --orchestrator:#d97706;
+    --external:#0891b2; --persist:#e11d48;
+    --shadow:0 1px 2px rgba(15,23,42,.05), 0 4px 14px rgba(15,23,42,.05);
+  }
+  :root:not([data-theme="light"]){@media (prefers-color-scheme:dark){
+    --canvas:#090d14; --canvas-tint:#0f1622; --card:#141b28; --card-2:#1a2331;
+    --ink:#eef2f8; --ink-2:#c2ccdb; --muted:#8a97a9; --line:#273245; --line-2:#1e2836;
+    --contract:#a78bfa; --services:#60a5fa; --components:#34d399; --orchestrator:#fbbf24;
+    --external:#22d3ee; --persist:#fb7185;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="dark"]{
+    --canvas:#090d14; --canvas-tint:#0f1622; --card:#141b28; --card-2:#1a2331;
+    --ink:#eef2f8; --ink-2:#c2ccdb; --muted:#8a97a9; --line:#273245; --line-2:#1e2836;
+    --contract:#a78bfa; --services:#60a5fa; --components:#34d399; --orchestrator:#fbbf24;
+    --external:#22d3ee; --persist:#fb7185;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;color:var(--ink);background:radial-gradient(1200px 700px at 80% -12%,var(--canvas-tint),transparent 60%),var(--canvas);font-family:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;line-height:1.45;}
+  .wrap{max-width:1120px;margin:0 auto;padding:48px 26px 80px;}
+  .eyebrow{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--contract);font-weight:500;margin:0 0 12px;}
+  h1{font-size:clamp(26px,3.4vw,38px);line-height:1.05;margin:0 0 10px;font-weight:700;letter-spacing:-.02em;}
+  .lede{font-size:15px;color:var(--ink-2);max-width:66ch;margin:0 0 8px;}
+  .lede b{color:var(--ink);font-weight:600;}
+  .sec{display:flex;align-items:center;gap:12px;margin:44px 0 18px;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:500;}
+  .sec::after{content:"";flex:1;height:1px;background:var(--line);}
+
+  /* layer stack */
+  .stack{display:flex;flex-direction:column;gap:0;}
+  .layer{position:relative;border:1px solid var(--line);border-radius:12px;background:var(--card);box-shadow:var(--shadow);padding:13px 15px;margin-bottom:8px;}
+  .layer-head{display:flex;align-items:center;gap:9px;margin-bottom:11px;}
+  .layer-badge{width:9px;height:9px;border-radius:3px;flex:0 0 auto;}
+  .layer-name{font-size:14px;font-weight:700;letter-spacing:-.01em;}
+  .layer-tag{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+  .layer-note{margin-left:auto;font-size:11.5px;color:var(--muted);max-width:44ch;text-align:right;}
+  .mods{display:flex;flex-wrap:wrap;gap:7px;}
+  .mod{border:1px solid var(--line);border-radius:8px;background:var(--card-2);padding:7px 10px;min-width:0;}
+  .mod .mn{font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:500;color:var(--ink);}
+  .mod .md{font-size:10px;color:var(--muted);margin-top:1px;}
+  .mod.new::after{content:"NEW";font-family:"JetBrains Mono",monospace;font-size:7.5px;letter-spacing:.08em;color:var(--components);margin-left:6px;vertical-align:top;font-weight:600;}
+
+  .layer.l-orchestrator{border-top:3px solid var(--orchestrator);}
+  .layer.l-components{border-top:3px solid var(--components);}
+  .layer.l-services{border-top:3px solid var(--services);}
+  .layer.l-contract{border-top:3px solid var(--contract);}
+  .dep{display:flex;justify-content:center;margin:-3px 0 5px;color:var(--muted);font-size:15px;line-height:1;}
+  .dep span{font-size:9px;font-family:"JetBrains Mono",monospace;letter-spacing:.08em;color:var(--muted);margin-left:6px;align-self:center;}
+
+  /* data flow */
+  .flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:6px;}
+  .step{flex:1 1 0;min-width:150px;border:1px solid var(--line);border-radius:10px;background:var(--card);box-shadow:var(--shadow);padding:11px 12px;position:relative;}
+  .arrow{flex:0 0 26px;display:grid;place-items:center;color:var(--muted);font-size:16px;}
+  .step .sh{font-family:"JetBrains Mono",monospace;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .step .st{font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px;}
+  .step .sd{font-size:10.5px;color:var(--ink-2);}
+  .step code{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--services);}
+
+  /* schema + external columns */
+  .cols{display:grid;grid-template-columns:1.1fr 1fr;gap:26px;}
+  @media(max-width:780px){.cols{grid-template-columns:1fr;}}
+  .panel{border:1px solid var(--line);border-radius:12px;background:var(--card);box-shadow:var(--shadow);overflow:hidden;}
+  .panel-h{padding:11px 14px;border-bottom:1px solid var(--line-2);background:var(--card-2);display:flex;align-items:center;gap:8px;}
+  .panel-h .dot{width:8px;height:8px;border-radius:3px;}
+  .panel-h b{font-size:13px;}
+  .panel-h .sub{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--muted);letter-spacing:.06em;}
+  .panel-b{padding:12px 14px;}
+  .ent{display:flex;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line-2);}
+  .ent:last-child{border-bottom:none;}
+  .ent .en{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--contract);flex:0 0 128px;font-weight:500;}
+  .ent .ef{font-size:10.5px;color:var(--ink-2);min-width:0;}
+  .ent .ef b{color:var(--ink);font-weight:600;}
+
+  .ext{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line-2);}
+  .ext:last-child{border-bottom:none;}
+  .ext .eic{width:24px;height:24px;border-radius:7px;flex:0 0 auto;display:grid;place-items:center;color:#fff;font-family:"JetBrains Mono",monospace;font-size:11px;font-weight:700;}
+  .ext .etx{min-width:0;}
+  .ext .etn{font-size:12px;font-weight:600;}
+  .ext .etd{font-size:10.5px;color:var(--muted);}
+  .pill{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:8px;letter-spacing:.05em;padding:1px 6px;border-radius:5px;margin-left:6px;vertical-align:middle;}
+  .pill.persist{color:var(--persist);border:1px solid color-mix(in srgb,var(--persist) 40%,var(--line));}
+
+  /* persistence table */
+  .ptable{width:100%;border-collapse:collapse;font-size:11.5px;}
+  .ptable th{text-align:left;font-family:"JetBrains Mono",monospace;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:7px 8px;border-bottom:1px solid var(--line);}
+  .ptable td{padding:8px;border-bottom:1px solid var(--line-2);vertical-align:top;color:var(--ink-2);}
+  .ptable td code{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink);}
+  .scope{font-family:"JetBrains Mono",monospace;font-size:9px;padding:2px 7px;border-radius:5px;font-weight:500;}
+  .scope.local{color:var(--muted);border:1px solid var(--line);}
+  .scope.session{color:var(--services);border:1px solid color-mix(in srgb,var(--services) 40%,var(--line));}
+  .scope.user{color:var(--persist);border:1px solid color-mix(in srgb,var(--persist) 45%,var(--line));background:color-mix(in srgb,var(--persist) 8%,var(--card));}
+  .flag{color:var(--persist);font-weight:600;}
+
+  /* custodian + status (fleet schematic convention) */
+  .custodian{border:1px solid var(--line);border-left:3px solid var(--contract);border-radius:12px;background:var(--card);box-shadow:var(--shadow);padding:14px 16px;margin:22px 0 8px;}
+  .custodian .ct{display:flex;align-items:center;gap:9px;margin-bottom:5px;}
+  .custodian .ct b{font-size:15px;}
+  .custodian .ct .tag{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--contract);border:1px solid color-mix(in srgb,var(--contract) 40%,var(--line));padding:2px 8px;border-radius:999px;}
+  .custodian .cd{font-size:12.5px;color:var(--ink-2);}
+  .custodian .cd code{font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--ink);}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 0;font-size:11px;color:var(--muted);}
+  .legend .li{display:inline-flex;align-items:center;gap:6px;}
+  .st{font-family:"JetBrains Mono",monospace;font-size:7.5px;letter-spacing:.06em;font-weight:600;padding:1px 6px;border-radius:5px;text-transform:uppercase;}
+  .st.built{color:var(--components);border:1px solid color-mix(in srgb,var(--components) 45%,var(--line));}
+  .st.new{color:var(--services);border:1px solid color-mix(in srgb,var(--services) 45%,var(--line));}
+  .st.preview{color:var(--muted);border:1px dashed var(--line);}
+  .mod .io{font-family:"JetBrains Mono",monospace;font-size:8.5px;color:var(--muted);margin-top:3px;letter-spacing:.01em;}
+  .mod .io b{color:var(--ink-2);font-weight:500;}
+  .mod.clickable{cursor:pointer;transition:border-color .12s, background .12s;}
+  .mod.clickable:hover{border-color:color-mix(in srgb,var(--services) 55%,var(--line));background:color-mix(in srgb,var(--services) 6%,var(--card-2));}
+  .mod.sel{border-color:var(--services);box-shadow:0 0 0 2px color-mix(in srgb,var(--services) 25%,transparent);}
+
+  /* detail drawer (click-to-drill-down, fleet convention) */
+  .drawer{position:fixed;top:0;right:0;width:360px;max-width:92vw;height:100vh;background:var(--card);border-left:1px solid var(--line);box-shadow:-16px 0 40px rgba(15,23,42,.14);transform:translateX(100%);transition:transform .22s ease;z-index:50;overflow-y:auto;}
+  .drawer.open{transform:translateX(0);}
+  .drawer-h{position:sticky;top:0;background:var(--card-2);border-bottom:1px solid var(--line-2);padding:14px 16px;display:flex;align-items:flex-start;gap:10px;}
+  .drawer-h .dh-name{font-family:"JetBrains Mono",monospace;font-size:14px;font-weight:600;}
+  .drawer-h .dh-file{font-size:10px;color:var(--muted);margin-top:2px;}
+  .drawer-x{margin-left:auto;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;padding:0 2px;}
+  .drawer-b{padding:14px 16px 40px;}
+  .d-sec{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:16px 0 7px;}
+  .d-sec:first-child{margin-top:0;}
+  .d-io{display:flex;gap:8px;font-size:12px;color:var(--ink-2);padding:4px 0;}
+  .d-io .dir{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--services);flex:0 0 46px;}
+  .d-list{margin:0;padding-left:16px;}
+  .d-list li{font-size:12px;color:var(--ink-2);margin-bottom:5px;}
+  .d-conn{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--services);border:1px solid color-mix(in srgb,var(--services) 35%,var(--line));border-radius:7px;padding:4px 9px;margin:0 5px 5px 0;cursor:pointer;background:var(--card-2);font-family:"JetBrains Mono",monospace;}
+  .d-conn:hover{background:color-mix(in srgb,var(--services) 10%,var(--card));}
+  .backdrop{position:fixed;inset:0;background:rgba(15,23,42,.28);opacity:0;pointer-events:none;transition:opacity .22s;z-index:49;}
+  .backdrop.open{opacity:1;pointer-events:auto;}
+  .hint-click{font-size:11px;color:var(--muted);margin-top:8px;font-style:italic;}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mobius Extension · Phase 2 · Architecture Schematic</p>
+  <h1>Modules, contract, and the flags for review.</h1>
+  <p class="lede">Four layers, dependencies pointing <b>down only</b>. One <b>contract</b> at the base (<code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--contract)">types/sidebar.ts</code>) that every module imports from — no cycles. Two persistence surfaces flagged <span class="flag">◆</span> as user-identity, not device state.</p>
+
+  <div class="custodian">
+    <div class="ct"><b>Extension agent</b><span class="tag">custodian · proposed seat</span></div>
+    <div class="cd">Owns <code>mobius-os/extension</code> — the MV3 side panel. Consumes identity from <b>mobius-user</b> and answers from <b>mobius-chat</b>; owns the sidebar contract (<code>types/sidebar.ts</code>), the envelope registry, and the local PHI screen. Does not own any chat/RAG backend.</div>
+    <div class="legend">
+      <span class="li"><span class="st built">built ✅</span> shipped &amp; harness-verified</span>
+      <span class="li"><span class="st new">new</span> added this phase</span>
+      <span class="li"><span class="st preview">preview</span> recognized, flow not built</span>
+    </div>
+  </div>
+
+  <div class="sec">Layer stack — depends-on points down · status per module</div>
+  <div class="stack">
+    <div class="layer l-orchestrator">
+      <div class="layer-head"><span class="layer-badge" style="background:var(--orchestrator)"></span><span class="layer-name">Orchestrator</span><span class="layer-tag">content.ts</span><span class="layer-note">The only place services + components meet. Owns lifecycle, wiring, and try/catch per render zone.</span></div>
+      <div class="mods">
+        <div class="mod"><div class="mn">initSidecarUI</div><div class="md">build the signed-in body</div></div>
+        <div class="mod"><div class="mn">renderSignedOutSidebar</div><div class="md">sign-in shell</div></div>
+        <div class="mod"><div class="mn">runEnvelopeAction</div><div class="md">Do / drawer → consent → chat</div></div>
+        <div class="mod"><div class="mn">deriveRecommendation</div><div class="md">care-readiness → nudge</div></div>
+        <div class="mod"><div class="mn">toggle-panel</div><div class="md">icon ↔ panel</div></div>
+      </div>
+    </div>
+    <div class="dep">↓<span>renders + wires</span></div>
+    <div class="layer l-components">
+      <div class="layer-head"><span class="layer-badge" style="background:var(--components)"></span><span class="layer-name">Components</span><span class="layer-tag">components/sidecar/*</span><span class="layer-note">Pure views: data + callbacks in, HTMLElement out. No state, no I/O. Independently renderable.</span></div>
+      <div class="mods">
+        <div class="mod"><div class="mn">SidecarContextStrip <span class="st new">new</span></div><div class="md">"what I know" band</div></div>
+        <div class="mod"><div class="mn">DoSaveActions <span class="st new">new</span></div><div class="md">Do/Save + drawer</div></div>
+        <div class="mod"><div class="mn">RecommendationBanner <span class="st new">new</span></div><div class="md">proactive nudge</div></div>
+        <div class="mod"><div class="mn">SidecarSignIn <span class="st new">new</span></div><div class="md">signed-out state</div></div>
+        <div class="mod"><div class="mn">QuickChat <span class="st built">built ✅</span></div><div class="md">chat + consent cards</div></div>
+        <div class="mod"><div class="mn">CollapsibleSection <span class="st built">built ✅</span></div><div class="md">panel chrome</div></div>
+        <div class="mod"><div class="mn">icons.ts <span class="st built">built ✅</span></div><div class="md">shared SVG set</div></div>
+      </div>
+    </div>
+    <div class="dep">↓<span>calls</span></div>
+    <div class="layer l-services">
+      <div class="layer-head"><span class="layer-badge" style="background:var(--services)"></span><span class="layer-name">Services</span><span class="layer-tag">services/*</span><span class="layer-note">Pure logic, no DOM. One concern each, unit-testable.</span></div>
+      <div class="mods">
+        <div class="mod"><div class="mn">envelopes.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> Surface·Role → <b>out</b> Envelope · defaultPreferred</div></div>
+        <div class="mod"><div class="mn">chat.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> msg·PageContext → <b>out</b> ChatAnswer</div></div>
+        <div class="mod"><div class="mn">phiScreen.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> text → <b>out</b> PhiScreenResult · 0 egress</div></div>
+        <div class="mod"><div class="mn">auth.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> creds → <b>out</b> JWT · via bg proxy</div></div>
+        <div class="mod"><div class="mn">api.ts <span class="st built">built ✅</span></div><div class="io"><b>out</b> sidecar state · tasks</div></div>
+        <div class="mod"><div class="mn">toastManager.ts <span class="st built">built ✅</span></div><div class="io"><b>out</b> alerts poll</div></div>
+      </div>
+    </div>
+    <div class="dep">↓<span>types from</span></div>
+    <div class="layer l-contract">
+      <div class="layer-head"><span class="layer-badge" style="background:var(--contract)"></span><span class="layer-name">Contract — schema of record</span><span class="layer-tag">types/sidebar.ts</span><span class="layer-note">Zero imports. Documented fields + Literal unions, mobius-chat style. Lifts into mobius-contracts.</span></div>
+      <div class="mods">
+        <div class="mod"><div class="mn">SurfaceType · Role</div></div>
+        <div class="mod"><div class="mn">EnvelopeAction · Envelope</div></div>
+        <div class="mod"><div class="mn">Recommendation</div></div>
+        <div class="mod"><div class="mn">TaskItem</div></div>
+        <div class="mod"><div class="mn">ConsentGrant</div></div>
+        <div class="mod"><div class="mn">PreferredItem</div></div>
+        <div class="mod"><div class="mn">PersistedSidebarState</div></div>
+        <div class="mod"><div class="mn">PERSISTED_KEYS</div></div>
+        <div class="mod"><div class="mn">SIDEBAR_SCHEMA_VERSION</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">Runtime data flow — one render + one action</div>
+  <div class="flow">
+    <div class="step"><div class="sh">detect</div><div class="st">Surface × Role</div><div class="sd"><code>classifyPageSource</code> + <code>deriveRole</code></div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="sh">resolve</div><div class="st">Envelope</div><div class="sd"><code>resolveEnvelope</code> → actions[0] = Do</div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="sh">render</div><div class="st">Body</div><div class="sd">strip · recommendation · Do/Save · drawer · chat</div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="sh">act</div><div class="st">Do / action</div><div class="sd">capture → <code>phiScreen</code> (0 egress) → consent</div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="sh">answer</div><div class="st">askMobius</div><div class="sd">bg proxy → mobius-chat · server PHI gate</div></div>
+  </div>
+
+  <div class="sec">Schema + external systems</div>
+  <div class="cols">
+    <div class="panel">
+      <div class="panel-h"><span class="dot" style="background:var(--contract)"></span><b>Schema entities</b><span class="sub">types/sidebar.ts · v2.0.0</span></div>
+      <div class="panel-b">
+        <div class="ent"><span class="en">SurfaceType</span><span class="ef"><b>email · emr · rcm · web</b> — hostname-derived</span></div>
+        <div class="ent"><span class="en">Role</span><span class="ef">front_desk · biller · clinician · unknown</span></div>
+        <div class="ent"><span class="en">EnvelopeAction</span><span class="ef">id · label · icon · <b>kind</b> · prompt · primary</span></div>
+        <div class="ent"><span class="en">Envelope</span><span class="ef">surface → ordered <b>actions[]</b> (actions[0] = Do)</span></div>
+        <div class="ent"><span class="en">Recommendation</span><span class="ef"><b>temper</b> (opportunity·correction) · message · action</span></div>
+        <div class="ent"><span class="en">TaskItem</span><span class="ef">scope (user·patient) · label</span></div>
+        <div class="ent"><span class="en">ConsentGrant <span class="pill persist">◆</span></span><span class="ef">host · scope (site·automatic) · phiAttested</span></div>
+        <div class="ent"><span class="en">PreferredItem <span class="pill persist">◆</span></span><span class="ef">id · label · source (seed·pinned)</span></div>
+        <div class="ent"><span class="en">PersistedState</span><span class="ef">the durable surfaces → <b>PERSISTED_KEYS</b></span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="dot" style="background:var(--external)"></span><b>External systems</b><span class="sub">via background proxy</span></div>
+      <div class="panel-b">
+        <div class="ext"><span class="eic" style="background:var(--external)">U</span><span class="etx"><div class="etn">mobius-user</div><div class="etd">identity · JWT. Target for ◆ Preferred + ◆ Consent.</div></span></div>
+        <div class="ext"><span class="eic" style="background:var(--services)">C</span><span class="etx"><div class="etn">mobius-chat</div><div class="etd">askMobius → /chat → poll. Authoritative server PHI gate.</div></span></div>
+        <div class="ext"><span class="eic" style="background:var(--orchestrator)">P</span><span class="etx"><div class="etn">phi-classifier</div><div class="etd">the shared gate mobius-chat calls; local screen mirrors it.</div></span></div>
+        <div class="ext"><span class="eic" style="background:var(--components)">O</span><span class="etx"><div class="etn">mobius-os-backend</div><div class="etd">sidecar state · recommendations · tasks.</div></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">Persistence surfaces — the review question</div>
+  <div class="panel">
+    <div class="panel-b" style="overflow-x:auto;">
+      <table class="ptable">
+        <thead><tr><th>Key</th><th>Shape</th><th>Scope</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td><code>mobius.allowedDomains</code></td><td>string[]</td><td><span class="scope local">local</span></td><td>per-device is fine</td></tr>
+          <tr><td><code>mobius.ui.collapsedSections</code></td><td>Record&lt;str,bool&gt;</td><td><span class="scope local">local</span></td><td>per-device convenience</td></tr>
+          <tr><td><code>mobius.chat.threadId</code></td><td>string</td><td><span class="scope local">local</span></td><td>rolling extension thread</td></tr>
+          <tr><td><code>mobius.theme / .density</code></td><td>prefs</td><td><span class="scope local">local</span></td><td>per-device UI prefs</td></tr>
+          <tr><td class="flag">◆ <code>mobius.preferred</code></td><td>PreferredItem[]</td><td><span class="scope user">user</span></td><td class="flag">the user's pins — should follow the account → mobius-user</td></tr>
+          <tr><td class="flag">◆ <code>mobius.consent.grants</code></td><td>ConsentGrant[]</td><td><span class="scope user">user</span></td><td class="flag">compliance-relevant — server-recorded/auditable; PHI attestations MUST be server-logged</td></tr>
+          <tr><td><code>mobius.auth.accessToken</code></td><td>token</td><td><span class="scope session">session</span></td><td>bg proxy managed</td></tr>
+          <tr><td><code>mobius.auth.refreshToken</code></td><td>token</td><td><span class="scope local">local</span></td><td>bg proxy managed</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="hint-click">Tip: click any module box above to drill into its contract, responsibilities, and connections.</p>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="drawer" id="drawer" role="dialog" aria-label="Module detail">
+  <div class="drawer-h">
+    <div><div class="dh-name" id="d-name"></div><div class="dh-file" id="d-file"></div></div>
+    <button class="drawer-x" id="d-close" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-b" id="d-body"></div>
+</div>
+
+<script>
+(function(){
+  const M = {
+    'content.ts': {layer:'Orchestrator', status:'built', file:'src/content.ts',
+      consumes:['every service','every component'], produces:['the rendered sidebar'],
+      notes:['Boots on every page via the content script.','Owns initSidecarUI / renderSignedOutSidebar / the toggle-panel state machine.','Resolves the envelope, derives the recommendation, wires all component callbacks.','Every render zone is wrapped in try/catch so one failure can’t blank the panel.'],
+      connects:['types/sidebar.ts','envelopes.ts','chat.ts','DoSaveActions','RecommendationBanner','SidecarContextStrip']},
+    'types/sidebar.ts': {layer:'Contract', status:'new', file:'src/types/sidebar.ts',
+      consumes:['— (zero imports)'], produces:['SurfaceType, Role, EnvelopeAction, Envelope, Recommendation, TaskItem, ConsentGrant, PreferredItem, PersistedSidebarState, PERSISTED_KEYS'],
+      notes:['The schema of record. Documented fields + Literal unions, mobius-chat style.','No imports → no cycles. Every module imports its types from here.','Candidate to lift into the shared mobius-contracts package.'],
+      connects:['envelopes.ts','chat.ts','DoSaveActions','RecommendationBanner']},
+    'envelopes.ts': {layer:'Services', status:'built', file:'src/services/envelopes.ts',
+      consumes:['SurfaceType, Role (from the contract)'], produces:['Envelope','defaultPreferred(role)'],
+      notes:['The mode-aware registry: surface × role → the ordered action list.','actions[0] is promoted into Do; the rest are Suggested.','Client-side today; same shape as a server-served manifest (fetchDetectionConfig seam).'],
+      connects:['types/sidebar.ts','DoSaveActions','content.ts']},
+    'chat.ts': {layer:'Services', status:'built', file:'src/services/chat.ts',
+      consumes:['message + PageContext'], produces:['ChatAnswer (answer, sources, phiBlocked)'],
+      notes:['askMobius: POST /chat → poll /chat/response/{cid} via the background proxy.','Attaches acknowledged page content INSIDE the message body so the server PHI gate scans it.','Surfaces a 422 phi_blocked for a second explicit acknowledgement.'],
+      connects:['types/sidebar.ts','phiScreen.ts','QuickChat','mobius-chat']},
+    'phiScreen.ts': {layer:'Services', status:'built', file:'src/services/phiScreen.ts',
+      consumes:['text'], produces:['PhiScreenResult (labels, masked evidence)'],
+      notes:['Local pre-egress screen — pure function, ZERO network egress.','Not the authoritative gate: mobius-chat’s server gate (the shared phi-classifier) is.','Screens captured page content before the consent card is shown.'],
+      connects:['QuickChat','DoSaveActions']},
+    'auth.ts': {layer:'Services', status:'built', file:'src/services/auth.ts',
+      consumes:['email/password'], produces:['JWT (access + refresh)'],
+      notes:['Talks to mobius-user — the shared identity provider — through the background fetch proxy.','Proxy needed because content-script fetches run under the host-page origin (CORS).','Same identity as every Mobius surface.'],
+      connects:['SidecarSignIn','mobius-user','chat.ts']},
+    'api.ts': {layer:'Services', status:'built', file:'src/services/api.ts',
+      consumes:['session, patient key'], produces:['sidecar state, tasks, mini status'],
+      notes:['Calls the mobius-os backend for patient/sidecar state and tasks.','Feeds deriveRecommendation and the (2.2) tasks badge.'],
+      connects:['content.ts','mobius-os-backend']},
+    'toastManager.ts': {layer:'Services', status:'built', file:'src/services/toastManager.ts',
+      consumes:['—'], produces:['alert toasts'],
+      notes:['Polls /api/v1/user/alerts and shows global toasts, independent of the panel.'],
+      connects:['content.ts']},
+    'SidecarContextStrip': {layer:'Components', status:'new', file:'components/sidecar/SidecarContextStrip.ts',
+      consumes:['ContextInfo (glyph, title, role, taskCount)'], produces:['the "what I know" band'],
+      notes:['Derived, static context for glance-confirmation. Alerts/tasks badge rides here.','Pure view: data + callbacks in, HTMLElement out.'],
+      connects:['content.ts']},
+    'DoSaveActions': {layer:'Components', status:'new', file:'components/sidecar/DoSaveActions.ts',
+      consumes:['Envelope, PreferredItem[], callbacks'], produces:['Do/Save verbs + Suggested/Preferred drawer'],
+      notes:['Do = the promoted action[0]; Suggested = the rest; Preferred = the user’s pins.','Anything = the chat, rendered separately. Propose-not-morph.'],
+      connects:['envelopes.ts','types/sidebar.ts','content.ts']},
+    'RecommendationBanner': {layer:'Components', status:'new', file:'components/sidecar/RecommendationBanner.ts',
+      consumes:['Recommendation + callbacks'], produces:['the proactive nudge banner'],
+      notes:['Permanent place in the panel body, below the context strip.','Care readiness is surfaced HERE, not as its own bar. One at a time.','Two tempers: opportunity (violet) / correction (amber).'],
+      connects:['content.ts']},
+    'SidecarSignIn': {layer:'Components', status:'new', file:'components/sidecar/SidecarSignIn.ts',
+      consumes:['onSignedIn callback'], produces:['the signed-out sidebar body'],
+      notes:['Token-styled sign-in the sidebar hosts itself (mini retired in Phase 1).','Uses auth.ts → mobius-user.'],
+      connects:['auth.ts','content.ts']},
+    'QuickChat': {layer:'Components', status:'built', file:'components/sidecar/QuickChat.ts',
+      consumes:['onSend / onReadPage callbacks'], produces:['chat UI + consent cards + attach chip'],
+      notes:['The "Anything" tier. Hosts the read-page → PHI-screen → acknowledge consent flow.'],
+      connects:['chat.ts','phiScreen.ts','content.ts']},
+    'CollapsibleSection': {layer:'Components', status:'built', file:'components/sidecar/CollapsibleSection.ts',
+      consumes:['label, summary, content'], produces:['a collapsible panel'],
+      notes:['Standard panel chrome; collapse state persisted per id.'],
+      connects:['content.ts']},
+    'icons.ts': {layer:'Components', status:'built', file:'components/sidecar/icons.ts',
+      consumes:['—'], produces:['shared inline SVG icon set'],
+      notes:['One Material-style set (currentColor). Replaced the emoji glyphs.'],
+      connects:['DoSaveActions','RecommendationBanner']},
+    'mobius-user': {layer:'External', status:'built', file:'mobius-user (service)',
+      consumes:['creds / JWT'], produces:['identity, profile, activities'],
+      notes:['Shared identity provider. Target for the ◆ Preferred + ◆ Consent persistence.'],
+      connects:['auth.ts']},
+    'mobius-chat': {layer:'External', status:'built', file:'mobius-chat (service)',
+      consumes:['message (+ acknowledged page content)'], produces:['grounded answer + sources'],
+      notes:['The shared chat pipeline. Runs the authoritative server-side PHI gate.'],
+      connects:['chat.ts']},
+    'mobius-os-backend': {layer:'External', status:'built', file:'mobius-os backend',
+      consumes:['session, patient key'], produces:['sidecar state, recommendations, tasks'],
+      notes:['Source of the recommendation + task data the panel renders.'],
+      connects:['api.ts']},
+  };
+
+  const drawer=document.getElementById('drawer'), backdrop=document.getElementById('backdrop');
+  const dName=document.getElementById('d-name'), dFile=document.getElementById('d-file'), dBody=document.getElementById('d-body');
+  let selName=null;
+
+  function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+  function open(name){
+    const m=M[name]; if(!m) return;
+    selName=name;
+    document.querySelectorAll('.mod.sel').forEach(e=>e.classList.remove('sel'));
+    document.querySelectorAll('.mod.clickable').forEach(e=>{ if(modName(e)===name) e.classList.add('sel'); });
+    dName.textContent=name; dFile.textContent=m.file;
+    const conn=(m.connects||[]).map(c=>`<span class="d-conn" data-go="${esc(c)}">${esc(c)} ↗</span>`).join('') || '<span class="hint-click">none mapped</span>';
+    dBody.innerHTML=
+      `<div class="d-sec">Status</div><div><span class="st ${m.status}">${m.status==='built'?'built ✅':m.status}</span> · <span style="font-size:11px;color:var(--muted)">${m.layer}</span></div>`+
+      `<div class="d-sec">Consumes</div>`+(m.consumes||[]).map(x=>`<div class="d-io"><span class="dir">in →</span><span>${esc(x)}</span></div>`).join('')+
+      `<div class="d-sec">Produces</div>`+(m.produces||[]).map(x=>`<div class="d-io"><span class="dir">out →</span><span>${esc(x)}</span></div>`).join('')+
+      `<div class="d-sec">Responsibilities</div><ul class="d-list">${(m.notes||[]).map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`+
+      `<div class="d-sec">Connections</div><div>${conn}</div>`;
+    dBody.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>open(b.dataset.go)));
+    drawer.classList.add('open'); backdrop.classList.add('open');
+  }
+  function close(){drawer.classList.remove('open');backdrop.classList.remove('open');document.querySelectorAll('.mod.sel').forEach(e=>e.classList.remove('sel'));selName=null;}
+  function modName(el){const mn=el.querySelector('.mn'); return mn && mn.childNodes[0] ? mn.childNodes[0].textContent.trim() : '';}
+
+  // wire clickable modules (match by name)
+  document.querySelectorAll('.mod').forEach(el=>{
+    const name=modName(el);
+    if(M[name]){ el.classList.add('clickable'); el.addEventListener('click',()=>open(name)); }
+  });
+  // external systems are also in M — make the .ext rows clickable
+  document.querySelectorAll('.ext').forEach(el=>{
+    const nm=el.querySelector('.etn'); const name=nm?nm.textContent.trim():'';
+    if(M[name]){ el.style.cursor='pointer'; el.addEventListener('click',()=>open(name)); }
+  });
+  document.getElementById('d-close').addEventListener('click',close);
+  backdrop.addEventListener('click',close);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+})();
+</script>
