@@ -55,6 +55,7 @@ export { SidecarContextStrip } from './sidecar/SidecarContextStrip';
 export { DoSaveActions } from './sidecar/DoSaveActions';
 export { RecommendationBanner } from './sidecar/RecommendationBanner';
 export { PhiStatusPill } from './sidecar/PhiStatusPill';
+export { SystemLog } from './sidecar/SystemLog';
 export { SidecarMenu, CollapseButton } from './sidecar/SidecarMenu';
 export { AlertIndicator, updateAlertIndicator, NotificationDot } from './sidecar/AlertIndicator';
 export { FactorCard } from './sidecar/FactorCard';

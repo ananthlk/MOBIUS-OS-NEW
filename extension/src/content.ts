@@ -59,6 +59,8 @@ import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
 import { getConsentGrant, saveConsentGrant, revokeConsentGrant } from './services/consent';
 import { newTaskId } from './services/invocation';
 import { recordAuthorization } from './services/authorizationLog';
+import { trace } from './services/traceLog';
+import { SystemLog } from './components/sidecar/SystemLog';
 import type { Recommendation } from './types/sidebar';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
@@ -2750,6 +2752,7 @@ async function renderSignedOutSidebar(): Promise<void> {
   body.setAttribute('style', 'flex: 1; min-height: 0; overflow-y: auto;');
   body.appendChild(
     SidecarSignIn(() => {
+      trace('auth', 'signed in');
       removeSidebar();
       void expandToSidebar();
     })
@@ -2949,11 +2952,13 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         onToggle: async (next) => {
           phiAcknowledged = next;
           // Record the acknowledgement/revocation with a task id (provenance).
+          const phiTaskId = newTaskId();
           void recordAuthorization({
-            taskId: newTaskId(),
+            taskId: phiTaskId,
             action: next ? 'phi_ack_on' : 'phi_ack_off',
             phiPresent: true,
           });
+          trace('consent', `PHI acknowledgement ${next ? 'ON' : 'OFF'} for ${phiHost}`, phiTaskId);
           try {
             if (next) {
               await saveConsentGrant(phiHost, true);
@@ -3496,6 +3501,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   const runSend = async (message: string, phiOverride: boolean) => {
     setQuickChatLoading(quickChat, true);
     setQuickChatStatus(quickChat, 'Asking Mobius…');
+    trace('chat', `ask sent${attachedPage ? ' · with page context' : ''}`);
     try {
       const result = await askMobius(
         message,
@@ -3506,6 +3512,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       );
       setQuickChatStatus(quickChat, null);
       if (result.ok && result.answer) {
+        trace('chat', `answered · ${result.sourceCount || 0} sources`);
         showQuickChatResponse(
           quickChat,
           result.answer,
@@ -3567,13 +3574,16 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       title: document.title || host,
       sourceType: classifyPageSource(host),
     };
-    const logRead = (action: 'read_ack' | 'read_auto' | 'site_grant') =>
+    const logRead = (action: 'read_ack' | 'read_auto' | 'site_grant') => {
       void recordAuthorization({
         taskId: captureTaskId,
         action,
         phiPresent: screen.phi_flag,
         phiLabels,
       });
+      trace('authz', `${action} · ${screen.phi_flag ? 'PHI:' + phiLabels.join(',') : 'no PHI'}`, captureTaskId);
+    };
+    trace('read', `page captured · ${text.length} chars${screen.phi_flag ? ' · PHI detected' : ''}`, captureTaskId);
     const attach = (phiAcked: boolean) => {
       attachedPage = { ...pageCtx, phiAcked };
       setAttachedPageChip(quickChat, {
@@ -3640,6 +3650,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   const envSurface = classifyPageSource(getHostname());
   const envRole = deriveRole(currentUserProfile?.activities);
   const envelope = resolveEnvelope(envSurface, envRole);
+  trace('surface', `detected ${envSurface} · ${envelope.chipLabel}`);
 
   const runEnvelopeAction = (action: EnvelopeAction) => {
     if (action.kind === 'ask') {
@@ -3682,6 +3693,14 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   chatPanel.style.margin = '0 10px 8px';
   chatPanel.classList.add('sidecar-panel-chat');
   mainContent.appendChild(chatPanel);
+
+  // Hidden system log — trace every action, pinned at the bottom.
+  try {
+    mainContent.appendChild(SystemLog());
+  } catch (err) {
+    console.error('[Mobius] System log render failed:', err);
+  }
+
   sidebarContainer.appendChild(mainContent);
   
   // Add to DOM
