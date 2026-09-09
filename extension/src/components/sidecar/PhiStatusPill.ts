@@ -1,20 +1,27 @@
 /**
- * PhiStatusPill — the HIPAA status indicator (Phase 2.3).
+ * PhiStatusPill — the HIPAA acknowledgement toggle (Phase 2.3).
  *
- * A STATUS, not a control: green when no patient information is in the
- * current context, amber when a patient/PHI is detected. Consent itself is
- * the per-read permission moment (the ack card), never a mode you pre-set —
- * so this pill only reports, it doesn't toggle.
+ * The explicit-acknowledgement control: OFF (default) means Mobius asks for
+ * consent before reading a page; turning it ON is the attestation, so the
+ * per-read prompts stop for this site. Clicking it IS the consent record.
+ * The authoritative server-side PHI gate still runs regardless — this only
+ * governs the client-side prompt.
  */
 
-export function PhiStatusPill(present: boolean): HTMLElement {
-  const pill = document.createElement('span');
-  pill.className = 'sidecar-phi-pill' + (present ? ' on' : ' off');
+export interface PhiStatusPillOpts {
+  acknowledged: boolean;
+  onToggle: (next: boolean) => void;
+}
+
+export function PhiStatusPill(opts: PhiStatusPillOpts): HTMLElement {
+  const pill = document.createElement('button');
+  pill.type = 'button';
+  pill.className = 'sidecar-phi-pill ' + (opts.acknowledged ? 'on' : 'off');
   pill.setAttribute(
     'title',
-    present
-      ? 'Patient information may be in view. Reading the page will ask for consent and log an attestation.'
-      : 'No patient information detected in this context.'
+    opts.acknowledged
+      ? 'PHI acknowledged for this site — Mobius won’t ask before each read. Click to turn off.'
+      : 'PHI off — Mobius asks for consent before reading a page. Click to acknowledge PHI for this site and stop the prompts.'
   );
 
   const dot = document.createElement('span');
@@ -22,8 +29,9 @@ export function PhiStatusPill(present: boolean): HTMLElement {
   pill.appendChild(dot);
 
   const label = document.createElement('span');
-  label.textContent = present ? 'PHI' : 'PHI off';
+  label.textContent = opts.acknowledged ? 'PHI on' : 'PHI off';
   pill.appendChild(label);
 
+  pill.addEventListener('click', () => opts.onToggle(!opts.acknowledged));
   return pill;
 }

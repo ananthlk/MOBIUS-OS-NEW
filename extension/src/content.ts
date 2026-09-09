@@ -56,7 +56,7 @@ import { DoSaveActions, PreferredItem } from './components/sidecar/DoSaveActions
 import { RecommendationBanner } from './components/sidecar/RecommendationBanner';
 import { PhiStatusPill } from './components/sidecar/PhiStatusPill';
 import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
-import { getConsentGrant, saveConsentGrant } from './services/consent';
+import { getConsentGrant, saveConsentGrant, revokeConsentGrant } from './services/consent';
 import type { Recommendation } from './types/sidebar';
 import { CollapsibleSection } from './components/sidecar/CollapsibleSection';
 import { ICONS as SIDECAR_ICONS } from './components/sidecar/icons';
@@ -2934,17 +2934,37 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   const headerRight = document.createElement('div');
   headerRight.setAttribute('style', 'display: flex; align-items: center; gap: 6px;');
 
-  // PHI status pill (2.3) — status only; consent is the per-read moment.
-  // Reflects a clinical-PHI screen of the page (strong identifiers only, so
-  // a stray phone/date on a generic page doesn't trip it), plus patient/EMR.
+  // PHI acknowledgement toggle (2.3). OFF = ask consent before each read;
+  // ON = the user has attested for this site, so the prompts stop. Backed by
+  // a phiAttested consent grant per host. Turning it on is the consent record.
   try {
-    const CLINICAL = new Set(['mrn', 'ssn', 'date_of_birth', 'member_id', 'name_labeled']);
-    const scan = screenTextForPhi((document.body?.innerText || '').slice(0, 12000));
-    const phiPresent =
-      !!patient ||
-      classifyPageSource(getHostname()) === 'emr' ||
-      scan.findings.some((f) => CLINICAL.has(f.category));
-    headerRight.appendChild(PhiStatusPill(phiPresent));
+    const phiHost = getHostname();
+    const grant0 = await getConsentGrant(phiHost);
+    let phiAcknowledged = !!grant0?.phiAttested;
+    const mountPhiPill = () => {
+      const pill = PhiStatusPill({
+        acknowledged: phiAcknowledged,
+        onToggle: async (next) => {
+          phiAcknowledged = next;
+          try {
+            if (next) {
+              await saveConsentGrant(phiHost, true);
+              showToast('PHI acknowledged for this site — reads won’t prompt');
+            } else {
+              await revokeConsentGrant(phiHost);
+              showToast('PHI acknowledgement removed — reads will prompt again');
+            }
+          } catch (e) {
+            console.error('[Mobius] PHI toggle persist failed:', e);
+          }
+          mountPhiPill(); // re-render with the new state
+        },
+      });
+      const existing = headerRight.querySelector('.sidecar-phi-pill');
+      if (existing) existing.replaceWith(pill);
+      else headerRight.insertBefore(pill, headerRight.firstChild);
+    };
+    mountPhiPill();
   } catch (err) {
     console.error('[Mobius] PHI pill render failed:', err);
   }
@@ -3551,16 +3571,22 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       }
     };
 
-    // Decay stage 2: non-PHI on a site the user already granted → skip the modal.
-    if (!screen.phi_flag) {
-      try {
-        if (await getConsentGrant(host)) {
-          attach(false);
-          return;
-        }
-      } catch {
-        // fall through to the modal
-      }
+    // Consent grants let reads skip the prompt:
+    //  · phiAttested grant (PHI toggle ON) → skip even for PHI (attested up front)
+    //  · plain grant ("Always on this site") → skip for non-PHI only
+    let grant = null;
+    try {
+      grant = await getConsentGrant(host);
+    } catch {
+      grant = null;
+    }
+    if (grant?.phiAttested) {
+      attach(screen.phi_flag);
+      return;
+    }
+    if (grant && !screen.phi_flag) {
+      attach(false);
+      return;
     }
 
     showPageAckCard(quickChat, {

@@ -175,7 +175,7 @@
         <div class="mod"><div class="mn">SidecarContextStrip <span class="st new">new</span></div><div class="md">"what I know" band</div></div>
         <div class="mod"><div class="mn">DoSaveActions <span class="st new">new</span></div><div class="md">Do/Save + drawer</div></div>
         <div class="mod"><div class="mn">RecommendationBanner <span class="st new">new</span></div><div class="md">proactive nudge</div></div>
-        <div class="mod"><div class="mn">PhiStatusPill <span class="st new">new</span></div><div class="md">HIPAA status pill</div></div>
+        <div class="mod"><div class="mn">PhiStatusPill <span class="st new">new</span></div><div class="md">HIPAA ack toggle</div></div>
         <div class="mod"><div class="mn">SidecarSignIn <span class="st new">new</span></div><div class="md">signed-out state</div></div>
         <div class="mod"><div class="mn">QuickChat <span class="st built">built ✅</span></div><div class="md">chat + consent cards</div></div>
         <div class="mod"><div class="mn">CollapsibleSection <span class="st built">built ✅</span></div><div class="md">panel chrome</div></div>
@@ -319,9 +319,9 @@
       notes:['The per-read permission that decays: ask every read → "Always on this site" grant → (automatic, server-driven, not yet).','PHI reads never take a silent grant — they always show the acknowledgement (attestation).','Grants in chrome.storage.local today; SHOULD migrate to mobius-user (auditable).'],
       connects:['types/sidebar.ts','QuickChat','content.ts']},
     'PhiStatusPill': {layer:'Components', status:'new', file:'components/sidecar/PhiStatusPill.ts',
-      consumes:['present:boolean'], produces:['the HIPAA status pill'],
-      notes:['Status, not a control — green when no PHI in view, amber when a clinical identifier or patient is detected.','Consent is the per-read moment (the ack card), not a mode this pill toggles.'],
-      connects:['content.ts']},
+      consumes:['acknowledged:boolean, onToggle'], produces:['the HIPAA acknowledgement toggle'],
+      notes:['The explicit-acknowledgement control: OFF = ask consent before each read; ON = attested for this site, so the prompts stop.','Clicking it IS the consent record — backed by a phiAttested ConsentGrant per host.','The authoritative server-side PHI gate still runs regardless; this governs only the client prompt.'],
+      connects:['consent.ts','content.ts']},
     'toastManager.ts': {layer:'Services', status:'built', file:'src/services/toastManager.ts',
       consumes:['—'], produces:['alert toasts'],
       notes:['Polls /api/v1/user/alerts and shows global toasts, independent of the panel.'],
