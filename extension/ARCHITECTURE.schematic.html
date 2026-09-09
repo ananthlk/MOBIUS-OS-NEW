@@ -142,13 +142,13 @@
 </style>
 
 <div class="wrap">
-  <p class="eyebrow">Mobius Extension · Phase 2 · Architecture Schematic</p>
+  <p class="eyebrow">Mobius Extension · Phase 2 · Architecture Schematic · updated 2026-09-09</p>
   <h1>Modules, contract, and the flags for review.</h1>
   <p class="lede">Four layers, dependencies pointing <b>down only</b>. One <b>contract</b> at the base (<code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--contract)">types/sidebar.ts</code>) that every module imports from — no cycles. Two persistence surfaces flagged <span class="flag">◆</span> as user-identity, not device state.</p>
 
   <div class="custodian">
     <div class="ct"><b>Extension agent</b><span class="tag">custodian · proposed seat</span></div>
-    <div class="cd">Owns <code>mobius-os/extension</code> — the MV3 side panel. Consumes identity from <b>mobius-user</b> and answers from <b>mobius-chat</b>; owns the sidebar contract (<code>types/sidebar.ts</code>), the envelope registry, and the local PHI screen. Does not own any chat/RAG backend.</div>
+    <div class="cd">Owns <code>mobius-os/extension</code> — the MV3 side panel. Consumes identity from <b>mobius-user</b> and answers from <b>mobius-chat</b>; owns the sidebar contract (<code>types/sidebar.ts</code>), the action-envelope registry, and the local PHI screen. Renders chat answers from mobius-chat's <code>assistant_envelope</code> render contract (<code>types/chatEnvelope.ts</code>) — a consumer, not the owner. Does not own any chat/RAG backend.</div>
     <div class="legend">
       <span class="li"><span class="st built">built ✅</span> shipped &amp; harness-verified</span>
       <span class="li"><span class="st new">new</span> added this phase</span>
@@ -179,6 +179,7 @@
         <div class="mod"><div class="mn">SystemLog <span class="st new">new</span></div><div class="md">hidden action trace</div></div>
         <div class="mod"><div class="mn">SidecarSignIn <span class="st new">new</span></div><div class="md">signed-out state</div></div>
         <div class="mod"><div class="mn">QuickChat <span class="st built">built ✅</span></div><div class="md">chat + consent cards</div></div>
+        <div class="mod"><div class="mn">renderEnvelope <span class="st new">new</span></div><div class="md">chat answer adapter</div></div>
         <div class="mod"><div class="mn">CollapsibleSection <span class="st built">built ✅</span></div><div class="md">panel chrome</div></div>
         <div class="mod"><div class="mn">icons.ts <span class="st built">built ✅</span></div><div class="md">shared SVG set</div></div>
       </div>
@@ -188,7 +189,7 @@
       <div class="layer-head"><span class="layer-badge" style="background:var(--services)"></span><span class="layer-name">Services</span><span class="layer-tag">services/*</span><span class="layer-note">Pure logic, no DOM. One concern each, unit-testable.</span></div>
       <div class="mods">
         <div class="mod"><div class="mn">envelopes.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> Surface·Role → <b>out</b> Envelope · defaultPreferred</div></div>
-        <div class="mod"><div class="mn">chat.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> msg·PageContext → <b>out</b> ChatAnswer</div></div>
+        <div class="mod"><div class="mn">chat.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> msg·PageContext → <b>out</b> ChatAnswer (envelope · telemetry · continueUrl)</div></div>
         <div class="mod"><div class="mn">phiScreen.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> text → <b>out</b> PhiScreenResult · 0 egress</div></div>
         <div class="mod"><div class="mn">consent.ts <span class="st new">new</span></div><div class="io"><b>in</b> host → <b>out</b> ConsentGrant · get/save/revoke</div></div>
         <div class="mod"><div class="mn">invocation.ts <span class="st new">new</span></div><div class="io"><b>out</b> task_id (ext_) · correlation key</div></div>
@@ -213,6 +214,7 @@
         <div class="mod"><div class="mn">PersistedSidebarState</div></div>
         <div class="mod"><div class="mn">PERSISTED_KEYS</div></div>
         <div class="mod"><div class="mn">SIDEBAR_SCHEMA_VERSION</div></div>
+        <div class="mod"><div class="mn">AssistantEnvelope · EnvelopeBlock <span class="st new">new</span></div><div class="md">types/chatEnvelope.ts · chat render contract</div></div>
       </div>
     </div>
   </div>
@@ -227,7 +229,9 @@
     <div class="arrow">→</div>
     <div class="step"><div class="sh">act</div><div class="st">Do / action</div><div class="sd">capture → <code>phiScreen</code> (0 egress) → consent</div></div>
     <div class="arrow">→</div>
-    <div class="step"><div class="sh">answer</div><div class="st">askMobius</div><div class="sd">bg proxy → mobius-chat · server PHI gate</div></div>
+    <div class="step"><div class="sh">answer</div><div class="st">askMobius</div><div class="sd">bg proxy → mobius-chat (quick) · server PHI gate</div></div>
+    <div class="arrow">→</div>
+    <div class="step"><div class="sh">render</div><div class="st">Envelope</div><div class="sd"><code>renderEnvelope</code>: blocks · trace · sources · telemetry · continue-deeplink</div></div>
   </div>
 
   <div class="sec">Schema + external systems</div>
@@ -304,9 +308,17 @@
       notes:['The mode-aware registry: surface × role → the ordered action list.','actions[0] is promoted into Do; the rest are Suggested.','Client-side today; same shape as a server-served manifest (fetchDetectionConfig seam).'],
       connects:['types/sidebar.ts','DoSaveActions','content.ts']},
     'chat.ts': {layer:'Services', status:'built', file:'src/services/chat.ts',
-      consumes:['message + PageContext'], produces:['ChatAnswer (answer, sources, phiBlocked)'],
-      notes:['askMobius: POST /chat → poll /chat/response/{cid} via the background proxy.','Attaches acknowledged page content INSIDE the message body so the server PHI gate scans it.','Surfaces a 422 phi_blocked for a second explicit acknowledgement.'],
-      connects:['types/sidebar.ts','phiScreen.ts','QuickChat','mobius-chat']},
+      consumes:['message + PageContext'], produces:['ChatAnswer (answer, envelope, telemetry, continueUrl, sources, phiBlocked)'],
+      notes:['askMobius: POST /chat → poll /chat/response/{cid} via the background proxy.','Requests chat_mode:"quick" — ~2× faster / ~40% cheaper, identical assistant_envelope.','Parses the assistant_envelope (render source) + telemetry (model, tokens, cost, latency).','Builds a continueUrl deeplink (CHAT_BASE_URL/?thread=…) so the thread carries into the full chat app.','Attaches acknowledged page content INSIDE the message body so the server PHI gate scans it; surfaces 422 phi_blocked for a second acknowledgement.'],
+      connects:['types/chatEnvelope.ts','types/sidebar.ts','phiScreen.ts','QuickChat','renderEnvelope','mobius-chat']},
+    'renderEnvelope': {layer:'Components', status:'new', file:'components/sidecar/renderEnvelope.ts',
+      consumes:['AssistantEnvelope + telemetry + continueUrl'], produces:['the rendered chat answer element'],
+      notes:['The lightweight adapter that wires the (previously un-wired) assistant_envelope render contract.','Renders block-by-block: mode badge · tool attribution · answer · deduped Key Points · "How Mobius got here" (ReAct trace) · Sources · telemetry footer.','Dedupes bullets the integrator repeats inside direct_answer; unknown block types are skipped (forward-compat).','isInvolved() surfaces the "Continue in Mobius chat" deeplink prominently for multi-round / many-source / long answers.'],
+      connects:['types/chatEnvelope.ts','chat.ts','QuickChat','traceLog.ts','content.ts']},
+    'chatEnvelope.ts': {layer:'Contract', status:'new', file:'src/types/chatEnvelope.ts',
+      consumes:['—'], produces:['AssistantEnvelope · EnvelopeBlock · ChatTelemetry · asEnvelope()'],
+      notes:['The chat pipeline’s render contract, transcribed from live responses (version + typed blocks).','Block types: mode_badge · tool_attribution · direct_answer · bullets · first_pass · sources.','Defensive: asEnvelope() narrows partial/unknown shapes; OPEN — confirm v1 + full block vocabulary with the chat team.'],
+      connects:['chat.ts','renderEnvelope']},
     'phiScreen.ts': {layer:'Services', status:'built', file:'src/services/phiScreen.ts',
       consumes:['text'], produces:['PhiScreenResult (labels, masked evidence)'],
       notes:['Local pre-egress screen — pure function, ZERO network egress.','Not the authoritative gate: mobius-chat’s server gate (the shared phi-classifier) is.','Screens captured page content before the consent card is shown.'],
@@ -368,9 +380,9 @@
       notes:['Token-styled sign-in the sidebar hosts itself (mini retired in Phase 1).','Uses auth.ts → mobius-user.'],
       connects:['auth.ts','content.ts']},
     'QuickChat': {layer:'Components', status:'built', file:'components/sidecar/QuickChat.ts',
-      consumes:['onSend / onReadPage callbacks'], produces:['chat UI + consent cards + attach chip'],
-      notes:['The "Anything" tier. Hosts the read-page → PHI-screen → acknowledge consent flow.'],
-      connects:['chat.ts','phiScreen.ts','consent.ts','content.ts']},
+      consumes:['onSend / onReadPage callbacks'], produces:['chat UI + consent cards + attach chip + rendered answers'],
+      notes:['The "Anything" tier. Hosts the read-page → PHI-screen → acknowledge consent flow.','showQuickChatEnvelope() mounts a renderEnvelope answer; showQuickChatResponse() is the text fallback.','Exports renderMarkdownLite (reused by renderEnvelope).'],
+      connects:['chat.ts','renderEnvelope','phiScreen.ts','consent.ts','content.ts']},
     'CollapsibleSection': {layer:'Components', status:'built', file:'components/sidecar/CollapsibleSection.ts',
       consumes:['label, summary, content'], produces:['a collapsible panel'],
       notes:['Standard panel chrome; collapse state persisted per id.'],
