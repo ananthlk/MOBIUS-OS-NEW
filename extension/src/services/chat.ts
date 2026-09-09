@@ -34,6 +34,10 @@ export interface ChatAnswer {
   envelope?: AssistantEnvelope;
   /** Invocation + cost telemetry from the response. */
   telemetry?: ChatTelemetry;
+  /** The chat thread id for this turn. */
+  threadId?: string;
+  /** Deeplink to continue this thread in the full Mobius chat app. */
+  continueUrl?: string;
   /** Number of cited sources, when provided. */
   sourceCount?: number;
   /** Human-readable error / block message when not ok. */
@@ -176,7 +180,16 @@ export async function askMobius(
 
     if (status === 'completed') {
       trace('net', `chat completed ✓ · ${Array.isArray(data.sources) ? data.sources.length : 0} sources`);
-      return parseCompleted(data);
+      const parsed = parseCompleted(data);
+      // A deeplink to carry this exact thread into the full Mobius chat app.
+      // The SPA reads ?thread=<id> → loadAndRenderThread(), so the whole
+      // conversation continues (same backend, same thread).
+      const tid = String(data?.thread_id || postData.thread_id || threadId || '');
+      if (parsed.ok && tid) {
+        parsed.threadId = tid;
+        parsed.continueUrl = `${CHAT_BASE_URL}/?thread=${encodeURIComponent(tid)}`;
+      }
+      return parsed;
     }
     if (status === 'error' || status === 'failed') {
       trace('error', `chat ${status}`);

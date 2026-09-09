@@ -17,8 +17,18 @@
 import type { AssistantEnvelope, EnvelopeBlock, SourceRef, TraceRound, ChatTelemetry } from '../../types/chatEnvelope';
 import { renderMarkdownLite } from './QuickChat';
 import { ICONS } from './icons';
+import { trace } from '../../services/traceLog';
 
-export function renderEnvelope(env: AssistantEnvelope, telemetry?: ChatTelemetry): HTMLElement {
+export interface RenderEnvelopeOpts {
+  /** Deeplink to continue this thread in the full Mobius chat app. */
+  continueUrl?: string;
+}
+
+export function renderEnvelope(
+  env: AssistantEnvelope,
+  telemetry?: ChatTelemetry,
+  opts: RenderEnvelopeOpts = {}
+): HTMLElement {
   const root = document.createElement('div');
   root.className = 'sidecar-env';
 
@@ -36,11 +46,50 @@ export function renderEnvelope(env: AssistantEnvelope, telemetry?: ChatTelemetry
     if (el) root.appendChild(el);
   }
 
+  // Offer to carry the conversation into the full Mobius chat — prominently
+  // when the answer is involved enough to be worth continuing there.
+  if (opts.continueUrl) {
+    root.appendChild(buildContinue(opts.continueUrl, isInvolved(env)));
+  }
+
   if (telemetry) {
     const t = buildTelemetry(telemetry);
     if (t) root.appendChild(t);
   }
   return root;
+}
+
+/**
+ * "Involved" heuristic — a multi-round reasoning trace, a broad source set,
+ * or a long answer signals the kind of question worth continuing in the full
+ * chat (deep-research, follow-ups, attachments).
+ */
+function isInvolved(env: AssistantEnvelope): boolean {
+  const fp = env.blocks.find((b) => b.type === 'first_pass') as { trace_rounds?: TraceRound[] } | undefined;
+  const rounds = fp?.trace_rounds?.length || 0;
+  const sources = (env.blocks.find((b) => b.type === 'sources') as { refs?: SourceRef[] } | undefined)?.refs?.length || 0;
+  const answerLen = (env.blocks.find((b) => b.type === 'direct_answer') as { markdown?: string } | undefined)?.markdown?.length || 0;
+  return rounds >= 2 || sources >= 8 || answerLen > 600;
+}
+
+function buildContinue(url: string, involved: boolean): HTMLElement {
+  const a = document.createElement('a');
+  a.className = 'sidecar-env-continue' + (involved ? ' suggest' : '');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  if (involved) {
+    const reason = document.createElement('span');
+    reason.className = 'sidecar-env-continue-reason';
+    reason.textContent = 'Involved answer — pick it up in the full workspace.';
+    a.appendChild(reason);
+  }
+  const cta = document.createElement('span');
+  cta.className = 'sidecar-env-continue-cta';
+  cta.textContent = (involved ? 'Continue in Mobius chat' : 'Open in Mobius chat') + ' →';
+  a.appendChild(cta);
+  a.addEventListener('click', () => trace('action', 'continue in full Mobius chat'));
+  return a;
 }
 
 function buildHeader(blocks: EnvelopeBlock[]): HTMLElement | null {

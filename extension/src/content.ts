@@ -3664,7 +3664,10 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         trace('chat', `answered · ${result.sourceCount || 0} sources`);
         if (result.envelope) {
           // Preferred path: render the assistant_envelope contract.
-          showQuickChatEnvelope(quickChat, renderEnvelope(result.envelope, result.telemetry));
+          showQuickChatEnvelope(
+            quickChat,
+            renderEnvelope(result.envelope, result.telemetry, { continueUrl: result.continueUrl })
+          );
         } else {
           // Fallback: plain markdown-lite answer text.
           showQuickChatResponse(
