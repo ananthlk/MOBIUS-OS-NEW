@@ -190,6 +190,8 @@
         <div class="mod"><div class="mn">chat.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> msg·PageContext → <b>out</b> ChatAnswer</div></div>
         <div class="mod"><div class="mn">phiScreen.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> text → <b>out</b> PhiScreenResult · 0 egress</div></div>
         <div class="mod"><div class="mn">consent.ts <span class="st new">new</span></div><div class="io"><b>in</b> host → <b>out</b> ConsentGrant · get/save/revoke</div></div>
+        <div class="mod"><div class="mn">invocation.ts <span class="st new">new</span></div><div class="io"><b>out</b> task_id (ext_) · correlation key</div></div>
+        <div class="mod"><div class="mn">authorizationLog.ts <span class="st new">new</span></div><div class="io"><b>in</b> {task_id,action,phi} → <b>out</b> POST /authorizations</div></div>
         <div class="mod"><div class="mn">auth.ts <span class="st built">built ✅</span></div><div class="io"><b>in</b> creds → <b>out</b> JWT · via bg proxy</div></div>
         <div class="mod"><div class="mn">api.ts <span class="st built">built ✅</span></div><div class="io"><b>out</b> sidecar state · tasks</div></div>
         <div class="mod"><div class="mn">toastManager.ts <span class="st built">built ✅</span></div><div class="io"><b>out</b> alerts poll</div></div>
@@ -247,7 +249,7 @@
         <div class="ext"><span class="eic" style="background:var(--external)">U</span><span class="etx"><div class="etn">mobius-user</div><div class="etd">identity · JWT. Target for ◆ Preferred + ◆ Consent.</div></span></div>
         <div class="ext"><span class="eic" style="background:var(--services)">C</span><span class="etx"><div class="etn">mobius-chat</div><div class="etd">askMobius → /chat → poll. Authoritative server PHI gate.</div></span></div>
         <div class="ext"><span class="eic" style="background:var(--orchestrator)">P</span><span class="etx"><div class="etn">phi-classifier</div><div class="etd">the shared gate mobius-chat calls; local screen mirrors it.</div></span></div>
-        <div class="ext"><span class="eic" style="background:var(--components)">O</span><span class="etx"><div class="etn">mobius-os-backend</div><div class="etd">sidecar state · recommendations · tasks.</div></span></div>
+        <div class="ext"><span class="eic" style="background:var(--components)">O</span><span class="etx"><div class="etn">mobius-os-backend</div><div class="etd">sidecar state · recommendations · tasks · authorization_log (correlation table) → PHI compliance log.</div></span></div>
       </div>
     </div>
   </div>
@@ -322,6 +324,14 @@
       consumes:['acknowledged:boolean, onToggle'], produces:['the HIPAA acknowledgement toggle'],
       notes:['The explicit-acknowledgement control: OFF = ask consent before each read; ON = attested for this site, so the prompts stop.','Clicking it IS the consent record — backed by a phiAttested ConsentGrant per host.','The authoritative server-side PHI gate still runs regardless; this governs only the client prompt.'],
       connects:['consent.ts','content.ts']},
+    'invocation.ts': {layer:'Services', status:'new', file:'src/services/invocation.ts',
+      consumes:['—'], produces:['task_id (ext_ prefix)'],
+      notes:['Mints one correlation id per PHI-touching invocation (read / ack / override).','The join key: the extension records the authorization under it; the PHI agent stores the attestation under the SAME id.'],
+      connects:['authorizationLog.ts','content.ts']},
+    'authorizationLog.ts': {layer:'Services', status:'new', file:'src/services/authorizationLog.ts',
+      consumes:['{task_id, action, phi_present, phi_labels}'], produces:['POST /api/v1/authorizations'],
+      notes:['Records every PHI authorization with provenance (host + full URL + masked labels).','Best-effort, non-blocking. The os-backend hashes the URL and forwards the attestation to the PHI log by task_id.','Wired at: PHI toggle on/off, per-read ack, auto-attach under a grant, "always on this site".'],
+      connects:['invocation.ts','mobius-os-backend','content.ts']},
     'toastManager.ts': {layer:'Services', status:'built', file:'src/services/toastManager.ts',
       consumes:['—'], produces:['alert toasts'],
       notes:['Polls /api/v1/user/alerts and shows global toasts, independent of the panel.'],
