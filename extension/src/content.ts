@@ -79,6 +79,7 @@ import {
   initializeStyles
 } from './styles/themes';
 import { injectBaseCSS } from './styles/base.css';
+import { injectFonts } from './styles/fonts';
 
 const componentRegistry = {
   contextSummary: ContextSummary,
@@ -2719,6 +2720,7 @@ interface MiniState {
  */
 async function renderSignedOutSidebar(): Promise<void> {
   if (document.getElementById('mobius-os-sidebar')) return;
+  injectFonts();
 
   sidebarContainer = document.createElement('div');
   sidebarContainer.id = 'mobius-os-sidebar';
@@ -2797,6 +2799,7 @@ function deriveRecommendation(
 
 async function initSidecarUI(miniState: MiniState): Promise<void> {
   console.log('[Mobius OS] Initializing Sidecar UI...');
+  injectFonts();
   
   // Check if sidebar already exists
   if (document.getElementById('mobius-os-sidebar')) {
@@ -5202,6 +5205,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 });
 
 (async () => {
+  injectFonts();
   sessionId = await getOrCreateSessionId();
   
   // Initialize toast manager for global notifications
