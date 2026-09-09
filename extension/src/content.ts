@@ -564,6 +564,78 @@ function showToast(message: string): void {
 }
 
 /**
+ * In-DOM confirmation dialog. Native confirm()/alert() no-op inside iframed
+ * hosts, so gated actions must render their own modal. Resolves true on
+ * confirm, false on cancel/backdrop/Escape. Used for the PHI attestation,
+ * where the toggle carries HIPAA weight and must not flip on a stray click.
+ */
+function showConfirm(opts: {
+  title: string;
+  body: string;
+  confirmText: string;
+  cancelText?: string;
+  danger?: boolean;
+}): Promise<boolean> {
+  return new Promise((resolve) => {
+    document.getElementById('mobius-confirm-overlay')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'mobius-confirm-overlay';
+    overlay.className = 'mobius-confirm-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+
+    const card = document.createElement('div');
+    card.className = 'mobius-confirm-card';
+
+    const h = document.createElement('div');
+    h.className = 'mobius-confirm-title';
+    h.textContent = opts.title;
+    card.appendChild(h);
+
+    const p = document.createElement('div');
+    p.className = 'mobius-confirm-body';
+    p.textContent = opts.body;
+    card.appendChild(p);
+
+    const row = document.createElement('div');
+    row.className = 'mobius-confirm-actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'mobius-confirm-cancel';
+    cancel.textContent = opts.cancelText || 'Cancel';
+    const confirm = document.createElement('button');
+    confirm.type = 'button';
+    confirm.className = 'mobius-confirm-ok' + (opts.danger ? ' danger' : '');
+    confirm.textContent = opts.confirmText;
+    row.appendChild(cancel);
+    row.appendChild(confirm);
+    card.appendChild(row);
+    overlay.appendChild(card);
+
+    const close = (result: boolean) => {
+      document.removeEventListener('keydown', onKey, true);
+      overlay.remove();
+      resolve(result);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close(false);
+      }
+    };
+    cancel.addEventListener('click', () => close(false));
+    confirm.addEventListener('click', () => close(true));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(false);
+    });
+    document.addEventListener('keydown', onKey, true);
+
+    document.body.appendChild(overlay);
+    confirm.focus();
+  });
+}
+
+/**
  * Smart positioning for dropdowns that adjusts based on viewport boundaries.
  * Returns CSS position properties for a dropdown anchored to an element.
  */
@@ -2784,11 +2856,11 @@ function deriveRecommendation(
       (f) => (f as { is_focus?: boolean }).is_focus || f.status === 'blocked' || f.status === 'waiting'
     ) as { label?: string; factor_type?: string } | undefined;
     const raw = focus?.label || focus?.factor_type || '';
-    const tail = raw ? ` — ${String(raw).replace(/_/g, ' ')} needs attention` : '';
+    const tail = raw ? ` — ${String(raw).replace(/_/g, ' ')} still needs attention` : '';
     return {
       id: `reco-readiness-${patient?.id || 'anon'}`,
       temper: 'opportunity',
-      message: `<b>${who}</b> is at ${pos}% care readiness${tail}. Want help closing the gap?`,
+      message: `<b>${who}</b> is ${pos}% ready for this visit${tail}. Want a hand?`,
       actionLabel: 'Show me',
     };
   } catch (err) {
@@ -2953,6 +3025,25 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       const pill = PhiStatusPill({
         acknowledged: phiAcknowledged,
         onToggle: async (next) => {
+          // Turning ON is a HIPAA attestation — gate it behind an explicit
+          // confirm so it can't flip on a stray click. Turning OFF is safe
+          // (it only re-enables prompts), so no confirm there.
+          if (next) {
+            const ok = await showConfirm({
+              title: 'Acknowledge PHI for this site?',
+              body:
+                'You attest that you’re authorized to view protected health information here. ' +
+                'Mobius will stop asking before each page read on this site until you turn it off. ' +
+                'This acknowledgement is logged.',
+              confirmText: 'I acknowledge',
+              cancelText: 'Not now',
+            });
+            if (!ok) {
+              trace('consent', `PHI acknowledgement declined at confirm for ${phiHost}`);
+              mountPhiPill(); // re-assert the OFF state (pill didn't move)
+              return;
+            }
+          }
           phiAcknowledged = next;
           // Record the acknowledgement/revocation with a task id (provenance).
           const phiTaskId = newTaskId();

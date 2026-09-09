@@ -24,7 +24,7 @@ export function SidecarSignIn(onSignedIn: () => void): HTMLElement {
 
   const sub = document.createElement('div');
   sub.className = 'sidecar-signin-sub';
-  sub.textContent = 'Your Mobius account works across every surface.';
+  sub.textContent = 'One Mobius account for everywhere you work.';
   root.appendChild(sub);
 
   const email = document.createElement('input');

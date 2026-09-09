@@ -6527,7 +6527,9 @@
 .ctxs-title { color: var(--mobius-text-primary, #1a1d21); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
 .ctxs-role { color: var(--mobius-text-muted, #64748b); }
 .ctxs-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--mobius-text-muted, #64748b); opacity: .5; flex: 0 0 auto; }
-.ctxs-wrong { font-size: 9px; color: var(--mobius-text-muted, #64748b); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; opacity: .7; }
+.ctxs-wrong { font-family: inherit; border: 0; background: none; padding: 0; font-size: 9px; color: var(--mobius-text-muted, #64748b); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; opacity: .7; }
+.ctxs-wrong:hover { opacity: 1; }
+.ctxs-wrong:focus-visible { outline: 2px solid var(--mobius-accent, #3b82f6); outline-offset: 2px; border-radius: 3px; opacity: 1; }
 .ctxs-tasks { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--mobius-text-secondary, #374151); background: var(--mobius-bg-card, #fff); border: 1px solid var(--mobius-border, #e2e8f0); border-radius: 999px; padding: 2px 9px; cursor: pointer; font-family: inherit; }
 .ctxs-tasks .n { font-weight: 700; }
 
@@ -6642,3 +6644,38 @@
   background: color-mix(in srgb, var(--mobius-success, #16a34a) 10%, var(--mobius-bg-card, #fff));
 }
 .ds-vt { font-weight: 600; }
+
+/* UX review: action-primary Do, disabled Save */
+.ds-eyebrow { display:block; font-family: var(--mobius-font-mono, ui-monospace, monospace); font-size: 8px; letter-spacing: .08em; text-transform: uppercase; color: var(--mobius-text-muted, #64748b); margin-bottom: 2px; }
+/* The Save stub must read as inert, not as a live success action — strip the
+   green fill/border it inherits from .ds-verb.save and go neutral+muted. */
+.ds-verb.save.disabled { opacity: .6; cursor: not-allowed; border-color: var(--mobius-border, #e2e8f0); background: var(--mobius-bg-secondary, #f8fafc); }
+.ds-verb.save.disabled .ds-vt, .ds-verb.save.disabled .ds-vs { color: var(--mobius-text-muted, #64748b); }
+.ds-verb.save.disabled:hover { filter: none; }
+
+/* In-DOM confirmation dialog (native confirm() no-ops in iframed hosts).
+   Used for the PHI attestation gate. */
+.mobius-confirm-overlay {
+  position: fixed; inset: 0; z-index: 2147483646;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(15, 23, 42, .38); backdrop-filter: blur(2px);
+  font-family: var(--mobius-font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+}
+.mobius-confirm-card {
+  width: min(340px, calc(100vw - 40px));
+  background: var(--mobius-bg-card, #fff);
+  border: 1px solid var(--mobius-border, #e2e8f0);
+  border-radius: 14px; padding: 18px 18px 14px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .28);
+}
+.mobius-confirm-title { font-size: 14px; font-weight: 700; color: var(--mobius-text, #1a1d21); margin-bottom: 8px; }
+.mobius-confirm-body { font-size: 12.5px; line-height: 1.5; color: var(--mobius-text-secondary, #3f4a5a); margin-bottom: 16px; }
+.mobius-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.mobius-confirm-cancel, .mobius-confirm-ok {
+  font-family: inherit; font-size: 12.5px; font-weight: 600;
+  padding: 8px 14px; border-radius: 9px; cursor: pointer; border: 1px solid transparent;
+}
+.mobius-confirm-cancel { background: var(--mobius-bg-secondary, #f1f5f9); color: var(--mobius-text-secondary, #3f4a5a); border-color: var(--mobius-border, #e2e8f0); }
+.mobius-confirm-ok { background: var(--mobius-warning, #d97706); color: #fff; }
+.mobius-confirm-ok.danger { background: var(--mobius-error, #dc2626); }
+.mobius-confirm-cancel:focus-visible, .mobius-confirm-ok:focus-visible { outline: 2px solid var(--mobius-accent, #3b82f6); outline-offset: 2px; }

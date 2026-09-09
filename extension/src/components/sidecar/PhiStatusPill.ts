@@ -17,11 +17,18 @@ export function PhiStatusPill(opts: PhiStatusPillOpts): HTMLElement {
   const pill = document.createElement('button');
   pill.type = 'button';
   pill.className = 'sidecar-phi-pill ' + (opts.acknowledged ? 'on' : 'off');
+  const title = opts.acknowledged
+    ? 'PHI acknowledged for this site — Mobius won’t ask before each read. Click to turn off.'
+    : 'PHI off — Mobius asks for consent before reading a page. Click to acknowledge PHI for this site and stop the prompts.';
+  pill.setAttribute('title', title);
+  // Screen-reader meaning is otherwise hover-only; expose the toggle state and
+  // a full-sentence label so the attestation is legible without a pointer.
+  pill.setAttribute('aria-pressed', String(opts.acknowledged));
   pill.setAttribute(
-    'title',
+    'aria-label',
     opts.acknowledged
-      ? 'PHI acknowledged for this site — Mobius won’t ask before each read. Click to turn off.'
-      : 'PHI off — Mobius asks for consent before reading a page. Click to acknowledge PHI for this site and stop the prompts.'
+      ? 'PHI acknowledged for this site. Activate to remove the acknowledgement.'
+      : 'PHI prompts on. Activate to acknowledge PHI for this site and stop the prompts.'
   );
 
   const dot = document.createElement('span');

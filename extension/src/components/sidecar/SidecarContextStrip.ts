@@ -39,9 +39,11 @@ export function SidecarContextStrip(info: ContextStripInfo): HTMLElement {
 
   if (info.onWrong) {
     strip.appendChild(dot());
-    const wrong = document.createElement('span');
+    const wrong = document.createElement('button');
+    wrong.type = 'button';
     wrong.className = 'ctxs-wrong';
-    wrong.textContent = 'wrong?';
+    wrong.textContent = 'Not right?';
+    wrong.setAttribute('aria-label', 'Correct what Mobius detected about this page');
     wrong.addEventListener('click', () => info.onWrong!());
     strip.appendChild(wrong);
   }

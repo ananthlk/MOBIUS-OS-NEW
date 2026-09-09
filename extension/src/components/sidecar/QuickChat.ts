@@ -33,7 +33,7 @@ export function QuickChat(props: QuickChatProps): HTMLElement {
   // Empty state placeholder
   const emptyState = document.createElement('div');
   emptyState.className = 'sidecar-chat-empty';
-  emptyState.textContent = 'Ask questions about coverage, auth requirements, history...';
+  emptyState.textContent = 'Ask about payer policy, filing limits, or auth rules…';
   messagesContainer.appendChild(emptyState);
   
   container.appendChild(messagesContainer);
@@ -58,6 +58,7 @@ export function QuickChat(props: QuickChatProps): HTMLElement {
   `;
   sendBtn.disabled = true;
   sendBtn.title = 'Send';
+  sendBtn.setAttribute('aria-label', 'Send message');
   
   // Enable/disable send button based on input
   input.addEventListener('input', () => {
@@ -93,6 +94,7 @@ export function QuickChat(props: QuickChatProps): HTMLElement {
     pageBtn.className = 'sidecar-quick-chat-readpage';
     pageBtn.type = 'button';
     pageBtn.title = 'Read this page and attach it (screened for PHI first)';
+    pageBtn.setAttribute('aria-label', 'Read this page and attach it');
     pageBtn.innerHTML = ICONS.page;
     pageBtn.addEventListener('click', () => onReadPage());
     inputWrapper.appendChild(pageBtn);

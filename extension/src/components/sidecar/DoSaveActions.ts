@@ -38,20 +38,25 @@ export function DoSaveActions(envelope: Envelope, opts: DoSaveOpts): HTMLElement
   const verbs = document.createElement('div');
   verbs.className = 'ds-verbs';
 
+  // Do — the ACTION is the primary label (not the word "Do"); a small
+  // "Suggested" eyebrow marks it as the promoted guess. No decorative arrow.
   const doBtn = document.createElement('button');
   doBtn.type = 'button';
   doBtn.className = 'ds-verb do';
-  doBtn.innerHTML = `<span class="ds-vt">↘ Do</span><span class="ds-vs">${
-    promoted ? escapeHtml(promoted.label) : 'Ask Mobius'
-  }</span>`;
+  doBtn.innerHTML = promoted
+    ? `<span class="ds-eyebrow">Suggested</span><span class="ds-vt">${escapeHtml(promoted.label)}</span>`
+    : `<span class="ds-vt">Ask Mobius</span>`;
   doBtn.addEventListener('click', () => (promoted ? opts.onDo(promoted) : opts.onAsk()));
   verbs.appendChild(doBtn);
 
+  // Save — a stub for now. Render visibly disabled ("Soon") rather than a
+  // live-looking primary that dead-ends into a toast.
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
-  saveBtn.className = 'ds-verb save';
-  saveBtn.innerHTML = `<span class="ds-vt">↗ Save</span><span class="ds-vs">Keep &amp; file</span>`;
-  saveBtn.addEventListener('click', () => opts.onSave());
+  saveBtn.className = 'ds-verb save disabled';
+  saveBtn.disabled = true;
+  saveBtn.title = 'Save & file — coming soon';
+  saveBtn.innerHTML = `<span class="ds-vt">Save</span><span class="ds-vs">Soon</span>`;
   verbs.appendChild(saveBtn);
 
   root.appendChild(verbs);

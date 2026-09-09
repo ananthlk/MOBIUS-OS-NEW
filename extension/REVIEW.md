@@ -62,16 +62,16 @@ shared mobius-chat pipeline — the same brain as every Mobius surface.
 
 | Where | Current text |
 |---|---|
-| Context strip | `Email · Anjlee · you: front desk · wrong?` |
-| Recommendation | `This patient is at 50% care readiness — Preparing the Patient for Their Visit needs attention. Want help closing the gap?` · buttons `Show me` / `Dismiss` |
-| Do / Save | `↘ Do` / sublabel `Draft a reply` · `↗ Save` / `Keep & file` |
+| Context strip | `Email · Anjlee · you: front desk · Not right?` (Not right? is now a real button) |
+| Recommendation | `Anjlee is 50% ready for this visit — Preparing the Patient for Their Visit still needs attention. Want a hand?` · buttons `Show me` / `Dismiss` |
+| Do / Save | `SUGGESTED` (eyebrow) + `Draft a reply` (the action, as primary label) · `Save` / `Soon` (visibly disabled — no dead-end toast) |
 | Drawer groups | `Suggested · this page` · `Preferred · yours` · `+ pin` · `✎ customize` |
 | Chat placeholder | `Ask Mobius — payer policy, filing limits, auth rules…` |
 | PHI toggle (off) | tooltip: `PHI off — Mobius asks for consent before reading a page. Click to acknowledge PHI for this site and stop the prompts.` |
 | Consent card (PHI) | `This page looks like it contains patient information.` · `Acknowledge & continue` |
 | Consent card (clean) | `Attach this page to your next question?` · `Attach page` / `Always on this site` |
-| Save (stub) | toast: `Save — smart filing coming soon` |
-| Sign-in | `Sign in to Mobius` · `Your Mobius account works across every surface.` |
+| Save (stub) | now a visibly-disabled `Soon` button (no toast dead-end) |
+| Sign-in | `Sign in to Mobius` · `One Mobius account for everywhere you work.` |
 
 ## 5. What we need reviewed — five lenses
 
@@ -99,6 +99,13 @@ shared mobius-chat pipeline — the same brain as every Mobius surface.
 - [x] Accessibility — "wrong?" is a span not a button (not focusable); PHI pill meaning is hover-only (no aria); icon-only chat buttons lack aria-label; several 9px labels. Good: status never color-only, focus-visible present.
 - **Verdict:** ☑ approve-with-changes — UX review agent / 2026-09-09
 - **Top 3 before demo:** (1) fix Do/Save verbs — action as primary label, hide/disable Save, prune coming-soon dead-ends; (2) give the PHI attestation real weight — confirm on turn-on + visible state + aria-label; (3) copy + IA cleanup — de-jargon, reconcile chat strings, "wrong?" → real button, pin chat as footer + recent/undo.
+
+#### Extension agent — top-3 resolution (2026-09-09, commit pending)
+- [x] **(1) Do/Save verbs** — the promoted action's real verb ("Draft a reply") is now the primary label under a muted `SUGGESTED` eyebrow (dropped the ↘/↗ arrows); Save is a visibly-disabled `Soon` stub with its green "success" fill stripped, so the coming-soon toast dead-end is gone. Verified rendering against the real stylesheet.
+- [x] **(2) PHI attestation weight** — turning the pill ON now goes through an in-DOM confirm modal ("Acknowledge PHI for this site?" → *I acknowledge* / *Not now*); native confirm() is avoided (no-ops in iframed hosts). Pill exposes `aria-pressed` + a full-sentence `aria-label` (meaning was hover-only). Visible ON state (amber fill + "PHI on") retained. Turning OFF stays un-gated (only re-enables prompts). The acknowledgement is still logged with a task_id.
+- [x] **(3a) copy** — de-jargoned: "care readiness"→"ready for this visit", "closing the gap"→"Want a hand?", sign-in "works across every surface"→"everywhere you work", chat empty-state → "Ask about payer policy, filing limits, or auth rules…".
+- [x] **(3b) "wrong?" → button** — now a focusable `<button>` ("Not right?") with aria-label + focus ring. Icon-only chat buttons (read-page, send) got aria-labels too.
+- [ ] **(3c) pin chat as footer + recent/undo** — deferred: this is an IA restructure (chat moves from collapsible to a pinned footer, plus a new recent/undo affordance), not an easy win. Flagged to Ananth for a go/no-go before the demo rather than auto-applied.
 
 ### Technical — reviewed 2026-09-09 (architecture + compliance audit)
 - [x] **Architecture & modularity** — contract-first (SIDEBAR_SCHEMA_VERSION, PERSISTED_KEYS), clean layer separation (types → services → components → orchestrator), services are pure + testable, components are stateless, no cycles. **STRONG FOUNDATION.** Ready to lift `types/sidebar.ts` into mobius-contracts so chat and extension share Envelope/Surface contracts. ✅
