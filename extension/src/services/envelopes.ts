@@ -33,7 +33,7 @@ const WEB: Envelope = {
   actions: [
     {
       id: 'web-synthesize',
-      label: 'Synthesize this page',
+      label: 'Summarize this page',
       sublabel: 'Key points + how it applies',
       icon: 'bulb',
       kind: 'synthesize',
@@ -43,8 +43,8 @@ const WEB: Envelope = {
     },
     {
       id: 'web-collate',
-      label: 'Collate for RAG',
-      sublabel: 'File into your corpus (preview)',
+      label: 'Add to my library',
+      sublabel: 'File this page for later (soon)',
       icon: 'page',
       kind: 'collate',
     },
@@ -160,7 +160,7 @@ export function defaultPreferred(role: Role): { id: string; label: string }[] {
     case 'biller':
       return [
         { id: 'check-claim', label: 'Check a claim' },
-        { id: 'retrieve-patient', label: '↻ Retrieve a patient' },
+        { id: 'retrieve-patient', label: 'Look up a patient' },
       ];
     case 'clinician':
       return [
@@ -170,12 +170,12 @@ export function defaultPreferred(role: Role): { id: string; label: string }[] {
     case 'front_desk':
       return [
         { id: 'verify-eligibility', label: 'Verify eligibility' },
-        { id: 'retrieve-patient', label: '↻ Retrieve a patient' },
+        { id: 'retrieve-patient', label: 'Look up a patient' },
       ];
     default:
       return [
         { id: 'search-policy', label: 'Search policy' },
-        { id: 'retrieve-patient', label: '↻ Retrieve a patient' },
+        { id: 'retrieve-patient', label: 'Look up a patient' },
       ];
   }
 }

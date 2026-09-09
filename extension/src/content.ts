@@ -2992,22 +2992,31 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
   header.className = 'top-row';
   header.setAttribute('style', 'display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--mobius-border-light, #eef2f7); background: var(--mobius-bg-secondary, #f8fafc);');
   
-  // Left: Logos
+  // Left: one product-first lockup — the Mobius mark + wordmark, with the
+  // tenant demoted to a muted subtitle (not a second competing logo). The
+  // "where am I" surface (the EMR) lives in the context strip below, so the
+  // header stays a single tier even at 400px with the controls on the right.
   const headerLeft = document.createElement('div');
   headerLeft.className = 'header-left';
-  headerLeft.setAttribute('style', 'display: flex; align-items: center; gap: 8px;');
-  headerLeft.appendChild(ClientLogo({ clientName: 'CMHC' }));
-  
-  const logoSection = document.createElement('div');
-  logoSection.className = 'logo-section';
-  logoSection.setAttribute('style', 'display: flex; align-items: center; gap: 8px;');
-  logoSection.appendChild(MobiusLogo({ status: 'idle' }));
-  const logoLabel = document.createElement('span');
-  logoLabel.className = 'logo-label';
-  logoLabel.setAttribute('style', 'font-size: 12px; font-weight: 600; letter-spacing: -0.01em; color: var(--mobius-text-primary, #1a1d21); font-family: var(--mobius-font-sans, "DM Sans", -apple-system, sans-serif);');
-  logoLabel.textContent = 'Mobius OS';
-  logoSection.appendChild(logoLabel);
-  headerLeft.appendChild(logoSection);
+  headerLeft.setAttribute('style', 'display: flex; align-items: center; gap: 7px; min-width: 0;');
+  headerLeft.appendChild(MobiusLogo({ status: 'idle' }));
+
+  const brand = document.createElement('span');
+  brand.className = 'logo-label';
+  brand.setAttribute('style', 'font-size: 12.5px; font-weight: 700; letter-spacing: -0.01em; color: var(--mobius-text-primary, #1a1d21); font-family: var(--mobius-font-sans, "DM Sans", -apple-system, sans-serif); flex: 0 0 auto;');
+  brand.textContent = 'Mobius';
+  headerLeft.appendChild(brand);
+
+  const orgSep = document.createElement('span');
+  orgSep.setAttribute('style', 'color: var(--mobius-border, #e2e8f0); flex: 0 0 auto;');
+  orgSep.textContent = '·';
+  headerLeft.appendChild(orgSep);
+
+  const org = document.createElement('span');
+  org.className = 'header-org';
+  org.setAttribute('style', 'font-size: 11px; color: var(--mobius-text-muted, #64748b); font-family: var(--mobius-font-sans, "DM Sans", -apple-system, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;');
+  org.textContent = 'Aspire Health FL';
+  headerLeft.appendChild(org);
   header.appendChild(headerLeft);
   
   // Right: Actions
