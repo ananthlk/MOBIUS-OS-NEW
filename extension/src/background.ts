@@ -132,6 +132,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     (async () => {
       try {
         // 1) Fetch the document bytes in-session (cookies included).
+        const fetchedAt = new Date().toISOString(); // client FETCH clock (two-clocks rule)
         const docResp = await fetch(docUrl, { credentials: 'include' });
         if (!docResp.ok) {
           sendResponse({ ok: false, stage: 'fetch', status: docResp.status, error: `fetch failed (${docResp.status})` });
@@ -140,6 +141,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const blob = await docResp.blob();
         const contentType = docResp.headers.get('Content-Type') || blob.type || 'application/octet-stream';
         const filename = String(message.filename || filenameFromUrl(docUrl, contentType));
+
+        // Content-Signals that ride ONLY in response headers are invisible to
+        // the server (it receives bytes, not our response), so forward the raw
+        // header lines verbatim — rag-side is the single normalizer that merges
+        // these with the origin's robots.txt signals (Crawler §2.6, TODO-A).
+        const signalHeaders: string[] = [];
+        for (const h of ['x-robots-tag', 'content-signal', 'content-usage', 'tdm-reservation', 'tdm-policy']) {
+          const v = docResp.headers.get(h);
+          if (v) signalHeaders.push(`${h}: ${v}`);
+        }
 
         // 2) Multipart POST to the ingest target (extension context = CORS-exempt).
         const fd = new FormData();
@@ -152,7 +163,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         // then they're harmlessly ignored, so no rework when they ship.
         fd.append('source_url', docUrl);
         fd.append('access', 'user_authorized_session');
+        fd.append('fetched_at', fetchedAt);
         if (message.taskId) fd.append('task_id', String(message.taskId));
+        if (signalHeaders.length) fd.append('signal_headers', signalHeaders.join('\n'));
 
         const headers: Record<string, string> = {};
         if (message.token) headers['Authorization'] = `Bearer ${message.token}`;
