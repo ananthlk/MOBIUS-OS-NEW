@@ -31,25 +31,38 @@ const WEB: Envelope = {
   accentVar: 'var(--mobius-text-muted, #64748b)',
   propose: 'On this page you can…',
   actions: [
-    {
-      // The dominant web action: fetch the doc the user is looking at (in their
-      // authenticated session, reaching robots/auth-blocked content) and file
-      // it for retrieval — without it ever landing on their device.
-      id: 'web-ingest',
-      label: 'Add this document to Mobius',
-      sublabel: 'Fetched in your browser, filed for retrieval — never saved to your device',
-      icon: 'page',
-      kind: 'ingest',
-      primary: true,
-    },
+    // ── DO: act on the page in place, nothing persists ──────────────────
     {
       id: 'web-synthesize',
       label: 'Summarize this page',
       sublabel: 'Key points + how it applies',
       icon: 'bulb',
       kind: 'synthesize',
+      group: 'do',
+      primary: true,
       prompt:
         'Summarize the attached page: the key points and how they apply to a Florida behavioral-health RCM workflow.',
+    },
+    {
+      id: 'web-find',
+      label: 'Find in this page',
+      sublabel: 'Locate a term or clause on the page',
+      icon: 'page',
+      kind: 'ask',
+      group: 'do',
+    },
+    // ── SAVE: persist this page (the Save verb's scope offer) ────────────
+    {
+      // The corpus save: fetch the doc the user is looking at (in their
+      // authenticated session, reaching robots/auth-blocked content) and file
+      // it for retrieval — without it ever landing on their device.
+      id: 'web-ingest',
+      label: 'Add to Mobius corpus',
+      sublabel: 'Fetched in your browser, filed for retrieval — never saved to your device',
+      icon: 'page',
+      kind: 'ingest',
+      group: 'save',
+      saveScope: 'corpus',
     },
   ],
 };

@@ -15,8 +15,9 @@ export type { PreferredItem };
 export interface DoSaveOpts {
   /** Run the promoted action (Do). */
   onDo: (action: EnvelopeAction) => void;
-  /** Contribute (Save) — resolves scope by offer, not a form. */
-  onSave: () => void;
+  /** Save — resolves scope by offer over the envelope's `save`-group actions,
+   *  not a form. Corpus is live (fetch-to-RAG); bookmark scopes are proposed. */
+  onSave: (saveActions: EnvelopeAction[]) => void;
   /** Run any drawer action. */
   onAction: (action: EnvelopeAction) => void;
   /** Focus the chat (when there's no promoted action). */
@@ -30,9 +31,13 @@ export function DoSaveActions(envelope: Envelope, opts: DoSaveOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'sidecar-dosave';
 
-  const actionable = envelope.actions.filter((a) => a.kind !== 'preview');
-  const promoted = actionable[0];
-  const suggested = envelope.actions.filter((a) => a.id !== promoted?.id);
+  // DO = act-in-place; SAVE = persist. Actions default to `do` when untagged.
+  const isSave = (a: EnvelopeAction) => a.group === 'save';
+  const doActions = envelope.actions.filter((a) => !isSave(a) && a.kind !== 'preview');
+  const saveActions = envelope.actions.filter(isSave);
+  const promoted = doActions[0];
+  // Suggested drawer = the rest of the DO actions (Save has its own verb).
+  const suggested = envelope.actions.filter((a) => !isSave(a) && a.id !== promoted?.id);
 
   // --- verbs ---
   const verbs = document.createElement('div');
@@ -49,14 +54,21 @@ export function DoSaveActions(envelope: Envelope, opts: DoSaveOpts): HTMLElement
   doBtn.addEventListener('click', () => (promoted ? opts.onDo(promoted) : opts.onAsk()));
   verbs.appendChild(doBtn);
 
-  // Save — a stub for now. Render visibly disabled ("Soon") rather than a
-  // live-looking primary that dead-ends into a toast.
+  // Save — persist this page. Live when the envelope offers a save scope
+  // (corpus is the built fetch-to-RAG lane); otherwise a visible "Soon" stub.
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
-  saveBtn.className = 'ds-verb save disabled';
-  saveBtn.disabled = true;
-  saveBtn.title = 'Save & file — coming soon';
-  saveBtn.innerHTML = `<span class="ds-vt">Save</span><span class="ds-vs">Soon</span>`;
+  if (saveActions.length) {
+    saveBtn.className = 'ds-verb save';
+    saveBtn.title = 'Save this page — to the corpus or a bookmark';
+    saveBtn.innerHTML = `<span class="ds-vt">Save</span><span class="ds-vs">to Mobius</span>`;
+    saveBtn.addEventListener('click', () => opts.onSave(saveActions));
+  } else {
+    saveBtn.className = 'ds-verb save disabled';
+    saveBtn.disabled = true;
+    saveBtn.title = 'Save & file — coming soon';
+    saveBtn.innerHTML = `<span class="ds-vt">Save</span><span class="ds-vs">Soon</span>`;
+  }
   verbs.appendChild(saveBtn);
 
   root.appendChild(verbs);

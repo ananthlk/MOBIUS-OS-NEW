@@ -56,6 +56,7 @@ import { resolveEnvelope, deriveRole, defaultPreferred, EnvelopeAction } from '.
 import { EnvelopeActions } from './components/sidecar/EnvelopeActions';
 import { SidecarContextStrip } from './components/sidecar/SidecarContextStrip';
 import { DoSaveActions, PreferredItem } from './components/sidecar/DoSaveActions';
+import { showSaveOffer, SaveOfferRow } from './components/sidecar/SaveOffer';
 import { RecommendationBanner } from './components/sidecar/RecommendationBanner';
 import { PhiStatusPill } from './components/sidecar/PhiStatusPill';
 import { SidecarSignIn } from './components/sidecar/SidecarSignIn';
@@ -3977,9 +3978,17 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         trace('action', `clicked Do: ${action.label}`);
         runEnvelopeAction(action);
       },
-      onSave: () => {
+      onSave: (saveActions) => {
         trace('action', 'clicked Save');
-        showToast('Save — smart filing coming soon');
+        // Scope-by-offer. Live scopes come from the envelope (corpus today);
+        // bookmark scopes are the proposed next tier (pointer, not bytes).
+        const rows: SaveOfferRow[] = [
+          ...saveActions.map((a) => ({ kind: 'live' as const, action: a })),
+          { kind: 'soon', label: 'Bookmark for me', sublabel: 'A pointer in my library — no bytes fetched' },
+          { kind: 'soon', label: 'Bookmark on a patient', sublabel: 'Attach this source to a patient record' },
+          { kind: 'soon', label: 'Track as a system source', sublabel: 'Watch this page for changes' },
+        ];
+        showSaveOffer(rows, (action) => runEnvelopeAction(action));
       },
       onAction: (action) => {
         trace('action', `clicked: ${action.label}`);

@@ -6718,6 +6718,36 @@
 .mobius-confirm-ok.danger { background: var(--mobius-error, #dc2626); }
 .mobius-confirm-cancel:focus-visible, .mobius-confirm-ok:focus-visible { outline: 2px solid var(--mobius-accent, #3b82f6); outline-offset: 2px; }
 
+/* Save scope offer — the "where should it go?" menu the Save verb opens.
+   Corpus rows are live (green-tinted); bookmark rows are the proposed next
+   tier, shown disabled with a "Soon" tag so the taxonomy is visible. */
+.mobius-save-offer .mobius-confirm-body { margin-bottom: 12px; }
+.mobius-save-offer-list { display: flex; flex-direction: column; gap: 6px; }
+.mobius-save-offer-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  position: relative; width: 100%; text-align: left; font-family: inherit;
+  padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--mobius-success, #10b981) 40%, var(--mobius-border, #e2e8f0));
+  background: color-mix(in srgb, var(--mobius-success, #10b981) 8%, var(--mobius-bg-card, #fff));
+}
+.mobius-save-offer-item:hover { filter: brightness(0.99); }
+.mobius-save-offer-item:focus-visible { outline: 2px solid var(--mobius-accent, #3b82f6); outline-offset: 2px; }
+.mobius-save-offer-item.soon {
+  cursor: not-allowed; border-color: var(--mobius-border, #e2e8f0);
+  background: var(--mobius-bg-secondary, #f8fafc); opacity: .72;
+}
+.mobius-save-offer-item.soon:hover { filter: none; }
+.mso-label { font-size: 12.5px; font-weight: 600; color: var(--mobius-text, #1a1d21); }
+.mobius-save-offer-item.soon .mso-label { color: var(--mobius-text-secondary, #3f4a5a); }
+.mso-sub { font-size: 11px; line-height: 1.35; color: var(--mobius-text-muted, #64748b); }
+.mso-soon {
+  position: absolute; top: 9px; right: 10px;
+  font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--mobius-text-muted, #64748b);
+  background: var(--mobius-bg-card, #fff); border: 1px solid var(--mobius-border, #e2e8f0);
+  padding: 1px 6px; border-radius: 999px;
+}
+
 /* =============================================================================
    Assistant render envelope (renderEnvelope) — the chat answer surface
    ============================================================================= */

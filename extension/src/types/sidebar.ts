@@ -50,6 +50,23 @@ export interface EnvelopeAction {
   icon: IconKey;
   /** Behavior class. */
   kind: ActionKind;
+  /**
+   * Which verb this action lives under.
+   *  - `do`   → act on the page in place, nothing persists (summarize, find
+   *             in page, look up a patient). The promoted `do` action fills
+   *             the Do verb; the rest are Suggested.
+   *  - `save` → persist this page. Two forms feed the Save verb's scope offer:
+   *             into a corpus/library (the bytes, retrievable — fetch-to-RAG),
+   *             or a bookmark (a pointer — for me / a patient / the system).
+   * Defaults to `do` when omitted.
+   */
+  group?: 'do' | 'save';
+  /**
+   * For `group: 'save'` actions, the scope the save lands in. `corpus` is the
+   * built fetch-to-RAG lane (bytes → retrieval); the `bookmark_*` scopes are a
+   * pointer only. Ignored for `do` actions.
+   */
+  saveScope?: 'corpus' | 'bookmark_me' | 'bookmark_patient' | 'bookmark_system';
   /** Preset chat prompt for synthesize/compose_reply flows. */
   prompt?: string;
   /** Marks the surface's headline action (promoted into Do). */
