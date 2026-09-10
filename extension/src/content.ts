@@ -3877,7 +3877,7 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
       scroll();
     };
 
-    const renderResult = (opts: { icon: string; cls: string; title: string; body?: string; documentId?: string; taskId: string }) => {
+    const renderResult = (opts: { icon: string; cls: string; title: string; body?: string; documentId?: string; taskId: string; onRetry?: () => void }) => {
       card.innerHTML = '';
       card.classList.add(opts.cls);
       const t = document.createElement('div');
@@ -3889,6 +3889,18 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         b.className = 'sidecar-ingest-note';
         b.textContent = opts.body;
         card.appendChild(b);
+      }
+      // Retry affordance — used for the indeterminate (gate-timeout) block,
+      // which is transient and typically clears on a second attempt.
+      if (opts.onRetry) {
+        const row = document.createElement('div');
+        row.className = 'sidecar-ingest-actions';
+        const retry = document.createElement('button');
+        retry.className = 'sidecar-ingest-accept';
+        retry.textContent = 'Try again';
+        retry.addEventListener('click', () => opts.onRetry!());
+        row.appendChild(retry);
+        card.appendChild(row);
       }
       // Promote-to-org offer on success (personal Vault → shared corpus).
       if (opts.documentId) {
@@ -3934,8 +3946,19 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         });
       } else if (result.duplicate) {
         renderResult({ icon: '✓', cls: 'ok', title: 'Already in Mobius', body: 'This document is already filed for retrieval — ask Mobius about it below.', taskId });
+      } else if (result.blocked && result.indeterminate) {
+        // Gate timed out / infra fail-closed — NOT a PHI finding. Transient;
+        // offer a retry rather than implying the content was flagged.
+        renderResult({
+          icon: '↻',
+          cls: 'indeterminate',
+          title: 'Safety check didn’t finish — try again',
+          body: result.message,
+          taskId,
+          onRetry: () => void run(),
+        });
       } else if (result.blocked) {
-        renderResult({ icon: '⚠', cls: 'blocked', title: 'Not stored — flagged by the safety gate', body: result.message, taskId });
+        renderResult({ icon: '⚠', cls: 'blocked', title: 'Not stored — flagged for PHI', body: result.message, taskId });
       } else {
         renderResult({ icon: '⚠', cls: 'error', title: 'Couldn’t add this document', body: result.message, taskId });
       }

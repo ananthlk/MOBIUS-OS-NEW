@@ -30,6 +30,16 @@ export interface IngestResult {
   ok: boolean;
   /** true when the server PHI gate blocked ingestion (fail-closed). */
   blocked?: boolean;
+  /**
+   * When `blocked`, distinguishes WHY:
+   *  - false/undefined → a genuine PHI detection (gate found identifiers).
+   *  - true            → the gate couldn't return a verdict in time
+   *                      (`gate:"indeterminate"` / `blocked_indeterminate`, a
+   *                      timeout / infra fail-closed). Content isn't implicated;
+   *                      a retry typically lands. Drives the "try again" card
+   *                      instead of the "flagged for PHI" card.
+   */
+  indeterminate?: boolean;
   /** true when the doc is already in the corpus (409 duplicate_file). */
   duplicate?: boolean;
   documentId?: string;
@@ -58,7 +68,16 @@ interface BgResponse {
     error?: string;
     original_filename?: string;
     phi_blocked?: boolean;
-    hipaa_diagnostics?: { reason?: string; identifier_labels?: string[] };
+    // Gate verdict: "phi" (genuine detection) vs "indeterminate" (timeout /
+    // infra fail-closed). `action_taken` mirrors it ("blocked_indeterminate").
+    gate?: string;
+    action_taken?: string;
+    hipaa_diagnostics?: {
+      reason?: string;
+      identifier_labels?: string[];
+      gate?: string;
+      action_taken?: string;
+    };
   } | null;
   stage?: 'fetch' | 'upload';
   error?: string;
@@ -135,13 +154,23 @@ export async function ingestCurrentPage(opts: {
 
   const blocked = j.blocked === true || j.status === 'blocked';
   if (blocked) {
-    trace('error', `ingest blocked by PHI gate — ${j.hipaa_diagnostics?.reason || 'blocked'}`, opts.taskId);
+    const indeterminate = isIndeterminate(j);
+    trace(
+      'error',
+      `ingest ${indeterminate ? 'indeterminate (gate timeout, retryable)' : 'blocked by PHI gate'} — ${j.hipaa_diagnostics?.reason || j.gate || 'blocked'}`,
+      opts.taskId
+    );
     return {
       ok: false,
       blocked: true,
+      indeterminate,
       documentId,
       status: j.status,
-      message: j.message || 'This document couldn’t be verified for safety and was not stored.',
+      message:
+        j.message ||
+        (indeterminate
+          ? 'The safety check didn’t finish in time — nothing was stored. Try again in a moment.'
+          : 'This document couldn’t be verified for safety and was not stored.'),
     };
   }
 
@@ -167,6 +196,23 @@ export async function promoteDocument(documentId: string, taskId: string): Promi
     trace('error', `promote failed: ${String(e)}`, taskId);
     return false;
   }
+}
+
+/**
+ * A block is INDETERMINATE (gate couldn't decide — timeout / infra fail-closed)
+ * rather than a genuine PHI detection ONLY when the server says so explicitly
+ * (`gate:"indeterminate"` / `action_taken:"blocked_indeterminate"`).
+ *
+ * Deliberately conservative: we do NOT infer "indeterminate" from an empty
+ * evidence set. The PHI classifier masks its evidence (recall-over-precision),
+ * so a genuine PHI block can carry empty `identifier_labels` — treating that as
+ * "just a timeout, try again" would invite a retry of a truly-PHI doc. When the
+ * verdict isn't an explicit indeterminate, fall back to the genuine-PHI card.
+ */
+function isIndeterminate(j: NonNullable<BgResponse['json']>): boolean {
+  const gate = j.gate || j.hipaa_diagnostics?.gate;
+  const action = j.action_taken || j.hipaa_diagnostics?.action_taken;
+  return gate === 'indeterminate' || action === 'blocked_indeterminate';
 }
 
 function hostOf(url: string): string {

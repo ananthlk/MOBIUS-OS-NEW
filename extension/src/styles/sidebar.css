@@ -6847,6 +6847,9 @@
 }
 .sidecar-ingest-card.ok { border-left-color: var(--mobius-success, #10b981); }
 .sidecar-ingest-card.blocked { border-left-color: var(--mobius-warning, #f59e0b); }
+/* Indeterminate = gate timeout, transient/retryable — neutral info, not the
+   amber "flagged" or red "error" tone, so a clean doc doesn't read as PHI. */
+.sidecar-ingest-card.indeterminate { border-left-color: var(--mobius-info, #0891b2); }
 .sidecar-ingest-card.error { border-left-color: var(--mobius-error, #dc2626); }
 .sidecar-ingest-title { font-size: 12.5px; font-weight: 700; color: var(--mobius-text-primary, #1a1d21); }
 .sidecar-ingest-meta { font-size: 10.5px; color: var(--mobius-text-muted, #64748b); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
