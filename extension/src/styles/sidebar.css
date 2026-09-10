@@ -13,7 +13,10 @@
   font-family: var(--mobius-font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   background: var(--mobius-bg-primary, #ffffff);
   color: var(--mobius-text-primary, #0b1220);
-  font-size: var(--mobius-text-base, 12px);
+  /* Cohesion with mobius-chat (UX review): system scale 14px / 1.5, not the
+     old 12px density. Narrow layout still handled by wrapping. */
+  font-size: var(--mobius-text-base, 14px);
+  line-height: 1.5;
   font-weight: 400;
 }
 
@@ -6553,7 +6556,7 @@
 
 .sidecar-dosave { display: flex; flex-direction: column; gap: 11px; padding: 10px 12px 12px; }
 .ds-verbs { display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px; }
-.ds-verb { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 12px; border-radius: 12px; border: 1px solid var(--mobius-border, #e2e8f0); background: var(--mobius-bg-secondary, #f8fafc); cursor: pointer; text-align: left; font-family: inherit; }
+.ds-verb { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 12px; border-radius: 12px; border: 1px solid var(--mobius-border, #e2e8f0); background: var(--mobius-bg-secondary, #f8fafc); cursor: pointer; text-align: left; font-family: inherit; }
 .ds-vt { font-size: 15px; font-weight: 700; }
 .ds-vs { font-size: 10.5px; color: var(--mobius-text-muted, #64748b); }
 .ds-verb.do { border-color: color-mix(in srgb, var(--mobius-accent, #3b82f6) 50%, var(--mobius-border, #e2e8f0)); background: color-mix(in srgb, var(--mobius-accent, #3b82f6) 9%, var(--mobius-bg-card, #fff)); }
@@ -6600,7 +6603,7 @@
   color: var(--mobius-violet, #7c3aed); margin-bottom: 3px;
 }
 .sidecar-reco.warn .sidecar-reco-lead { color: var(--mobius-warning, #f59e0b); }
-.sidecar-reco-msg { font-size: 12px; color: var(--mobius-text-primary, #1a1d21); line-height: 1.4; }
+.sidecar-reco-msg { font-size: 13px; color: var(--mobius-text-primary, #1a1d21); line-height: 1.5; }
 .sidecar-reco-msg b { font-weight: 600; }
 .sidecar-reco-actions { display: flex; align-items: center; gap: 4px; margin-top: 7px; }
 .sidecar-reco-do {
@@ -6733,7 +6736,7 @@
 .sidecar-env-tool svg { width: 11px; height: 11px; opacity: .8; }
 
 /* Answer body */
-.sidecar-env-answer { font-size: 12.5px; line-height: 1.5; color: var(--mobius-text-primary, #1a1d21); }
+.sidecar-env-answer { font-size: 13.5px; line-height: 1.5; color: var(--mobius-text-primary, #1a1d21); }
 .sidecar-env-answer div { margin: 2px 0; }
 .sidecar-env-answer strong { font-weight: 700; }
 
@@ -6743,7 +6746,7 @@
   font-family: var(--mobius-font-mono, ui-monospace, monospace);
   font-size: 8px; letter-spacing: .07em; text-transform: uppercase; color: var(--mobius-text-muted, #64748b);
 }
-.sidecar-env-bullet { font-size: 12px; line-height: 1.45; color: var(--mobius-text-secondary, #374151); padding-left: 10px; text-indent: -8px; }
+.sidecar-env-bullet { font-size: 12.5px; line-height: 1.5; color: var(--mobius-text-secondary, #374151); padding-left: 10px; text-indent: -8px; }
 
 /* Collapsibles (How Mobius got here · Sources) */
 .sidecar-env-fold { border-top: 1px solid var(--mobius-border-light, #eef2f7); padding-top: 6px; }

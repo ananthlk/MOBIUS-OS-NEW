@@ -91,14 +91,53 @@ shared mobius-chat pipeline — the same brain as every Mobius surface.
 
 ## 6. Findings & sign-off (reviewers edit here)
 
-### UX / design  — reviewed 2026-09-09 (UX + content pass)
+### UX / design  — reviewed 2026-09-09 (UX + content pass) + cohesion audit 2026-09-09
 - [x] Brand & aesthetics — applied pass holds; DM Sans won't render on CSP-blocked demo hosts (needs iframe decision); violet-hue misuse (get ruling); ~112 legacy raw-hex ride with 2.5.
 - [x] Copy / wording — kill jargon ("care readiness", "closing the gap", "surface"); reconcile 3 chat strings into 1; "wrong?" is weakest string; Do's real verb is the sublabel; Save promises a verb that doesn't exist.
 - [x] Flow — read→consent→attach→answer is solid & demo-worthy. RISKS: PHI toggle = a HIPAA attestation with no confirm, state only in a hover title, and it silently suppresses all future prompts; Save is a co-equal primary that dead-ends; Do can no-op when its target is a stub; 9 reachable "coming soon" toasts feel like a mockup.
 - [x] Information architecture — declutter (PLAN/CONTEXT removed) is right. Chat should be a PINNED footer per spec, not a collapsible. Add a minimal "recent action / undo" (not the full CONTEXT panel).
 - [x] Accessibility — "wrong?" is a span not a button (not focusable); PHI pill meaning is hover-only (no aria); icon-only chat buttons lack aria-label; several 9px labels. Good: status never color-only, focus-visible present.
+- [x] Cohesion with mobius-chat — sidebar and chat share the system but diverge in scale: extension uses 12px base + 1.4 line-height + tight gutters (6–8px), chat uses 14px + 1.5 + ~16px section spacing. **Not a width constraint issue** (sidebar stays narrow via layout wrapping); it's a typography mismatch. **Fix:** bump base font 12→14px, line-height 1.4→1.5, add section gaps. Detailed spec in EXTENSION_UX_COHESION.md (links to all CSS changes).
 - **Verdict:** ☑ approve-with-changes — UX review agent / 2026-09-09
 - **Top 3 before demo:** (1) fix Do/Save verbs — action as primary label, hide/disable Save, prune coming-soon dead-ends; (2) give the PHI attestation real weight — confirm on turn-on + visible state + aria-label; (3) copy + IA cleanup — de-jargon, reconcile chat strings, "wrong?" → real button, pin chat as footer + recent/undo.
+
+#### Cohesion fix spec — sidebar ↔ chat visual alignment
+
+**Changes to src/styles/sidebar.css:**
+
+1. **Base typography** (line 16):
+   ```
+   - font-size: var(--mobius-text-base, 12px);
+   + font-size: var(--mobius-text-base, 14px);
+   ```
+
+2. **Line heights** (lines 287, 372):
+   ```
+   - line-height: 1.4;   /* recommendation message */
+   + line-height: 1.5;
+   
+   - line-height: 1.45;  /* drawer labels, chat input */
+   + line-height: 1.5;
+   ```
+
+3. **Section spacing** (add between major blocks):
+   ```
+   .sidecar-reco { margin-bottom: var(--mobius-space-lg, 16px); }
+   .sidecar-dosave { margin-top: var(--mobius-space-md, 12px); }
+   .ds-grp { margin-top: var(--mobius-space-md, 12px); margin-bottom: var(--mobius-space-sm, 8px); }
+   ```
+
+4. **Button weight** (lines 357, 369, 371+):
+   ```
+   .sidecar-reco-do, .ds-verb, .ds-chip {
+     font-size: var(--mobius-text-base, 14px);
+     font-weight: 500;  /* add this */
+   }
+   ```
+
+Rationale: Chat uses 14px + 1.5 line-height + 16px section gutters. Extension was built for density, not by design. This lifts it to system scale without changing the sidebar's narrow layout (wrapping still handles the width).
+
+**APPLIED (Extension agent, 2026-09-09, verified live):** base 14px + line-height 1.5; recommendation message 13px/1.5; chat answer 13.5px/1.5; env bullets 12.5px/1.5; Do/Save verb gap +1px. Verified in harness (panel + real chat answer): reads at chat scale, narrow layout holds, no console errors. Micro-labels kept small.
 
 #### Extension agent — top-3 resolution (2026-09-09, **verified in code**)
 - [x] **(1) Do/Save verbs** — the promoted action's real verb ("Draft a reply") is now the primary label under a muted `SUGGESTED` eyebrow (dropped the ↘/↗ arrows); Save is a visibly-disabled `Soon` stub with its green "success" fill stripped, so the coming-soon toast dead-end is gone. Verified rendering against the real stylesheet. **CODE VERIFIED:** DoSaveActions.ts lines 42–60: Do button has eyebrow span + action label; Save button has `disabled` attribute + "Soon" label. ✅
