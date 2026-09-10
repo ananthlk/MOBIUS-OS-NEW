@@ -31,15 +31,26 @@ export interface IngestResult {
   /** true when the server PHI gate blocked ingestion (fail-closed). */
   blocked?: boolean;
   /**
-   * When `blocked`, distinguishes WHY:
-   *  - false/undefined → a genuine PHI detection (gate found identifiers).
-   *  - true            → the gate couldn't return a verdict in time
-   *                      (`gate:"indeterminate"` / `blocked_indeterminate`, a
-   *                      timeout / infra fail-closed). Content isn't implicated;
-   *                      a retry typically lands. Drives the "try again" card
-   *                      instead of the "flagged for PHI" card.
+   * When `blocked`, WHY — each drives a different result card:
+   *  - `phi`           → a genuine PHI detection (gate found identifiers, which
+   *                      may be masked). "Not stored — flagged for PHI", no retry.
+   *  - `indeterminate` → the gate couldn't return a verdict (`gate:"indeterminate"`
+   *                      / `blocked_indeterminate` — a transient LLM/infra
+   *                      fail-closed). Content isn't implicated; a retry typically
+   *                      lands. "Safety check didn't finish — try again" + retry.
+   *  - `unconfigured`  → the safety service isn't configured server-side
+   *                      (`blocked_unconfigured`). An admin problem, NOT PHI and
+   *                      NOT retryable. "Safety service unavailable — contact admin".
+   *  - `publish_failed`→ the gate ruled (often clean) but rag's publish failed
+   *                      (`blocked_publish_failed` — a transient storage/pkey
+   *                      collision). NOT a PHI finding; a retry typically lands.
+   *                      "Couldn't finish saving — try again" + retry.
+   * Contract (classifier owner): `phi` iff `gate === "phi"` — the ONE guaranteed
+   * genuine-PHI signal. Every other block is non-PHI and defaults to a soft
+   * "try again" card, NEVER the PHI card ("not indeterminate" ≠ "PHI"; a storage
+   * failure is neither). Holds for any future block type.
    */
-  indeterminate?: boolean;
+  blockReason?: 'phi' | 'indeterminate' | 'unconfigured' | 'publish_failed';
   /** true when the doc is already in the corpus (409 duplicate_file). */
   duplicate?: boolean;
   documentId?: string;
@@ -154,23 +165,27 @@ export async function ingestCurrentPage(opts: {
 
   const blocked = j.blocked === true || j.status === 'blocked';
   if (blocked) {
-    const indeterminate = isIndeterminate(j);
+    const blockReason = classifyBlock(j);
     trace(
       'error',
-      `ingest ${indeterminate ? 'indeterminate (gate timeout, retryable)' : 'blocked by PHI gate'} — ${j.hipaa_diagnostics?.reason || j.gate || 'blocked'}`,
+      `ingest blocked (${blockReason}) — ${j.hipaa_diagnostics?.reason || j.action_taken || j.gate || 'blocked'}`,
       opts.taskId
     );
+    const fallbackMsg =
+      blockReason === 'indeterminate'
+        ? 'The safety check didn’t finish — nothing was stored. Try again in a moment.'
+        : blockReason === 'unconfigured'
+          ? 'The safety service isn’t available right now — nothing was stored. Contact your administrator.'
+          : blockReason === 'publish_failed'
+            ? 'Couldn’t finish saving this document — try again in a moment.'
+            : 'This document couldn’t be verified for safety and was not stored.';
     return {
       ok: false,
       blocked: true,
-      indeterminate,
+      blockReason,
       documentId,
       status: j.status,
-      message:
-        j.message ||
-        (indeterminate
-          ? 'The safety check didn’t finish in time — nothing was stored. Try again in a moment.'
-          : 'This document couldn’t be verified for safety and was not stored.'),
+      message: j.message || fallbackMsg,
     };
   }
 
@@ -199,20 +214,33 @@ export async function promoteDocument(documentId: string, taskId: string): Promi
 }
 
 /**
- * A block is INDETERMINATE (gate couldn't decide — timeout / infra fail-closed)
- * rather than a genuine PHI detection ONLY when the server says so explicitly
- * (`gate:"indeterminate"` / `action_taken:"blocked_indeterminate"`).
+ * Why a fail-closed block happened, from the server's explicit verdict only.
  *
- * Deliberately conservative: we do NOT infer "indeterminate" from an empty
- * evidence set. The PHI classifier masks its evidence (recall-over-precision),
- * so a genuine PHI block can carry empty `identifier_labels` — treating that as
- * "just a timeout, try again" would invite a retry of a truly-PHI doc. When the
- * verdict isn't an explicit indeterminate, fall back to the genuine-PHI card.
+ * Deliberately conservative: anything not explicitly `indeterminate` or
+ * `unconfigured` falls back to `phi` — the safe card. The PHI classifier masks
+ * its evidence (recall-over-precision), so a genuine PHI block can carry empty
+ * `identifier_labels`; we must never infer "just retry" from a thin finding set
+ * and invite a retry of a truly-PHI doc. Only the server naming the reason
+ * flips us off the PHI card.
  */
-function isIndeterminate(j: NonNullable<BgResponse['json']>): boolean {
+function classifyBlock(
+  j: NonNullable<BgResponse['json']>
+): 'phi' | 'indeterminate' | 'unconfigured' | 'publish_failed' {
   const gate = j.gate || j.hipaa_diagnostics?.gate;
   const action = j.action_taken || j.hipaa_diagnostics?.action_taken;
-  return gate === 'indeterminate' || action === 'blocked_indeterminate';
+  // THE CONTRACT (per the PHI classifier owner): show the PHI card if and ONLY
+  // if gate === "phi". That is the single guaranteed genuine-PHI signal
+  // (gate === "phi" ⟺ phi_flag ⟺ PHI actually detected); a real detection is
+  // NEVER emitted as any other gate value. Crucially, "not indeterminate" is
+  // NOT "PHI" — a storage failure (blocked_publish_failed, which preserves the
+  // real gate === "clean") is neither. So every non-"phi" block defaults to a
+  // soft "couldn't finish — try again" card, never the alarming PHI card. This
+  // stays correct for any future block type we don't yet name.
+  if (gate === 'phi') return 'phi';
+  if (action === 'blocked_unconfigured') return 'unconfigured';
+  if (action === 'blocked_publish_failed') return 'publish_failed';
+  // Explicit indeterminate, catch-all, or anything unknown → soft/retry.
+  return 'indeterminate';
 }
 
 function hostOf(url: string): string {

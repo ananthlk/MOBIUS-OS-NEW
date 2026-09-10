@@ -3946,9 +3946,9 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
         });
       } else if (result.duplicate) {
         renderResult({ icon: '✓', cls: 'ok', title: 'Already in Mobius', body: 'This document is already filed for retrieval — ask Mobius about it below.', taskId });
-      } else if (result.blocked && result.indeterminate) {
-        // Gate timed out / infra fail-closed — NOT a PHI finding. Transient;
-        // offer a retry rather than implying the content was flagged.
+      } else if (result.blocked && result.blockReason === 'indeterminate') {
+        // Gate couldn't decide (transient LLM/infra fail-closed) — NOT a PHI
+        // finding. Offer a retry rather than implying the content was flagged.
         renderResult({
           icon: '↻',
           cls: 'indeterminate',
@@ -3956,6 +3956,27 @@ async function initSidecarUI(miniState: MiniState): Promise<void> {
           body: result.message,
           taskId,
           onRetry: () => void run(),
+        });
+      } else if (result.blocked && result.blockReason === 'publish_failed') {
+        // Gate ruled (often clean) but the save failed downstream — NOT a PHI
+        // finding. Transient; a retry typically lands.
+        renderResult({
+          icon: '↻',
+          cls: 'indeterminate',
+          title: 'Couldn’t finish saving — try again',
+          body: result.message,
+          taskId,
+          onRetry: () => void run(),
+        });
+      } else if (result.blocked && result.blockReason === 'unconfigured') {
+        // Safety service not configured server-side — an admin problem, not PHI
+        // and not retryable. No retry button (retrying can't succeed).
+        renderResult({
+          icon: '⚠',
+          cls: 'error',
+          title: 'Safety service unavailable',
+          body: result.message,
+          taskId,
         });
       } else if (result.blocked) {
         renderResult({ icon: '⚠', cls: 'blocked', title: 'Not stored — flagged for PHI', body: result.message, taskId });
